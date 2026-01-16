@@ -1,0 +1,3 @@
+[submodule "learn-projects/rudo"]
+	path = learn-projects/rudo
+	url = git@github.com:XuHaoJun/rudo.git
