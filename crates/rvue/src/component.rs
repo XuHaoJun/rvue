@@ -85,11 +85,19 @@ pub trait ComponentLifecycle {
 
 impl Component {
     /// Create a new component with the given type and props
+    /// Optimized: Pre-allocate with capacity hints for common component trees
     pub fn new(id: ComponentId, component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
+        // Pre-allocate children vector with small capacity for common case
+        // This reduces reallocations during component tree construction
+        let initial_children_capacity = match component_type {
+            ComponentType::Flex | ComponentType::For => 8, // Containers typically have multiple children
+            _ => 0, // Leaf components typically have no children
+        };
+        
         Gc::new(Self {
             id,
             component_type,
-            children: Vec::new(),
+            children: Vec::with_capacity(initial_children_capacity),
             parent: None,
             effects: Vec::new(),
             props,

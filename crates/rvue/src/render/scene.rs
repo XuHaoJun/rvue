@@ -7,18 +7,28 @@ use vello::kurbo::Affine;
 
 /// Scene structure for managing Vello rendering
 pub struct Scene {
-    pub vello_scene: vello::Scene,
+    pub vello_scene: Option<vello::Scene>, // Lazy initialization
     pub fragments: Vec<VelloFragment>,
     pub is_dirty: bool,
+    pub renderer_initialized: bool,
 }
 
 impl Scene {
-    /// Create a new scene
+    /// Create a new scene with lazy renderer initialization
     pub fn new() -> Self {
         Self {
-            vello_scene: vello::Scene::new(),
+            vello_scene: None, // Defer scene creation until first render
             fragments: Vec::new(),
             is_dirty: true,
+            renderer_initialized: false,
+        }
+    }
+    
+    /// Initialize the Vello scene lazily (only when needed)
+    fn ensure_initialized(&mut self) {
+        if self.vello_scene.is_none() {
+            self.vello_scene = Some(vello::Scene::new());
+            self.renderer_initialized = true;
         }
     }
 
@@ -35,14 +45,21 @@ impl Scene {
             return;
         }
 
+        // Lazy initialization: Only create scene when actually needed
+        self.ensure_initialized();
+
         // Clear the Vello scene
-        self.vello_scene = vello::Scene::new();
+        if let Some(ref mut scene) = self.vello_scene {
+            *scene = vello::Scene::new();
+        }
 
         // Regenerate all fragments
         let mut y_offset = 0.0;
         for fragment in &self.fragments {
             let transform = Affine::translate((0.0, y_offset));
-            fragment.generate_scene_items(&mut self.vello_scene, transform);
+            if let Some(ref mut scene) = self.vello_scene {
+                fragment.generate_scene_items(scene, transform);
+            }
             
             // Simple vertical stacking for MVP
             y_offset += 50.0;
@@ -62,13 +79,17 @@ impl Scene {
     }
 
     /// Get a reference to the underlying Vello scene
-    pub fn vello_scene(&self) -> &vello::Scene {
-        &self.vello_scene
+    /// Initializes the scene if it hasn't been created yet
+    pub fn vello_scene(&mut self) -> &vello::Scene {
+        self.ensure_initialized();
+        self.vello_scene.as_ref().unwrap()
     }
 
     /// Get a mutable reference to the underlying Vello scene
+    /// Initializes the scene if it hasn't been created yet
     pub fn vello_scene_mut(&mut self) -> &mut vello::Scene {
-        &mut self.vello_scene
+        self.ensure_initialized();
+        self.vello_scene.as_mut().unwrap()
     }
 }
 

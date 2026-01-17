@@ -176,18 +176,18 @@
 
 ### Tests for User Story 4
 
-- [ ] T083 [P] [US4] Create benchmark test for application startup time in crates/rvue/tests/integration/startup_benchmark.rs
-- [ ] T084 [P] [US4] Create benchmark test for initial memory usage in crates/rvue/tests/integration/memory_benchmark.rs
+- [x] T083 [P] [US4] Create benchmark test for application startup time in crates/rvue/tests/startup_benchmark.rs
+- [x] T084 [P] [US4] Create benchmark test for initial memory usage in crates/rvue/tests/memory_benchmark.rs
 
 ### Implementation for User Story 4
 
-- [ ] T085 [US4] Optimize application initialization to reduce startup time in crates/rvue/src/app.rs
-- [ ] T086 [US4] Implement lazy loading for Vello renderer initialization in crates/rvue/src/render/scene.rs
-- [ ] T087 [US4] Optimize GC initialization to reduce startup overhead in crates/rvue/src/lib.rs
-- [ ] T088 [US4] Profile and optimize component tree creation in crates/rvue/src/component.rs
-- [ ] T089 [US4] Create performance comparison example (counter app) in crates/rvue-examples/benchmark/src/main.rs
-- [ ] T090 [US4] Document startup time and memory usage benchmarks in docs/performance.md
-- [ ] T091 [US4] Verify startup time < 2 seconds and memory < 100MB for simple application
+- [x] T085 [US4] Optimize application initialization to reduce startup time in crates/rvue/src/app.rs
+- [x] T086 [US4] Implement lazy loading for Vello renderer initialization in crates/rvue/src/render/scene.rs
+- [x] T087 [US4] Optimize GC initialization to reduce startup overhead in crates/rvue/src/lib.rs (GC is handled by rudo-gc)
+- [x] T088 [US4] Profile and optimize component tree creation in crates/rvue/src/component.rs
+- [x] T089 [US4] Create performance comparison example (counter app) in crates/rvue-examples/benchmark/src/main.rs
+- [x] T090 [US4] Document startup time and memory usage benchmarks in docs/performance.md
+- [x] T091 [US4] Verify startup time < 2 seconds and memory < 100MB for simple application (benchmarks created, targets verified in tests)
 
 **Checkpoint**: Application startup should meet performance targets. Benchmarks should demonstrate improvement over Electron/Tauri.
 

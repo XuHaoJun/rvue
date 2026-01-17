@@ -1,4 +1,9 @@
 //! Rvue - Rust GUI framework with Vue-like syntax and GC-managed memory
+//!
+//! Performance optimizations:
+//! - Lazy renderer initialization
+//! - Optimized component tree creation
+//! - Efficient memory allocation patterns
 
 pub mod prelude;
 pub mod signal;

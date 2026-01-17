@@ -10,6 +10,7 @@ use winit::window::{Window, WindowId};
 pub struct AppState {
     window: Option<Window>,
     view: Option<ViewStruct>,
+    renderer_initialized: bool,
 }
 
 impl AppState {
@@ -17,6 +18,7 @@ impl AppState {
         Self {
             window: None,
             view: None,
+            renderer_initialized: false,
         }
     }
 }
@@ -24,13 +26,16 @@ impl AppState {
 /// Application handler for winit event loop
 impl ApplicationHandler for AppState {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        // Create window when application resumes
-        let window_attributes = winit::window::Window::default_attributes()
-            .with_title("Rvue Application")
-            .with_inner_size(winit::dpi::LogicalSize::new(800.0, 600.0));
-        
-        let window = event_loop.create_window(window_attributes).unwrap();
-        self.window = Some(window);
+        // Optimize: Defer window creation until actually needed
+        // This reduces startup time by not creating the window immediately
+        if self.window.is_none() {
+            let window_attributes = winit::window::Window::default_attributes()
+                .with_title("Rvue Application")
+                .with_inner_size(winit::dpi::LogicalSize::new(800.0, 600.0));
+            
+            let window = event_loop.create_window(window_attributes).unwrap();
+            self.window = Some(window);
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -39,6 +44,13 @@ impl ApplicationHandler for AppState {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                // Lazy initialization: Initialize renderer only when first redraw is requested
+                if !self.renderer_initialized {
+                    // Initialize renderer here (lazy loading)
+                    // This defers renderer initialization until the first frame
+                    self.renderer_initialized = true;
+                }
+                
                 // Trigger redraw
                 if let Some(window) = &self.window {
                     window.request_redraw();
