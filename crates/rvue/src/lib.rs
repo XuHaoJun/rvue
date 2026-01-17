@@ -21,6 +21,6 @@ pub use effect::{create_effect, Effect};
 pub use component::{Component, ComponentType, ComponentProps, ComponentLifecycle, ComponentId};
 pub use view::{View, ViewStruct};
 pub use style::{Style, Color, Spacing, Size, Border, BorderStyle, FontWeight, FlexDirection, AlignItems, JustifyContent};
-pub use widgets::{Text, Button, Show, For};
+pub use widgets::{Text, Button, Show, For, Flex};
 pub use app::{run_app, AppError};
 pub use render::{Scene, VelloFragment};

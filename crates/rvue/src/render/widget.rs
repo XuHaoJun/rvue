@@ -46,6 +46,9 @@ impl VelloFragment {
             ComponentType::For => {
                 Self::render_for(&self.component, scene, transform);
             }
+            ComponentType::Flex => {
+                Self::render_flex(&self.component, scene, transform);
+            }
             _ => {
                 // Other component types will be implemented later
             }
@@ -130,6 +133,25 @@ impl VelloFragment {
                 child_fragment.generate_scene_items(scene, transform * child_transform);
                 
                 // Simple vertical stacking for MVP
+                y_offset += 50.0;
+            }
+        }
+    }
+
+    /// Render a Flex widget to the Vello scene
+    /// Applies layout results to position children correctly
+    fn render_flex(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::Flex { .. } = &component.props {
+            // For MVP, we'll render children with simple stacking
+            // In a full implementation, we'd use layout results from Taffy
+            let mut y_offset = 0.0;
+            for child in &component.children {
+                // Apply layout transform if available
+                // For MVP, use simple vertical stacking
+                let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
+                let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
+                child_fragment.generate_scene_items(scene, transform * child_transform);
+                
                 y_offset += 50.0;
             }
         }
