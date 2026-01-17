@@ -1,8 +1,8 @@
 //! Scene graph management for Vello rendering
 
-use rudo_gc::Gc;
 use crate::component::Component;
 use crate::render::widget::VelloFragment;
+use rudo_gc::Gc;
 use vello::kurbo::Affine;
 
 /// Scene structure for managing Vello rendering
@@ -23,7 +23,7 @@ impl Scene {
             renderer_initialized: false,
         }
     }
-    
+
     /// Initialize the Vello scene lazily (only when needed)
     fn ensure_initialized(&mut self) {
         if self.vello_scene.is_none() {
@@ -60,7 +60,7 @@ impl Scene {
             if let Some(ref mut scene) = self.vello_scene {
                 fragment.generate_scene_items(scene, transform);
             }
-            
+
             // Simple vertical stacking for MVP
             y_offset += 50.0;
         }

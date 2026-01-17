@@ -1,8 +1,8 @@
 //! For widget for list rendering
 
-use rudo_gc::{Gc, Trace};
-use crate::component::{Component, ComponentType, ComponentProps, ComponentId};
+use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
 use crate::signal::SignalRead;
+use rudo_gc::{Gc, Trace};
 use std::collections::HashMap;
 
 /// For widget for rendering lists of items
@@ -18,11 +18,7 @@ pub struct ItemKey {
 impl For {
     /// Create a new For component with a static item count
     pub fn new(id: ComponentId, item_count: usize) -> Gc<Component> {
-        Component::new(
-            id,
-            ComponentType::For,
-            ComponentProps::For { item_count },
-        )
+        Component::new(id, ComponentType::For, ComponentProps::For { item_count })
     }
 
     /// Create a new For component from a signal containing a collection
@@ -34,11 +30,7 @@ impl For {
     {
         let items = each_signal.get();
         let item_count = items.len();
-        Component::new(
-            id,
-            ComponentType::For,
-            ComponentProps::For { item_count },
-        )
+        Component::new(id, ComponentType::For, ComponentProps::For { item_count })
     }
 
     /// Perform key-based diffing to determine what items were added, removed, or updated
@@ -51,32 +43,20 @@ impl For {
     where
         F: Fn(&T) -> String,
     {
-        let old_keys: HashMap<String, usize> = old_items
-            .iter()
-            .enumerate()
-            .map(|(i, item)| (key_fn(item), i))
-            .collect();
-        
-        let new_keys: HashMap<String, usize> = new_items
-            .iter()
-            .enumerate()
-            .map(|(i, item)| (key_fn(item), i))
-            .collect();
-        
+        let old_keys: HashMap<String, usize> =
+            old_items.iter().enumerate().map(|(i, item)| (key_fn(item), i)).collect();
+
+        let new_keys: HashMap<String, usize> =
+            new_items.iter().enumerate().map(|(i, item)| (key_fn(item), i)).collect();
+
         // Find added items (in new but not in old)
-        let added: Vec<String> = new_keys
-            .keys()
-            .filter(|k| !old_keys.contains_key(*k))
-            .cloned()
-            .collect();
-        
+        let added: Vec<String> =
+            new_keys.keys().filter(|k| !old_keys.contains_key(*k)).cloned().collect();
+
         // Find removed items (in old but not in new)
-        let removed: Vec<String> = old_keys
-            .keys()
-            .filter(|k| !new_keys.contains_key(*k))
-            .cloned()
-            .collect();
-        
+        let removed: Vec<String> =
+            old_keys.keys().filter(|k| !new_keys.contains_key(*k)).cloned().collect();
+
         // Find updated items (in both but position changed or content changed)
         let updated: Vec<String> = new_keys
             .iter()
@@ -90,7 +70,7 @@ impl For {
             })
             .map(|(k, _)| k.clone())
             .collect();
-        
+
         (added, removed, updated)
     }
 
@@ -108,11 +88,11 @@ impl For {
             // For MVP, we'll keep all children
             true
         });
-        
+
         // Add components for added keys
         // In a full implementation, we'd create a new component for each key
         // For MVP, this is a placeholder
-        
+
         // Update components for updated keys
         // In a full implementation, we'd update the existing component
         // For MVP, this is a placeholder

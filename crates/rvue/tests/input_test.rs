@@ -1,17 +1,15 @@
 //! Unit tests for input components
 
-use rvue::{Component, ComponentType, ComponentProps, ComponentId};
+use rvue::{Component, ComponentId, ComponentProps, ComponentType};
 
 #[test]
 fn test_text_input_creation() {
     let text_input = Component::new(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput {
-            value: "Hello".to_string(),
-        },
+        ComponentProps::TextInput { value: "Hello".to_string() },
     );
-    
+
     assert_eq!(text_input.component_type, ComponentType::TextInput);
     match &text_input.props {
         ComponentProps::TextInput { value } => {
@@ -23,14 +21,9 @@ fn test_text_input_creation() {
 
 #[test]
 fn test_number_input_creation() {
-    let number_input = Component::new(
-        1,
-        ComponentType::NumberInput,
-        ComponentProps::NumberInput {
-            value: 42.0,
-        },
-    );
-    
+    let number_input =
+        Component::new(1, ComponentType::NumberInput, ComponentProps::NumberInput { value: 42.0 });
+
     assert_eq!(number_input.component_type, ComponentType::NumberInput);
     match &number_input.props {
         ComponentProps::NumberInput { value } => {
@@ -42,14 +35,9 @@ fn test_number_input_creation() {
 
 #[test]
 fn test_checkbox_creation() {
-    let checkbox = Component::new(
-        1,
-        ComponentType::Checkbox,
-        ComponentProps::Checkbox {
-            checked: true,
-        },
-    );
-    
+    let checkbox =
+        Component::new(1, ComponentType::Checkbox, ComponentProps::Checkbox { checked: true });
+
     assert_eq!(checkbox.component_type, ComponentType::Checkbox);
     match &checkbox.props {
         ComponentProps::Checkbox { checked } => {
@@ -64,12 +52,9 @@ fn test_radio_creation() {
     let radio = Component::new(
         1,
         ComponentType::Radio,
-        ComponentProps::Radio {
-            value: "option1".to_string(),
-            checked: true,
-        },
+        ComponentProps::Radio { value: "option1".to_string(), checked: true },
     );
-    
+
     assert_eq!(radio.component_type, ComponentType::Radio);
     match &radio.props {
         ComponentProps::Radio { value, checked } => {
@@ -85,11 +70,9 @@ fn test_text_input_empty_value() {
     let text_input = Component::new(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput {
-            value: String::new(),
-        },
+        ComponentProps::TextInput { value: String::new() },
     );
-    
+
     match &text_input.props {
         ComponentProps::TextInput { value } => {
             assert_eq!(value, "");
@@ -100,14 +83,9 @@ fn test_text_input_empty_value() {
 
 #[test]
 fn test_checkbox_unchecked() {
-    let checkbox = Component::new(
-        1,
-        ComponentType::Checkbox,
-        ComponentProps::Checkbox {
-            checked: false,
-        },
-    );
-    
+    let checkbox =
+        Component::new(1, ComponentType::Checkbox, ComponentProps::Checkbox { checked: false });
+
     match &checkbox.props {
         ComponentProps::Checkbox { checked } => {
             assert_eq!(*checked, false);
@@ -121,12 +99,9 @@ fn test_radio_unchecked() {
     let radio = Component::new(
         1,
         ComponentType::Radio,
-        ComponentProps::Radio {
-            value: "option2".to_string(),
-            checked: false,
-        },
+        ComponentProps::Radio { value: "option2".to_string(), checked: false },
     );
-    
+
     match &radio.props {
         ComponentProps::Radio { value, checked } => {
             assert_eq!(value, "option2");
@@ -138,14 +113,9 @@ fn test_radio_unchecked() {
 
 #[test]
 fn test_number_input_zero() {
-    let number_input = Component::new(
-        1,
-        ComponentType::NumberInput,
-        ComponentProps::NumberInput {
-            value: 0.0,
-        },
-    );
-    
+    let number_input =
+        Component::new(1, ComponentType::NumberInput, ComponentProps::NumberInput { value: 0.0 });
+
     match &number_input.props {
         ComponentProps::NumberInput { value } => {
             assert_eq!(*value, 0.0);

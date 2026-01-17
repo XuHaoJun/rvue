@@ -1,7 +1,7 @@
 //! Component trait and lifecycle management
 
-use rudo_gc::{Gc, Trace};
 use crate::effect::Effect;
+use rudo_gc::{Gc, Trace};
 
 /// Unique identifier for a component
 pub type ComponentId = u64;
@@ -75,10 +75,10 @@ unsafe impl Trace for Component {
 pub trait ComponentLifecycle {
     /// Mount the component to the component tree
     fn mount(&self, parent: Option<Gc<Component>>);
-    
+
     /// Unmount the component from the component tree
     fn unmount(&self);
-    
+
     /// Update the component when signals change
     fn update(&self);
 }
@@ -93,7 +93,7 @@ impl Component {
             ComponentType::Flex | ComponentType::For => 8, // Containers typically have multiple children
             _ => 0, // Leaf components typically have no children
         };
-        
+
         Gc::new(Self {
             id,
             component_type,
@@ -125,7 +125,7 @@ impl ComponentLifecycle for Component {
         // Set parent reference
         // Note: We need mutable access, but Component is in Gc, so we'll need GcCell
         // For MVP, we'll handle this at a higher level
-        
+
         // For Show components, mount/unmount children based on when condition
         // Note: We can't easily get the Gc wrapper from inside Component
         // For MVP, we'll mount children without parent reference
@@ -151,7 +151,7 @@ impl ComponentLifecycle for Component {
         for child in &self.children {
             child.unmount();
         }
-        
+
         // Clean up effects
         // Effects are cleaned up by GC when component is dropped
     }
@@ -161,7 +161,7 @@ impl ComponentLifecycle for Component {
         for effect in &self.effects {
             Effect::update_if_dirty(effect);
         }
-        
+
         // For Show components, update children mounting based on when condition
         if let ComponentType::Show = self.component_type {
             if let ComponentProps::Show { when } = &self.props {
@@ -178,7 +178,7 @@ impl ComponentLifecycle for Component {
                 }
             }
         }
-        
+
         // Update all children
         for child in &self.children {
             child.update();

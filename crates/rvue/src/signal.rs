@@ -1,8 +1,8 @@
 //! Reactive signal implementation for fine-grained reactivity
 
+use crate::effect::{current_effect, Effect};
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicU64, Ordering};
-use crate::effect::{Effect, current_effect};
 
 /// Internal signal data structure
 pub struct SignalData<T: Trace + Clone + 'static> {
@@ -79,7 +79,7 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().any(|sub| Gc::ptr_eq(sub, &effect))
         };
-        
+
         // Only add if not already subscribed
         if !already_subscribed {
             let mut subscribers = self.subscribers.borrow_mut();
@@ -97,16 +97,16 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().map(|e| Gc::clone(e)).collect()
         };
-        
+
         // Mark all effects as dirty first (no borrow needed)
         for effect in effects_to_update.iter() {
             effect.mark_dirty();
         }
-        
+
         // Release the borrow before running effects to avoid deadlock
         // Effects may call signal.get() which tries to subscribe, but since
         // we've already released the borrow, this is safe
-        
+
         // Then update them (use the collected list, don't re-collect to avoid
         // running newly added effects that weren't dirty)
         // Note: We iterate over the collected list to avoid running effects
@@ -122,14 +122,13 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
 }
 
 /// Create a new signal with an initial value
-pub fn create_signal<T: Trace + Clone + 'static>(initial_value: T) -> (ReadSignal<T>, WriteSignal<T>) {
+pub fn create_signal<T: Trace + Clone + 'static>(
+    initial_value: T,
+) -> (ReadSignal<T>, WriteSignal<T>) {
     let data = Gc::new(SignalData {
         value: GcCell::new(initial_value),
         version: AtomicU64::new(0),
         subscribers: GcCell::new(Vec::new()),
     });
-    (
-        ReadSignal { data: Gc::clone(&data) },
-        WriteSignal { data },
-    )
+    (ReadSignal { data: Gc::clone(&data) }, WriteSignal { data })
 }

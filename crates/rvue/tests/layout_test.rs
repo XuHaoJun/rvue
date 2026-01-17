@@ -1,6 +1,6 @@
 //! Integration test for Flexbox layout
 
-use rvue::{Component, ComponentType, ComponentProps, FlexDirection, AlignItems, JustifyContent};
+use rvue::{AlignItems, Component, ComponentProps, ComponentType, FlexDirection, JustifyContent};
 
 #[test]
 fn test_flexbox_layout_creation() {
@@ -15,7 +15,7 @@ fn test_flexbox_layout_creation() {
             justify_content: "start".to_string(),
         },
     );
-    
+
     assert_eq!(flex.component_type, ComponentType::Flex);
     match &flex.props {
         ComponentProps::Flex { direction, gap, align_items, justify_content } => {
@@ -41,7 +41,7 @@ fn test_flexbox_nested_layouts() {
             justify_content: "center".to_string(),
         },
     );
-    
+
     let inner = Component::new(
         2,
         ComponentType::Flex,
@@ -52,7 +52,7 @@ fn test_flexbox_nested_layouts() {
             justify_content: "space-between".to_string(),
         },
     );
-    
+
     assert_eq!(outer.component_type, ComponentType::Flex);
     assert_eq!(inner.component_type, ComponentType::Flex);
 }
@@ -70,7 +70,7 @@ fn test_flexbox_spacing() {
             justify_content: "start".to_string(),
         },
     );
-    
+
     match &flex.props {
         ComponentProps::Flex { gap, .. } => {
             assert_eq!(*gap, 15.0);
@@ -88,7 +88,7 @@ fn test_flexbox_alignment() {
         ("end", "start"),
         ("stretch", "space-between"),
     ];
-    
+
     for (align_items, justify_content) in test_cases {
         let flex = Component::new(
             1,
@@ -100,7 +100,7 @@ fn test_flexbox_alignment() {
                 justify_content: justify_content.to_string(),
             },
         );
-        
+
         match &flex.props {
             ComponentProps::Flex { align_items: ai, justify_content: jc, .. } => {
                 assert_eq!(ai, align_items);

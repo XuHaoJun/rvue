@@ -1,6 +1,6 @@
 //! Unit tests for Button widget event handling
 
-use rvue::{Component, ComponentType, ComponentProps, ComponentId};
+use rvue::{Component, ComponentId, ComponentProps, ComponentType};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -9,11 +9,9 @@ fn test_button_widget_creation() {
     let button = Component::new(
         1,
         ComponentType::Button,
-        ComponentProps::Button {
-            label: "Click Me".to_string(),
-        },
+        ComponentProps::Button { label: "Click Me".to_string() },
     );
-    
+
     assert_eq!(button.component_type, ComponentType::Button);
     match &button.props {
         ComponentProps::Button { label } => {
@@ -30,11 +28,9 @@ fn test_button_widget_event_handler() {
     let button = Component::new(
         1,
         ComponentType::Button,
-        ComponentProps::Button {
-            label: "Submit".to_string(),
-        },
+        ComponentProps::Button { label: "Submit".to_string() },
     );
-    
+
     match &button.props {
         ComponentProps::Button { label } => {
             assert_eq!(label, "Submit");
@@ -47,11 +43,23 @@ fn test_button_widget_event_handler() {
 fn test_button_widget_multiple_buttons() {
     // Test creating multiple button widgets
     let buttons = vec![
-        Component::new(1, ComponentType::Button, ComponentProps::Button { label: "OK".to_string() }),
-        Component::new(2, ComponentType::Button, ComponentProps::Button { label: "Cancel".to_string() }),
-        Component::new(3, ComponentType::Button, ComponentProps::Button { label: "Apply".to_string() }),
+        Component::new(
+            1,
+            ComponentType::Button,
+            ComponentProps::Button { label: "OK".to_string() },
+        ),
+        Component::new(
+            2,
+            ComponentType::Button,
+            ComponentProps::Button { label: "Cancel".to_string() },
+        ),
+        Component::new(
+            3,
+            ComponentType::Button,
+            ComponentProps::Button { label: "Apply".to_string() },
+        ),
     ];
-    
+
     assert_eq!(buttons.len(), 3);
     let labels = vec!["OK", "Cancel", "Apply"];
     for (i, button) in buttons.iter().enumerate() {
@@ -67,14 +75,9 @@ fn test_button_widget_multiple_buttons() {
 
 #[test]
 fn test_button_widget_with_empty_label() {
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button {
-            label: String::new(),
-        },
-    );
-    
+    let button =
+        Component::new(1, ComponentType::Button, ComponentProps::Button { label: String::new() });
+
     match &button.props {
         ComponentProps::Button { label } => {
             assert_eq!(label, "");

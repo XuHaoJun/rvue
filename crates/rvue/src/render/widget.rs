@@ -1,8 +1,8 @@
 //! Widget-to-Vello mapping
 
+use crate::component::{Component, ComponentProps, ComponentType};
 use rudo_gc::Gc;
-use crate::component::{Component, ComponentType, ComponentProps};
-use vello::kurbo::{Rect, RoundedRect, Circle};
+use vello::kurbo::{Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
 /// Vello fragment wrapper for scene graph
@@ -14,10 +14,7 @@ pub struct VelloFragment {
 impl VelloFragment {
     /// Create a new Vello fragment for a component
     pub fn new(component: Gc<Component>) -> Self {
-        Self {
-            component,
-            is_dirty: true,
-        }
+        Self { component, is_dirty: true }
     }
 
     /// Mark the fragment as dirty (needs update)
@@ -68,22 +65,20 @@ impl VelloFragment {
     }
 
     /// Render a Text widget to the Vello scene
-    fn render_text(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_text(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Text { content: _ } = &component.props {
             // For MVP, we'll render text as a simple rectangle placeholder
             // Full text rendering with fonts will be implemented later
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-            
+
             // Fill the text area (placeholder - actual text rendering needs font support)
             let bg_color = Color::from_rgba8(200, 200, 200, 255); // Light gray background
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &rect,
-            );
-            
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+
             // Note: Actual text rendering requires:
             // 1. Font loading and management
             // 2. Text layout (line breaking, etc.)
@@ -93,31 +88,33 @@ impl VelloFragment {
     }
 
     /// Render a Button widget to the Vello scene
-    fn render_button(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_button(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Button { label: _ } = &component.props {
             // Render button background
             let rect = RoundedRect::new(0.0, 0.0, 120.0, 40.0, 4.0);
             let bg_color = Color::from_rgb8(70, 130, 180); // Steel blue
-            
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &rect,
-            );
-            
+
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+
             // Render button border
             // For MVP, we'll skip the border stroke - full stroke support will be added later
             // when we have proper peniko::Stroke API access
-            
+
             // Note: Button text rendering will be added when text rendering is fully implemented
         }
     }
 
     /// Render a Show widget to the Vello scene
     /// Only renders children if when is true
-    fn render_show(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_show(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Show { when } = &component.props {
             // Only render children if when is true
             if *when {
@@ -134,7 +131,11 @@ impl VelloFragment {
 
     /// Render a For widget to the Vello scene
     /// Renders all children (list items) efficiently
-    fn render_for(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_for(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::For { item_count: _ } = &component.props {
             // Render all children (list items)
             let mut y_offset = 0.0;
@@ -143,7 +144,7 @@ impl VelloFragment {
                 let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
                 let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
                 child_fragment.generate_scene_items(scene, transform * child_transform);
-                
+
                 // Simple vertical stacking for MVP
                 y_offset += 50.0;
             }
@@ -152,7 +153,11 @@ impl VelloFragment {
 
     /// Render a Flex widget to the Vello scene
     /// Applies layout results to position children correctly
-    fn render_flex(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_flex(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Flex { .. } = &component.props {
             // For MVP, we'll render children with simple stacking
             // In a full implementation, we'd use layout results from Taffy
@@ -163,50 +168,50 @@ impl VelloFragment {
                 let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
                 let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
                 child_fragment.generate_scene_items(scene, transform * child_transform);
-                
+
                 y_offset += 50.0;
             }
         }
     }
 
     /// Render a TextInput widget to the Vello scene
-    fn render_text_input(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_text_input(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::TextInput { value: _ } = &component.props {
             // Render input field background
             let rect = RoundedRect::new(0.0, 0.0, 200.0, 30.0, 2.0);
             let bg_color = Color::from_rgb8(255, 255, 255); // White background
-            
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &rect,
-            );
-            
+
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+
             // Note: Text rendering and cursor will be added when text rendering is fully implemented
         }
     }
 
     /// Render a NumberInput widget to the Vello scene
-    fn render_number_input(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_number_input(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::NumberInput { value: _ } = &component.props {
             // Render input field background (similar to TextInput)
             let rect = RoundedRect::new(0.0, 0.0, 150.0, 30.0, 2.0);
             let bg_color = Color::from_rgb8(255, 255, 255); // White background
-            
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &rect,
-            );
+
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
         }
     }
 
     /// Render a Checkbox widget to the Vello scene
-    fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_checkbox(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Checkbox { checked } = &component.props {
             // Render checkbox square
             let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
@@ -215,23 +220,21 @@ impl VelloFragment {
             } else {
                 Color::from_rgb8(255, 255, 255) // White when unchecked
             };
-            
+
             // Fill background
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &rect,
-            );
-            
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+
             // Render border
             // Note: Border rendering will be added when stroke API is fully available
         }
     }
 
     /// Render a Radio widget to the Vello scene
-    fn render_radio(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+    fn render_radio(
+        component: &Component,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
         if let ComponentProps::Radio { value: _, checked } = &component.props {
             // Render radio circle
             let circle = Circle::new((10.0, 10.0), 10.0);
@@ -240,27 +243,15 @@ impl VelloFragment {
             } else {
                 Color::from_rgb8(255, 255, 255) // White when unchecked
             };
-            
+
             // Fill background
-            scene.fill(
-                vello::peniko::Fill::NonZero,
-                transform,
-                bg_color,
-                None,
-                &circle,
-            );
-            
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
+
             // Render inner dot if checked
             if *checked {
                 let inner_circle = Circle::new((10.0, 10.0), 5.0);
                 let dot_color = Color::from_rgb8(255, 255, 255);
-                scene.fill(
-                    vello::peniko::Fill::NonZero,
-                    transform,
-                    dot_color,
-                    None,
-                    &inner_circle,
-                );
+                scene.fill(vello::peniko::Fill::NonZero, transform, dot_color, None, &inner_circle);
             }
         }
     }

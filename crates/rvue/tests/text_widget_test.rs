@@ -1,17 +1,15 @@
 //! Unit tests for Text widget rendering
 
-use rvue::{Component, ComponentType, ComponentProps, ComponentId};
+use rvue::{Component, ComponentId, ComponentProps, ComponentType};
 
 #[test]
 fn test_text_widget_creation() {
     let text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello World".to_string(),
-        },
+        ComponentProps::Text { content: "Hello World".to_string() },
     );
-    
+
     assert_eq!(text.component_type, ComponentType::Text);
     match &text.props {
         ComponentProps::Text { content } => {
@@ -23,14 +21,9 @@ fn test_text_widget_creation() {
 
 #[test]
 fn test_text_widget_with_empty_string() {
-    let text = Component::new(
-        2,
-        ComponentType::Text,
-        ComponentProps::Text {
-            content: String::new(),
-        },
-    );
-    
+    let text =
+        Component::new(2, ComponentType::Text, ComponentProps::Text { content: String::new() });
+
     match &text.props {
         ComponentProps::Text { content } => {
             assert_eq!(content, "");
@@ -44,11 +37,9 @@ fn test_text_widget_with_special_characters() {
     let text = Component::new(
         3,
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello\nWorld\t!".to_string(),
-        },
+        ComponentProps::Text { content: "Hello\nWorld\t!".to_string() },
     );
-    
+
     match &text.props {
         ComponentProps::Text { content } => {
             assert_eq!(content, "Hello\nWorld\t!");
@@ -65,7 +56,7 @@ fn test_text_widget_rendering_properties() {
         Component::new(2, ComponentType::Text, ComponentProps::Text { content: "B".to_string() }),
         Component::new(3, ComponentType::Text, ComponentProps::Text { content: "C".to_string() }),
     ];
-    
+
     assert_eq!(texts.len(), 3);
     for (i, text) in texts.iter().enumerate() {
         assert_eq!(text.id, (i + 1) as ComponentId);

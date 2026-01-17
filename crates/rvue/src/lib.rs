@@ -5,24 +5,29 @@
 //! - Optimized component tree creation
 //! - Efficient memory allocation patterns
 
-pub mod prelude;
-pub mod signal;
-pub mod effect;
-pub mod component;
-pub mod view;
-pub mod style;
-pub mod widgets;
-pub mod layout;
-pub mod render;
 pub mod app;
+pub mod component;
+pub mod effect;
 pub mod error;
+pub mod layout;
+pub mod prelude;
+pub mod render;
+pub mod signal;
+pub mod style;
+pub mod view;
+pub mod widgets;
 
-pub use signal::{create_signal, ReadSignal, WriteSignal, SignalRead, SignalWrite};
-pub use effect::{create_effect, Effect};
-pub use component::{Component, ComponentType, ComponentProps, ComponentLifecycle, ComponentId};
-pub use view::{View, ViewStruct};
-pub use style::{Style, Color, Spacing, Size, Border, BorderStyle, FontWeight, FlexDirection, AlignItems, JustifyContent};
-pub use widgets::{Text, Button, Show, For, Flex, TextInput, NumberInput, Checkbox, Radio};
 pub use app::{run_app, AppError};
+pub use component::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
+pub use effect::{create_effect, Effect};
+pub use error::{
+    validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
+};
 pub use render::{Scene, VelloFragment};
-pub use error::{ValidationError, ValidationResult, validate_text_input, validate_number_input, validate_email};
+pub use signal::{create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
+pub use style::{
+    AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
+    Spacing, Style,
+};
+pub use view::{View, ViewStruct};
+pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

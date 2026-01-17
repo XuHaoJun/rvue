@@ -1,8 +1,8 @@
 //! Flex widget for flexbox layouts
 
+use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::style::{AlignItems, FlexDirection, JustifyContent};
 use rudo_gc::Gc;
-use crate::component::{Component, ComponentType, ComponentProps, ComponentId};
-use crate::style::{FlexDirection, AlignItems, JustifyContent};
 
 /// Flex widget for creating flexbox layouts
 pub struct Flex;
@@ -30,12 +30,6 @@ impl Flex {
 
     /// Create a new Flex component with default values
     pub fn default(id: ComponentId) -> Gc<Component> {
-        Self::new(
-            id,
-            FlexDirection::Row,
-            0.0,
-            AlignItems::Stretch,
-            JustifyContent::Start,
-        )
+        Self::new(id, FlexDirection::Row, 0.0, AlignItems::Stretch, JustifyContent::Start)
     }
 }

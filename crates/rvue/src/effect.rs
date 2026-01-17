@@ -1,8 +1,8 @@
 //! Reactive effect implementation for automatic dependency tracking
 
 use rudo_gc::{Gc, Trace};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // Thread-local storage for tracking the currently running effect
 thread_local! {
@@ -46,23 +46,23 @@ impl Effect {
             // Already running, skip to prevent infinite loop
             return;
         }
-        
+
         // Mark as clean before running
         gc_effect.is_dirty.store(false, Ordering::SeqCst);
-        
+
         // Set this effect as the current effect in thread-local storage
         CURRENT_EFFECT.with(|cell| {
             let previous = cell.borrow().clone();
             *cell.borrow_mut() = Some(Gc::clone(gc_effect));
-            
+
             // Execute the closure (this may trigger signal.get() calls which will
             // automatically register this effect as a subscriber)
             (gc_effect.closure)();
-            
+
             // Restore previous effect (if any)
             *cell.borrow_mut() = previous;
         });
-        
+
         // Mark as not running
         gc_effect.is_running.store(false, Ordering::SeqCst);
     }
@@ -92,7 +92,7 @@ pub(crate) fn current_effect() -> Option<Gc<Effect>> {
 }
 
 /// Create a new effect that automatically runs when dependencies change
-/// 
+///
 /// The effect runs immediately on creation, and automatically tracks
 /// which signals are accessed during execution. When any tracked signal
 /// changes, the effect will be marked dirty and can be re-run.

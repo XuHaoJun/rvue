@@ -46,12 +46,12 @@ fn test_signal_clone_handles() {
     let (read1, write1) = create_signal(100);
     let read2 = read1.clone();
     let write2 = write1.clone();
-    
+
     // All handles should point to the same signal
     write1.set(200);
     assert_eq!(read1.get(), 200);
     assert_eq!(read2.get(), 200);
-    
+
     write2.set(300);
     assert_eq!(read1.get(), 300);
     assert_eq!(read2.get(), 300);
@@ -61,7 +61,7 @@ fn test_signal_clone_handles() {
 fn test_signal_with_vec() {
     let (read, write) = create_signal(vec![1, 2, 3]);
     assert_eq!(read.get(), vec![1, 2, 3]);
-    
+
     write.update(|v| {
         v.push(4);
     });
@@ -83,14 +83,14 @@ fn test_signal_version_increments() {
 fn test_signal_independent_signals() {
     let (read1, write1) = create_signal(10);
     let (read2, write2) = create_signal(20);
-    
+
     assert_eq!(read1.get(), 10);
     assert_eq!(read2.get(), 20);
-    
+
     write1.set(11);
     assert_eq!(read1.get(), 11);
     assert_eq!(read2.get(), 20); // Should be unchanged
-    
+
     write2.set(22);
     assert_eq!(read1.get(), 11); // Should be unchanged
     assert_eq!(read2.get(), 22);

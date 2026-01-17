@@ -1,8 +1,8 @@
 //! Benchmark test for initial memory usage
 
+use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use rvue::{Component, ComponentType, ComponentProps, ViewStruct};
 
 // Simple memory tracking allocator for testing
 struct TrackingAllocator;
@@ -32,7 +32,7 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 fn benchmark_initial_memory_footprint() {
     // Reset allocation counter
     ALLOCATED.store(0, Ordering::Relaxed);
-    
+
     // Create a simple application
     let root = Component::new(
         0,
@@ -44,24 +44,22 @@ fn benchmark_initial_memory_footprint() {
             justify_content: "center".to_string(),
         },
     );
-    
+
     // Add some components
     for i in 1..=10 {
         let _child = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: format!("Item {}", i),
-            },
+            ComponentProps::Text { content: format!("Item {}", i) },
         );
     }
-    
+
     let _view = ViewStruct::new(root);
-    
+
     // Get allocated memory (approximate)
     let allocated = ALLOCATED.load(Ordering::Relaxed);
     let allocated_mb = allocated as f64 / (1024.0 * 1024.0);
-    
+
     // Target: < 100MB initial memory
     let target_mb = 100.0;
     assert!(
@@ -70,7 +68,7 @@ fn benchmark_initial_memory_footprint() {
         allocated_mb,
         target_mb
     );
-    
+
     println!("Initial memory footprint: {:.2}MB (target: <{}MB)", allocated_mb, target_mb);
 }
 
@@ -79,26 +77,27 @@ fn benchmark_initial_memory_footprint() {
 fn benchmark_component_memory_usage() {
     // Measure memory usage for component creation
     ALLOCATED.store(0, Ordering::Relaxed);
-    
+
     // Create 100 components
     let mut components = Vec::new();
     for i in 0..100 {
         let component = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: format!("Component {}", i),
-            },
+            ComponentProps::Text { content: format!("Component {}", i) },
         );
         components.push(component);
     }
-    
+
     let allocated = ALLOCATED.load(Ordering::Relaxed);
     let allocated_kb = allocated as f64 / 1024.0;
     let per_component = allocated_kb / 100.0;
-    
-    println!("Memory for 100 components: {:.2}KB ({:.2}KB per component)", allocated_kb, per_component);
-    
+
+    println!(
+        "Memory for 100 components: {:.2}KB ({:.2}KB per component)",
+        allocated_kb, per_component
+    );
+
     // Target: < 1MB for 100 components
     let target_kb = 1024.0;
     assert!(
@@ -114,20 +113,20 @@ fn benchmark_component_memory_usage() {
 fn benchmark_signal_memory_usage() {
     // Measure memory usage for signal creation
     ALLOCATED.store(0, Ordering::Relaxed);
-    
+
     // Create 100 signals
     let mut signals = Vec::new();
     for i in 0..100 {
         let (read, _write) = rvue::create_signal(i);
         signals.push(read);
     }
-    
+
     let allocated = ALLOCATED.load(Ordering::Relaxed);
     let allocated_kb = allocated as f64 / 1024.0;
     let per_signal = allocated_kb / 100.0;
-    
+
     println!("Memory for 100 signals: {:.2}KB ({:.2}KB per signal)", allocated_kb, per_signal);
-    
+
     // Target: < 100KB for 100 signals
     let target_kb = 100.0;
     assert!(

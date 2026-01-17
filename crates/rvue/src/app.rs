@@ -15,11 +15,7 @@ pub struct AppState {
 
 impl AppState {
     fn new() -> Self {
-        Self {
-            window: None,
-            view: None,
-            renderer_initialized: false,
-        }
+        Self { window: None, view: None, renderer_initialized: false }
     }
 }
 
@@ -32,7 +28,7 @@ impl ApplicationHandler for AppState {
             let window_attributes = winit::window::Window::default_attributes()
                 .with_title("Rvue Application")
                 .with_inner_size(winit::dpi::LogicalSize::new(800.0, 600.0));
-            
+
             let window = event_loop.create_window(window_attributes).unwrap();
             self.window = Some(window);
         }
@@ -50,7 +46,7 @@ impl ApplicationHandler for AppState {
                     // This defers renderer initialization until the first frame
                     self.renderer_initialized = true;
                 }
-                
+
                 // Trigger redraw
                 if let Some(window) = &self.window {
                     window.request_redraw();
@@ -62,16 +58,16 @@ impl ApplicationHandler for AppState {
 }
 
 /// Run the application with the given view
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `view_fn` - A function that returns the root view of the application
-/// 
+///
 /// # Example
-/// 
+///
 /// ```ignore
 /// use rvue::prelude::*;
-/// 
+///
 /// fn main() {
 ///     rvue::run_app(|| {
 ///         view! {
@@ -86,17 +82,19 @@ where
 {
     // Create the view
     let view = view_fn();
-    
+
     // Create event loop
     let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
-    
+
     // Create application state
     let mut app_state = AppState::new();
     app_state.view = Some(view);
-    
+
     // Run the event loop
-    event_loop.run_app(&mut app_state).map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
-    
+    event_loop
+        .run_app(&mut app_state)
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
     Ok(())
 }
 
@@ -114,9 +112,15 @@ impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AppError::WindowCreationFailed(msg) => write!(f, "Window creation failed: {}", msg),
-            AppError::RendererInitializationFailed(msg) => write!(f, "Renderer initialization failed: {}", msg),
-            AppError::ComponentCreationFailed(msg) => write!(f, "Component creation failed: {}", msg),
-            AppError::LayoutCalculationFailed(msg) => write!(f, "Layout calculation failed: {}", msg),
+            AppError::RendererInitializationFailed(msg) => {
+                write!(f, "Renderer initialization failed: {}", msg)
+            }
+            AppError::ComponentCreationFailed(msg) => {
+                write!(f, "Component creation failed: {}", msg)
+            }
+            AppError::LayoutCalculationFailed(msg) => {
+                write!(f, "Layout calculation failed: {}", msg)
+            }
             AppError::GcError(msg) => write!(f, "GC error: {}", msg),
         }
     }

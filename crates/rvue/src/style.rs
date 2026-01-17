@@ -31,22 +31,12 @@ pub struct Spacing {
 impl Spacing {
     /// Create uniform spacing
     pub fn uniform(value: f32) -> Self {
-        Self {
-            top: value,
-            right: value,
-            bottom: value,
-            left: value,
-        }
+        Self { top: value, right: value, bottom: value, left: value }
     }
 
     /// Create spacing with different horizontal and vertical values
     pub fn symmetric(vertical: f32, horizontal: f32) -> Self {
-        Self {
-            top: vertical,
-            right: horizontal,
-            bottom: vertical,
-            left: horizontal,
-        }
+        Self { top: vertical, right: horizontal, bottom: vertical, left: horizontal }
     }
 
     /// Create spacing with all four values
