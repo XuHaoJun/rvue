@@ -43,6 +43,9 @@ impl VelloFragment {
             ComponentType::Show => {
                 Self::render_show(&self.component, scene, transform);
             }
+            ComponentType::For => {
+                Self::render_for(&self.component, scene, transform);
+            }
             _ => {
                 // Other component types will be implemented later
             }
@@ -111,6 +114,24 @@ impl VelloFragment {
                 }
             }
             // If when is false, skip rendering (hidden components don't consume rendering resources)
+        }
+    }
+
+    /// Render a For widget to the Vello scene
+    /// Renders all children (list items) efficiently
+    fn render_for(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::For { item_count: _ } = &component.props {
+            // Render all children (list items)
+            let mut y_offset = 0.0;
+            for child in &component.children {
+                // Recursively render children with vertical stacking
+                let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
+                let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
+                child_fragment.generate_scene_items(scene, transform * child_transform);
+                
+                // Simple vertical stacking for MVP
+                y_offset += 50.0;
+            }
         }
     }
 }

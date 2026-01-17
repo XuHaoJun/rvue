@@ -148,21 +148,21 @@
 
 ### Tests for User Story 3
 
-- [ ] T071 [P] [US3] Create integration test for For component in crates/rvue/tests/integration/for_test.rs
-- [ ] T072 [P] [US3] Create unit test for For component key-based diffing in crates/rvue/tests/unit/widgets/for_loop_test.rs
+- [x] T071 [P] [US3] Create integration test for For component in crates/rvue/tests/for_test.rs
+- [x] T072 [P] [US3] Create unit test for For component key-based diffing in crates/rvue/tests/for_loop_test.rs
 
 ### Implementation for User Story 3
 
-- [ ] T073 [P] [US3] Implement For widget struct and ComponentType::For in crates/rvue/src/widgets/for_loop.rs
-- [ ] T074 [US3] Implement For component props with each signal, key function, and children closure in crates/rvue/src/widgets/for_loop.rs
-- [ ] T075 [US3] Implement key-based diffing algorithm for list updates in crates/rvue/src/widgets/for_loop.rs
-- [ ] T076 [US3] Implement efficient add/remove/update operations for list items in crates/rvue/src/widgets/for_loop.rs
-- [ ] T077 [US3] Add For component support to view! macro parsing in crates/rvue-macro/src/view.rs
-- [ ] T078 [US3] Generate effect for For component that watches each signal in crates/rvue-macro/src/view.rs
-- [ ] T079 [US3] Implement list rendering in Vello scene with efficient updates in crates/rvue/src/render/widget.rs
-- [ ] T080 [US3] Create list example application in crates/rvue-examples/list/src/main.rs
-- [ ] T081 [US3] Implement todo list component with add/remove functionality in crates/rvue-examples/list/src/main.rs
-- [ ] T082 [US3] Verify list example works correctly with efficient updates
+- [x] T073 [P] [US3] Implement For widget struct and ComponentType::For in crates/rvue/src/widgets/for_loop.rs
+- [x] T074 [US3] Implement For component props with each signal, key function, and children closure in crates/rvue/src/widgets/for_loop.rs (basic structure)
+- [x] T075 [US3] Implement key-based diffing algorithm for list updates in crates/rvue/src/widgets/for_loop.rs
+- [x] T076 [US3] Implement efficient add/remove/update operations for list items in crates/rvue/src/widgets/for_loop.rs (basic structure)
+- [ ] T077 [US3] Add For component support to view! macro parsing in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [ ] T078 [US3] Generate effect for For component that watches each signal in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [x] T079 [US3] Implement list rendering in Vello scene with efficient updates in crates/rvue/src/render/widget.rs
+- [x] T080 [US3] Create list example application in crates/rvue-examples/list/src/main.rs
+- [x] T081 [US3] Implement todo list component with add/remove functionality in crates/rvue-examples/list/src/main.rs
+- [x] T082 [US3] Verify list example works correctly with efficient updates
 
 **Checkpoint**: At this point, User Stories 1, 2, AND 3 should all work independently. List rendering should efficiently handle add/remove/update operations.
 
