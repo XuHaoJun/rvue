@@ -122,19 +122,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T061 [P] [US2] Create integration test for Show component in crates/rvue/tests/integration/show_test.rs
-- [ ] T062 [P] [US2] Create unit test for Show component mounting/unmounting in crates/rvue/tests/unit/widgets/show_test.rs
+- [x] T061 [P] [US2] Create integration test for Show component in crates/rvue/tests/show_test.rs
+- [x] T062 [P] [US2] Create unit test for Show component mounting/unmounting in crates/rvue/tests/show_widget_test.rs
 
 ### Implementation for User Story 2
 
-- [ ] T063 [P] [US2] Implement Show widget struct and ComponentType::Show in crates/rvue/src/widgets/show.rs
-- [ ] T064 [US2] Implement Show component props with when signal and children in crates/rvue/src/widgets/show.rs
-- [ ] T065 [US2] Implement Show component mounting/unmounting logic based on when signal in crates/rvue/src/widgets/show.rs
-- [ ] T066 [US2] Add Show component support to view! macro parsing in crates/rvue-macro/src/view.rs
-- [ ] T067 [US2] Generate effect for Show component that watches when signal in crates/rvue-macro/src/view.rs
-- [ ] T068 [US2] Implement conditional rendering in Vello scene (skip hidden components) in crates/rvue/src/render/widget.rs
-- [ ] T069 [US2] Create example demonstrating Show component in crates/rvue-examples/counter/src/main.rs (extend counter)
-- [ ] T070 [US2] Verify Show component example works correctly
+- [x] T063 [P] [US2] Implement Show widget struct and ComponentType::Show in crates/rvue/src/widgets/show.rs
+- [x] T064 [US2] Implement Show component props with when signal and children in crates/rvue/src/widgets/show.rs
+- [x] T065 [US2] Implement Show component mounting/unmounting logic based on when signal in crates/rvue/src/widgets/show.rs
+- [ ] T066 [US2] Add Show component support to view! macro parsing in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [ ] T067 [US2] Generate effect for Show component that watches when signal in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [x] T068 [US2] Implement conditional rendering in Vello scene (skip hidden components) in crates/rvue/src/render/widget.rs
+- [x] T069 [US2] Create example demonstrating Show component in crates/rvue-examples/counter/src/main.rs (extend counter)
+- [x] T070 [US2] Verify Show component example works correctly
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently. Conditional rendering should work with signal-based conditions.
 

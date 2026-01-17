@@ -40,6 +40,9 @@ impl VelloFragment {
             ComponentType::Button => {
                 Self::render_button(&self.component, scene, transform);
             }
+            ComponentType::Show => {
+                Self::render_show(&self.component, scene, transform);
+            }
             _ => {
                 // Other component types will be implemented later
             }
@@ -91,6 +94,23 @@ impl VelloFragment {
             // when we have proper peniko::Stroke API access
             
             // Note: Button text rendering will be added when text rendering is fully implemented
+        }
+    }
+
+    /// Render a Show widget to the Vello scene
+    /// Only renders children if when is true
+    fn render_show(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::Show { when } = &component.props {
+            // Only render children if when is true
+            if *when {
+                // Render all children
+                for child in &component.children {
+                    // Recursively render children
+                    let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
+                    child_fragment.generate_scene_items(scene, transform);
+                }
+            }
+            // If when is false, skip rendering (hidden components don't consume rendering resources)
         }
     }
 }

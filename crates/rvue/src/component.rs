@@ -117,19 +117,63 @@ impl ComponentLifecycle for Component {
         // Set parent reference
         // Note: We need mutable access, but Component is in Gc, so we'll need GcCell
         // For MVP, we'll handle this at a higher level
-        // This is a placeholder implementation
+        
+        // For Show components, mount/unmount children based on when condition
+        // Note: We can't easily get the Gc wrapper from inside Component
+        // For MVP, we'll mount children without parent reference
+        if let ComponentType::Show = self.component_type {
+            if let ComponentProps::Show { when } = &self.props {
+                if *when {
+                    // Mount children if visible
+                    for child in &self.children {
+                        child.mount(None);
+                    }
+                }
+            }
+        } else {
+            // For other components, mount all children
+            for child in &self.children {
+                child.mount(None);
+            }
+        }
     }
 
     fn unmount(&self) {
-        // Remove from parent's children list
+        // Unmount all children
+        for child in &self.children {
+            child.unmount();
+        }
+        
         // Clean up effects
-        // This is a placeholder implementation
+        // Effects are cleaned up by GC when component is dropped
     }
 
     fn update(&self) {
         // Run all effects that are dirty
         for effect in &self.effects {
             Effect::update_if_dirty(effect);
+        }
+        
+        // For Show components, update children mounting based on when condition
+        if let ComponentType::Show = self.component_type {
+            if let ComponentProps::Show { when } = &self.props {
+                if *when {
+                    // Ensure children are mounted
+                    for child in &self.children {
+                        child.mount(None);
+                    }
+                } else {
+                    // Unmount children if hidden
+                    for child in &self.children {
+                        child.unmount();
+                    }
+                }
+            }
+        }
+        
+        // Update all children
+        for child in &self.children {
+            child.update();
         }
     }
 }
