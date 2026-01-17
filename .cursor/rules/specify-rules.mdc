@@ -1,0 +1,29 @@
+# rvue Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-01-17
+
+## Active Technologies
+
+- Rust (latest stable, minimum 1.75+) (002-rvue-mvp)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] cargo clippy
+
+## Code Style
+
+Rust (latest stable, minimum 1.75+): Follow standard conventions
+
+## Recent Changes
+
+- 002-rvue-mvp: Added Rust (latest stable, minimum 1.75+)
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

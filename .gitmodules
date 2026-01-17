@@ -1,3 +1,9 @@
 [submodule "learn-projects/rudo"]
 	path = learn-projects/rudo
 	url = git@github.com:XuHaoJun/rudo.git
+[submodule "learn-projects/leptos"]
+	path = learn-projects/leptos
+	url = git@github.com:leptos-rs/leptos.git
+[submodule "learn-projects/flutter"]
+	path = learn-projects/flutter
+	url = git@github.com:flutter/flutter.git

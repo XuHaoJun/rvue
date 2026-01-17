@@ -1,0 +1,3 @@
+# Clippy configuration for Rvue project
+avoid-breaking-exported-api = false
+msrv = "1.75"
