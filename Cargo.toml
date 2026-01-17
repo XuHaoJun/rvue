@@ -6,6 +6,7 @@ members = [
     "crates/rvue-examples/list",
     "crates/rvue-examples/layout",
     "crates/rvue-examples/benchmark",
+    "crates/rvue-examples/form",
 ]
 resolver = "2"
 

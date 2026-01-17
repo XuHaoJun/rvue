@@ -2,7 +2,7 @@
 
 use rudo_gc::Gc;
 use crate::component::{Component, ComponentType, ComponentProps};
-use vello::kurbo::{Rect, RoundedRect};
+use vello::kurbo::{Rect, RoundedRect, Circle};
 use vello::peniko::Color;
 
 /// Vello fragment wrapper for scene graph
@@ -48,6 +48,18 @@ impl VelloFragment {
             }
             ComponentType::Flex => {
                 Self::render_flex(&self.component, scene, transform);
+            }
+            ComponentType::TextInput => {
+                Self::render_text_input(&self.component, scene, transform);
+            }
+            ComponentType::NumberInput => {
+                Self::render_number_input(&self.component, scene, transform);
+            }
+            ComponentType::Checkbox => {
+                Self::render_checkbox(&self.component, scene, transform);
+            }
+            ComponentType::Radio => {
+                Self::render_radio(&self.component, scene, transform);
             }
             _ => {
                 // Other component types will be implemented later
@@ -153,6 +165,102 @@ impl VelloFragment {
                 child_fragment.generate_scene_items(scene, transform * child_transform);
                 
                 y_offset += 50.0;
+            }
+        }
+    }
+
+    /// Render a TextInput widget to the Vello scene
+    fn render_text_input(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::TextInput { value: _ } = &component.props {
+            // Render input field background
+            let rect = RoundedRect::new(0.0, 0.0, 200.0, 30.0, 2.0);
+            let bg_color = Color::from_rgb8(255, 255, 255); // White background
+            
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                transform,
+                bg_color,
+                None,
+                &rect,
+            );
+            
+            // Note: Text rendering and cursor will be added when text rendering is fully implemented
+        }
+    }
+
+    /// Render a NumberInput widget to the Vello scene
+    fn render_number_input(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::NumberInput { value: _ } = &component.props {
+            // Render input field background (similar to TextInput)
+            let rect = RoundedRect::new(0.0, 0.0, 150.0, 30.0, 2.0);
+            let bg_color = Color::from_rgb8(255, 255, 255); // White background
+            
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                transform,
+                bg_color,
+                None,
+                &rect,
+            );
+        }
+    }
+
+    /// Render a Checkbox widget to the Vello scene
+    fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::Checkbox { checked } = &component.props {
+            // Render checkbox square
+            let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
+            let bg_color = if *checked {
+                Color::from_rgb8(70, 130, 180) // Steel blue when checked
+            } else {
+                Color::from_rgb8(255, 255, 255) // White when unchecked
+            };
+            
+            // Fill background
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                transform,
+                bg_color,
+                None,
+                &rect,
+            );
+            
+            // Render border
+            // Note: Border rendering will be added when stroke API is fully available
+        }
+    }
+
+    /// Render a Radio widget to the Vello scene
+    fn render_radio(component: &Component, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
+        if let ComponentProps::Radio { value: _, checked } = &component.props {
+            // Render radio circle
+            let circle = Circle::new((10.0, 10.0), 10.0);
+            let bg_color = if *checked {
+                Color::from_rgb8(70, 130, 180) // Steel blue when checked
+            } else {
+                Color::from_rgb8(255, 255, 255) // White when unchecked
+            };
+            
+            // Fill background
+            scene.fill(
+                vello::peniko::Fill::NonZero,
+                transform,
+                bg_color,
+                None,
+                &circle,
+            );
+            
+            // Render inner dot if checked
+            if *checked {
+                let inner_circle = Circle::new((10.0, 10.0), 5.0);
+                let dot_color = Color::from_rgb8(255, 255, 255);
+                scene.fill(
+                    vello::peniko::Fill::NonZero,
+                    transform,
+                    dot_color,
+                    None,
+                    &inner_circle,
+                );
             }
         }
     }

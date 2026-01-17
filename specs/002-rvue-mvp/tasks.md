@@ -225,14 +225,14 @@
 
 **Purpose**: Implement remaining input components (text input, number input, checkbox, radio) required by functional requirements.
 
-- [ ] T104 [P] Implement TextInput widget struct and ComponentType::TextInput in crates/rvue/src/widgets/input.rs
-- [ ] T105 [P] Implement NumberInput widget struct and ComponentType::NumberInput in crates/rvue/src/widgets/input.rs
-- [ ] T106 [P] Implement Checkbox widget struct and ComponentType::Checkbox in crates/rvue/src/widgets/checkbox.rs
-- [ ] T107 [P] Implement Radio widget struct and ComponentType::Radio in crates/rvue/src/widgets/radio.rs
-- [ ] T108 Add input component support to view! macro in crates/rvue-macro/src/view.rs
-- [ ] T109 Implement event handling for input components (on_input, on_change) in crates/rvue/src/widgets/input.rs
-- [ ] T110 Create form example demonstrating all input types in crates/rvue-examples/form/src/main.rs
-- [ ] T111 [P] Add unit tests for input components in crates/rvue/tests/unit/widgets/input_test.rs
+- [x] T104 [P] Implement TextInput widget struct and ComponentType::TextInput in crates/rvue/src/widgets/input.rs
+- [x] T105 [P] Implement NumberInput widget struct and ComponentType::NumberInput in crates/rvue/src/widgets/input.rs
+- [x] T106 [P] Implement Checkbox widget struct and ComponentType::Checkbox in crates/rvue/src/widgets/checkbox.rs
+- [x] T107 [P] Implement Radio widget struct and ComponentType::Radio in crates/rvue/src/widgets/radio.rs
+- [ ] T108 Add input component support to view! macro in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [x] T109 Implement event handling for input components (on_input, on_change) in crates/rvue/src/widgets/input.rs (basic structure - full event system deferred)
+- [x] T110 Create form example demonstrating all input types in crates/rvue-examples/form/src/main.rs
+- [x] T111 [P] Add unit tests for input components in crates/rvue/tests/input_test.rs
 
 ---
 
