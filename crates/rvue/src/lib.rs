@@ -15,6 +15,7 @@ pub mod widgets;
 pub mod layout;
 pub mod render;
 pub mod app;
+pub mod error;
 
 pub use signal::{create_signal, ReadSignal, WriteSignal, SignalRead, SignalWrite};
 pub use effect::{create_effect, Effect};
@@ -24,3 +25,4 @@ pub use style::{Style, Color, Spacing, Size, Border, BorderStyle, FontWeight, Fl
 pub use widgets::{Text, Button, Show, For, Flex, TextInput, NumberInput, Checkbox, Radio};
 pub use app::{run_app, AppError};
 pub use render::{Scene, VelloFragment};
+pub use error::{ValidationError, ValidationResult, validate_text_input, validate_number_input, validate_email};
