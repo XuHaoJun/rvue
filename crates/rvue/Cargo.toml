@@ -1,0 +1,16 @@
+[package]
+name = "rvue"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rust GUI framework with Vue-like syntax and GC-managed memory"
+repository = "https://github.com/your-org/rvue"
+
+[dependencies]
+rudo-gc = "0.1"
+vello = "0.4"
+taffy = "0.3"
+winit = "0.30"
+
+[dev-dependencies]

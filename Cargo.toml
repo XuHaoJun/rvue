@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "crates/rvue",
+    "crates/rvue-macro",
+    "crates/rvue-examples/counter",
+    "crates/rvue-examples/list",
+    "crates/rvue-examples/layout",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Rvue Contributors"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]

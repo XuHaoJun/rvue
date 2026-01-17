@@ -22,18 +22,18 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create Cargo workspace with root Cargo.toml in repository root
-- [ ] T002 [P] Create rvue crate structure in crates/rvue/ with Cargo.toml
-- [ ] T003 [P] Create rvue-macro crate structure in crates/rvue-macro/ with Cargo.toml
-- [ ] T004 [P] Create rvue-examples crate structure in crates/rvue-examples/ with Cargo.toml
-- [ ] T005 [P] Configure rustfmt.toml and clippy.toml in repository root
-- [ ] T006 [P] Add rudo-gc dependency to rvue crate (path dependency to learn-projects/rudo/crates/rudo-gc)
-- [ ] T007 [P] Add vello dependency to rvue crate in crates/rvue/Cargo.toml
-- [ ] T008 [P] Add taffy dependency to rvue crate in crates/rvue/Cargo.toml
-- [ ] T009 [P] Add winit dependency to rvue crate in crates/rvue/Cargo.toml
-- [ ] T010 [P] Add proc_macro dependencies to rvue-macro crate in crates/rvue-macro/Cargo.toml (syn, quote, proc_macro2)
-- [ ] T011 [P] Configure rvue-macro as proc-macro crate in crates/rvue-macro/Cargo.toml
-- [ ] T012 Add rvue-macro as dependency to rvue crate in crates/rvue/Cargo.toml
+- [x] T001 Create Cargo workspace with root Cargo.toml in repository root
+- [x] T002 [P] Create rvue crate structure in crates/rvue/ with Cargo.toml
+- [x] T003 [P] Create rvue-macro crate structure in crates/rvue-macro/ with Cargo.toml
+- [x] T004 [P] Create rvue-examples crate structure in crates/rvue-examples/ with Cargo.toml
+- [x] T005 [P] Configure rustfmt.toml and clippy.toml in repository root
+- [x] T006 [P] Add rudo-gc dependency to rvue crate (crates.io version 0.1)
+- [x] T007 [P] Add vello dependency to rvue crate in crates/rvue/Cargo.toml
+- [x] T008 [P] Add taffy dependency to rvue crate in crates/rvue/Cargo.toml
+- [x] T009 [P] Add winit dependency to rvue crate in crates/rvue/Cargo.toml
+- [x] T010 [P] Add proc_macro dependencies to rvue-macro crate in crates/rvue-macro/Cargo.toml (syn, quote, proc_macro2)
+- [x] T011 [P] Configure rvue-macro as proc-macro crate in crates/rvue-macro/Cargo.toml
+- [x] T012 Add rvue-macro as dependency to rvue crate in crates/rvue/Cargo.toml
 
 ---
 
@@ -43,28 +43,28 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T013 Create Signal trait and ReadSignal/WriteSignal traits in crates/rvue/src/signal.rs
-- [ ] T014 [P] Implement SignalData<T> struct with value, subscribers, and version fields in crates/rvue/src/signal.rs
-- [ ] T015 [P] Implement create_signal function returning (ReadSignal, WriteSignal) tuple in crates/rvue/src/signal.rs
-- [ ] T016 Implement ReadSignal<T> trait with get() method in crates/rvue/src/signal.rs
-- [ ] T017 Implement WriteSignal<T> trait with set() and update() methods in crates/rvue/src/signal.rs
-- [ ] T018 [P] Create Effect struct with closure, dependencies, and is_dirty fields in crates/rvue/src/effect.rs
-- [ ] T019 [P] Implement create_effect function with automatic dependency tracking in crates/rvue/src/effect.rs
-- [ ] T020 Implement effect execution and re-run logic when dependencies change in crates/rvue/src/effect.rs
-- [ ] T021 [P] Create Component struct with id, component_type, children, parent, signals, effects fields in crates/rvue/src/component.rs
-- [ ] T022 [P] Implement Component trait with lifecycle methods (mount, unmount, update) in crates/rvue/src/component.rs
-- [ ] T023 [P] Create View trait with into_component method in crates/rvue/src/view.rs
-- [ ] T024 Implement View struct with root_component, signals, and effects fields in crates/rvue/src/view.rs
-- [ ] T025 [P] Create Style struct with color, font_size, padding, margin, flex properties in crates/rvue/src/style.rs
-- [ ] T026 [P] Create Color enum and related types in crates/rvue/src/style.rs
-- [ ] T027 [P] Create Spacing and Size types for layout properties in crates/rvue/src/style.rs
-- [ ] T028 Create ComponentType enum (Text, Button, Custom, etc.) in crates/rvue/src/component.rs
-- [ ] T029 Create ComponentProps enum for different widget types in crates/rvue/src/component.rs
-- [ ] T030 [P] Create lib.rs with public API exports (prelude module) in crates/rvue/src/lib.rs
-- [ ] T031 [P] Create prelude module re-exporting common types in crates/rvue/src/prelude.rs
-- [ ] T032 [P] Add unit tests for Signal creation and updates in crates/rvue/tests/unit/signal_test.rs
-- [ ] T033 [P] Add unit tests for Effect dependency tracking in crates/rvue/tests/unit/effect_test.rs
-- [ ] T034 [P] Add unit tests for Component lifecycle in crates/rvue/tests/unit/component_test.rs
+- [x] T013 Create Signal trait and ReadSignal/WriteSignal traits in crates/rvue/src/signal.rs
+- [x] T014 [P] Implement SignalData<T> struct with value, subscribers, and version fields in crates/rvue/src/signal.rs
+- [x] T015 [P] Implement create_signal function returning (ReadSignal, WriteSignal) tuple in crates/rvue/src/signal.rs
+- [x] T016 Implement ReadSignal<T> trait with get() method in crates/rvue/src/signal.rs
+- [x] T017 Implement WriteSignal<T> trait with set() and update() methods in crates/rvue/src/signal.rs
+- [x] T018 [P] Create Effect struct with closure, dependencies, and is_dirty fields in crates/rvue/src/effect.rs
+- [x] T019 [P] Implement create_effect function with automatic dependency tracking in crates/rvue/src/effect.rs
+- [x] T020 Implement effect execution and re-run logic when dependencies change in crates/rvue/src/effect.rs
+- [x] T021 [P] Create Component struct with id, component_type, children, parent, signals, effects fields in crates/rvue/src/component.rs
+- [x] T022 [P] Implement Component trait with lifecycle methods (mount, unmount, update) in crates/rvue/src/component.rs
+- [x] T023 [P] Create View trait with into_component method in crates/rvue/src/view.rs
+- [x] T024 Implement View struct with root_component, signals, and effects fields in crates/rvue/src/view.rs
+- [x] T025 [P] Create Style struct with color, font_size, padding, margin, flex properties in crates/rvue/src/style.rs
+- [x] T026 [P] Create Color enum and related types in crates/rvue/src/style.rs
+- [x] T027 [P] Create Spacing and Size types for layout properties in crates/rvue/src/style.rs
+- [x] T028 Create ComponentType enum (Text, Button, Custom, etc.) in crates/rvue/src/component.rs
+- [x] T029 Create ComponentProps enum for different widget types in crates/rvue/src/component.rs
+- [x] T030 [P] Create lib.rs with public API exports (prelude module) in crates/rvue/src/lib.rs
+- [x] T031 [P] Create prelude module re-exporting common types in crates/rvue/src/prelude.rs
+- [x] T032 [P] Add unit tests for Signal creation and updates in crates/rvue/tests/signal_test.rs
+- [x] T033 [P] Add unit tests for Effect dependency tracking in crates/rvue/tests/effect_test.rs
+- [x] T034 [P] Add unit tests for Component lifecycle in crates/rvue/tests/component_test.rs
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
