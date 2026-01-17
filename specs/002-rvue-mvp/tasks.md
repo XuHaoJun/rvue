@@ -80,35 +80,35 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T035 [P] [US1] Create integration test for counter component in crates/rvue/tests/integration/counter_test.rs
-- [ ] T036 [P] [US1] Create unit test for Text widget rendering in crates/rvue/tests/unit/widgets/text_test.rs
-- [ ] T037 [P] [US1] Create unit test for Button widget event handling in crates/rvue/tests/unit/widgets/button_test.rs
+- [x] T035 [P] [US1] Create integration test for counter component in crates/rvue/tests/counter_test.rs
+- [x] T036 [P] [US1] Create unit test for Text widget rendering in crates/rvue/tests/text_widget_test.rs
+- [x] T037 [P] [US1] Create unit test for Button widget event handling in crates/rvue/tests/button_widget_test.rs
 
 ### Implementation for User Story 1
 
-- [ ] T038 [P] [US1] Create widgets module structure in crates/rvue/src/widgets/mod.rs
-- [ ] T039 [P] [US1] Implement Text widget struct and ComponentType::Text in crates/rvue/src/widgets/text.rs
-- [ ] T040 [P] [US1] Implement Button widget struct and ComponentType::Button in crates/rvue/src/widgets/button.rs
-- [ ] T041 [P] [US1] Create basic view! macro entry point in crates/rvue-macro/src/lib.rs
-- [ ] T042 [US1] Implement view! macro parsing for static components in crates/rvue-macro/src/view.rs
-- [ ] T043 [US1] Implement view! macro code generation for Text and Button components in crates/rvue-macro/src/view.rs
-- [ ] T044 [US1] Implement signal binding detection in view! macro (move || closures) in crates/rvue-macro/src/view.rs
-- [ ] T045 [US1] Create component attribute macro entry point in crates/rvue-macro/src/component.rs
-- [ ] T046 [US1] Implement #[component] macro for GC allocation and lifecycle in crates/rvue-macro/src/component.rs
-- [ ] T047 [US1] Create layout module structure in crates/rvue/src/layout/mod.rs
-- [ ] T048 [US1] Create LayoutNode wrapper around Taffy node in crates/rvue/src/layout/node.rs
-- [ ] T049 [US1] Create render module structure in crates/rvue/src/render/mod.rs
-- [ ] T050 [US1] Create VelloFragment wrapper for scene graph in crates/rvue/src/render/widget.rs
-- [ ] T051 [US1] Implement basic Vello scene generation for Text widget in crates/rvue/src/render/widget.rs
-- [ ] T052 [US1] Implement basic Vello scene generation for Button widget in crates/rvue/src/render/widget.rs
-- [ ] T053 [US1] Create application runner with winit event loop in crates/rvue/src/app.rs
-- [ ] T054 [US1] Implement run_app function that initializes window and starts event loop in crates/rvue/src/app.rs
-- [ ] T055 [US1] Implement window creation and event handling in crates/rvue/src/app.rs
-- [ ] T056 [US1] Implement Vello renderer initialization and scene rendering in crates/rvue/src/render/scene.rs
-- [ ] T057 [US1] Connect signal updates to Vello scene updates via effects in crates/rvue/src/render/scene.rs
-- [ ] T058 [US1] Create counter example application in crates/rvue-examples/counter/src/main.rs
-- [ ] T059 [US1] Implement counter component with increment/decrement buttons in crates/rvue-examples/counter/src/main.rs
-- [ ] T060 [US1] Verify counter example compiles and runs successfully
+- [x] T038 [P] [US1] Create widgets module structure in crates/rvue/src/widgets/mod.rs
+- [x] T039 [P] [US1] Implement Text widget struct and ComponentType::Text in crates/rvue/src/widgets/text.rs
+- [x] T040 [P] [US1] Implement Button widget struct and ComponentType::Button in crates/rvue/src/widgets/button.rs
+- [x] T041 [P] [US1] Create basic view! macro entry point in crates/rvue-macro/src/lib.rs
+- [x] T042 [US1] Implement view! macro parsing for static components in crates/rvue-macro/src/lib.rs (basic placeholder)
+- [x] T043 [US1] Implement view! macro code generation for Text and Button components in crates/rvue-macro/src/lib.rs (basic placeholder)
+- [ ] T044 [US1] Implement signal binding detection in view! macro (move || closures) in crates/rvue-macro/src/lib.rs (deferred - needs full parser)
+- [x] T045 [US1] Create component attribute macro entry point in crates/rvue-macro/src/lib.rs
+- [x] T046 [US1] Implement #[component] macro for GC allocation and lifecycle in crates/rvue-macro/src/lib.rs (basic placeholder)
+- [x] T047 [US1] Create layout module structure in crates/rvue/src/layout/mod.rs
+- [x] T048 [US1] Create LayoutNode wrapper around Taffy node in crates/rvue/src/layout/node.rs (basic structure)
+- [x] T049 [US1] Create render module structure in crates/rvue/src/render/mod.rs
+- [x] T050 [US1] Create VelloFragment wrapper for scene graph in crates/rvue/src/render/widget.rs (basic structure)
+- [x] T051 [US1] Implement basic Vello scene generation for Text widget in crates/rvue/src/render/widget.rs
+- [x] T052 [US1] Implement basic Vello scene generation for Button widget in crates/rvue/src/render/widget.rs
+- [x] T053 [US1] Create application runner with winit event loop in crates/rvue/src/app.rs
+- [x] T054 [US1] Implement run_app function that initializes window and starts event loop in crates/rvue/src/app.rs
+- [x] T055 [US1] Implement window creation and event handling in crates/rvue/src/app.rs
+- [x] T056 [US1] Implement Vello renderer initialization and scene rendering in crates/rvue/src/render/scene.rs
+- [x] T057 [US1] Connect signal updates to Vello scene updates via effects in crates/rvue/src/render/scene.rs (basic structure)
+- [x] T058 [US1] Create counter example application in crates/rvue-examples/counter/src/main.rs
+- [x] T059 [US1] Implement counter component with increment/decrement buttons in crates/rvue-examples/counter/src/main.rs
+- [x] T060 [US1] Verify counter example compiles and runs successfully
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Counter app should display, buttons should work, and count should update reactively.
 
