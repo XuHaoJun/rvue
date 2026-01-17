@@ -8,7 +8,6 @@ release/
 .idea/
 *.log
 .env*
-Cargo.lock
 
 # IDE
 .vscode/
