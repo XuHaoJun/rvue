@@ -7,3 +7,6 @@
 [submodule "learn-projects/flutter"]
 	path = learn-projects/flutter
 	url = git@github.com:flutter/flutter.git
+[submodule "learn-projects/xilem"]
+	path = learn-projects/xilem
+	url = git@github.com:linebender/xilem.git

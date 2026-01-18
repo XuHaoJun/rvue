@@ -1,6 +1,7 @@
 //! For widget for list rendering
 
 use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::effect::create_effect;
 use crate::signal::SignalRead;
 use rudo_gc::{Gc, Trace};
 use std::collections::HashMap;
@@ -25,12 +26,29 @@ impl For {
     /// For MVP, we'll track the length of the collection
     pub fn from_signal<T, U>(id: ComponentId, each_signal: T) -> Gc<Component>
     where
-        T: SignalRead<Vec<U>> + Clone,
+        T: SignalRead<Vec<U>> + Clone + 'static,
         U: Trace + Clone + 'static,
     {
         let items = each_signal.get();
-        let item_count = items.len();
-        Component::new(id, ComponentType::For, ComponentProps::For { item_count })
+        let initial_item_count = items.len();
+        let component = Component::new(
+            id,
+            ComponentType::For,
+            ComponentProps::For { item_count: initial_item_count },
+        );
+
+        // Setup reactive update for item count
+        let comp = Gc::clone(&component);
+        let sig = each_signal.clone();
+        let effect = create_effect(move || {
+            let items = sig.get();
+            let new_item_count = items.len();
+            *comp.props.borrow_mut() = ComponentProps::For { item_count: new_item_count };
+            comp.mark_dirty();
+        });
+
+        component.add_effect(effect);
+        component
     }
 
     /// Perform key-based diffing to determine what items were added, removed, or updated
@@ -77,13 +95,13 @@ impl For {
     /// Apply efficient add/remove/update operations to component children
     /// For MVP, this is a placeholder that will be expanded with full implementation
     pub fn update_children(
-        component: &mut Component,
+        component: &Component,
         _added_keys: &[String],
         _removed_keys: &[String],
         _updated_keys: &[String],
     ) {
         // Remove components for removed keys
-        component.children.retain(|_child| {
+        component.children.borrow_mut().retain(|_child| {
             // In a full implementation, we'd check the child's key
             // For MVP, we'll keep all children
             true

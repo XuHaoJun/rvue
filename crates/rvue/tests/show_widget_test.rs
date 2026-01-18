@@ -1,30 +1,30 @@
 //! Unit tests for Show widget component
 
-use rvue::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
+use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]
 fn test_show_widget_creation() {
     let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: true });
 
     assert_eq!(show.component_type, ComponentType::Show);
-    match &show.props {
+    match &*show.props.borrow() {
         ComponentProps::Show { when } => {
             assert_eq!(*when, true);
         }
         _ => panic!("Expected Show props"),
-    }
+    };
 }
 
 #[test]
 fn test_show_widget_when_false() {
     let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: false });
 
-    match &show.props {
+    match &*show.props.borrow() {
         ComponentProps::Show { when } => {
             assert_eq!(*when, false);
         }
         _ => panic!("Expected Show props"),
-    }
+    };
 }
 
 #[test]

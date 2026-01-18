@@ -1,11 +1,12 @@
 //! Unit tests for Taffy layout integration
 
-use rudo_gc::Gc;
 use rvue::layout::LayoutNode;
-use rvue::{Component, ComponentId, ComponentProps, ComponentType};
+use rvue::{Component, ComponentProps, ComponentType};
+use taffy::TaffyTree;
 
 #[test]
 fn test_layout_node_creation() {
+    let mut taffy = TaffyTree::new();
     let component = Component::new(
         1,
         ComponentType::Flex,
@@ -17,14 +18,15 @@ fn test_layout_node_creation() {
         },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Flex);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
 fn test_layout_node_dirty_marking() {
+    let mut taffy = TaffyTree::new();
     let component = Component::new(
         1,
         ComponentType::Flex,
@@ -36,7 +38,7 @@ fn test_layout_node_dirty_marking() {
         },
     );
 
-    let mut layout_node = LayoutNode::new(component);
+    let mut layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[]);
 
     // Initially dirty
     assert!(layout_node.is_dirty());
@@ -50,34 +52,37 @@ fn test_layout_node_dirty_marking() {
 
 #[test]
 fn test_layout_node_with_text_component() {
+    let mut taffy = TaffyTree::new();
     let component = Component::new(
         1,
         ComponentType::Text,
         ComponentProps::Text { content: "Hello".to_string() },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Text);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
 fn test_layout_node_with_button_component() {
+    let mut taffy = TaffyTree::new();
     let component = Component::new(
         1,
         ComponentType::Button,
         ComponentProps::Button { label: "Click".to_string() },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Button);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
 fn test_layout_node_tree_structure() {
+    let mut taffy = TaffyTree::new();
     // Test layout nodes for a component tree
     let root = Component::new(
         0,
@@ -102,12 +107,35 @@ fn test_layout_node_tree_structure() {
         ComponentProps::Text { content: "Child 2".to_string() },
     );
 
-    let root_layout = LayoutNode::new(root);
-    let child1_layout = LayoutNode::new(child1);
-    let child2_layout = LayoutNode::new(child2);
+    let root_layout = LayoutNode::build_in_tree(&mut taffy, &root, &[]);
+    let child1_layout = LayoutNode::build_in_tree(&mut taffy, &child1, &[]);
+    let child2_layout = LayoutNode::build_in_tree(&mut taffy, &child2, &[]);
 
     // All should be dirty initially
     assert!(root_layout.is_dirty());
     assert!(child1_layout.is_dirty());
     assert!(child2_layout.is_dirty());
+}
+
+#[test]
+fn test_layout_calculation() {
+    let mut taffy = TaffyTree::new();
+    let component = Component::new(
+        1,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "row".to_string(),
+            gap: 10.0,
+            align_items: "center".to_string(),
+            justify_content: "start".to_string(),
+        },
+    );
+
+    let mut layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[]);
+    layout_node.calculate_layout(&mut taffy).unwrap();
+
+    assert!(!layout_node.is_dirty());
+    let result = layout_node.layout().unwrap();
+    assert!(result.size.width >= 0.0);
+    assert!(result.size.height >= 0.0);
 }

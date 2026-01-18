@@ -1,8 +1,6 @@
 //! Unit tests for Button widget event handling
 
-use rvue::{Component, ComponentId, ComponentProps, ComponentType};
-use std::cell::Cell;
-use std::rc::Rc;
+use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]
 fn test_button_widget_creation() {
@@ -13,12 +11,12 @@ fn test_button_widget_creation() {
     );
 
     assert_eq!(button.component_type, ComponentType::Button);
-    match &button.props {
+    match &*button.props.borrow() {
         ComponentProps::Button { label } => {
             assert_eq!(label, "Click Me");
         }
         _ => panic!("Expected Button props"),
-    }
+    };
 }
 
 #[test]
@@ -31,12 +29,12 @@ fn test_button_widget_event_handler() {
         ComponentProps::Button { label: "Submit".to_string() },
     );
 
-    match &button.props {
+    match &*button.props.borrow() {
         ComponentProps::Button { label } => {
             assert_eq!(label, "Submit");
         }
         _ => panic!("Expected Button props"),
-    }
+    };
 }
 
 #[test]
@@ -64,12 +62,12 @@ fn test_button_widget_multiple_buttons() {
     let labels = vec!["OK", "Cancel", "Apply"];
     for (i, button) in buttons.iter().enumerate() {
         assert_eq!(button.component_type, ComponentType::Button);
-        match &button.props {
+        match &*button.props.borrow() {
             ComponentProps::Button { label } => {
                 assert_eq!(label, labels[i]);
             }
             _ => panic!("Expected Button props"),
-        }
+        };
     }
 }
 
@@ -78,10 +76,10 @@ fn test_button_widget_with_empty_label() {
     let button =
         Component::new(1, ComponentType::Button, ComponentProps::Button { label: String::new() });
 
-    match &button.props {
+    match &*button.props.borrow() {
         ComponentProps::Button { label } => {
             assert_eq!(label, "");
         }
         _ => panic!("Expected Button props"),
-    }
+    };
 }

@@ -1,34 +1,59 @@
 //! Layout node wrapper around Taffy
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use rudo_gc::Gc;
 use taffy::prelude::*;
-use taffy::Taffy;
+use taffy::TaffyTree;
 
-/// Layout node wrapper around Taffy node
+/// Layout node wrapper holding calculation results
+#[derive(Clone, Debug, Default)]
 pub struct LayoutNode {
-    pub component: Gc<Component>,
-    pub taffy_node: Option<Node>,
-    pub taffy: Taffy,
+    pub taffy_node: Option<NodeId>,
     pub is_dirty: bool,
     pub layout_result: Option<Layout>,
 }
 
 impl LayoutNode {
-    /// Create a new layout node for a component
-    pub fn new(component: Gc<Component>) -> Self {
-        let mut taffy = Taffy::new();
-        let taffy_node = taffy.new_leaf(Self::component_to_taffy_style(&component)).ok();
+    /// Create a new layout node
+    pub fn new() -> Self {
+        Self { taffy_node: None, is_dirty: true, layout_result: None }
+    }
 
-        Self { component, taffy_node, taffy, is_dirty: true, layout_result: None }
+    /// Build a single layout node with given children in a specific TaffyTree
+    /// Reuses existing NodeId if the component already has one, to avoid invalidating references
+    pub fn build_in_tree(
+        taffy: &mut TaffyTree<()>,
+        component: &Component,
+        child_nodes: &[NodeId],
+    ) -> Self {
+        let style = Self::component_to_taffy_style(component);
+
+        let taffy_node =
+            if let Some(existing_node) = component.layout_node().and_then(|ln| ln.taffy_node()) {
+                if taffy.set_style(existing_node, style.clone()).is_ok() {
+                    if !child_nodes.is_empty() {
+                        let _ = taffy.set_children(existing_node, child_nodes);
+                    }
+                    Some(existing_node)
+                } else if child_nodes.is_empty() {
+                    taffy.new_leaf(style).ok()
+                } else {
+                    taffy.new_with_children(style, child_nodes).ok()
+                }
+            } else if child_nodes.is_empty() {
+                taffy.new_leaf(style).ok()
+            } else {
+                taffy.new_with_children(style, child_nodes).ok()
+            };
+
+        Self { taffy_node, is_dirty: true, layout_result: None }
     }
 
     /// Convert component props to Taffy style
-    fn component_to_taffy_style(component: &Component) -> Style {
+    pub fn component_to_taffy_style(component: &Component) -> Style {
         match &component.component_type {
             ComponentType::Flex => {
                 if let ComponentProps::Flex { direction, gap, align_items, justify_content } =
-                    &component.props
+                    &*component.props.borrow()
                 {
                     let flex_direction = match direction.as_str() {
                         "row" => taffy::prelude::FlexDirection::Row,
@@ -60,10 +85,7 @@ impl LayoutNode {
                     Style {
                         display: Display::Flex,
                         flex_direction,
-                        gap: Size {
-                            width: LengthPercentage::Points(*gap),
-                            height: LengthPercentage::Points(*gap),
-                        },
+                        gap: Size { width: length(*gap), height: length(*gap) },
                         align_items: Some(align_items_taffy),
                         justify_content: Some(justify_content_taffy),
                         ..Default::default()
@@ -72,46 +94,54 @@ impl LayoutNode {
                     Style::default()
                 }
             }
-            _ => {
-                // For non-flex components, use default style
-                Style::default()
-            }
+            ComponentType::Text => Style {
+                size: Size { width: length(100.0), height: length(20.0) },
+                ..Default::default()
+            },
+            ComponentType::Button => Style {
+                size: Size { width: length(120.0), height: length(40.0) },
+                ..Default::default()
+            },
+            ComponentType::TextInput => Style {
+                size: Size { width: length(200.0), height: length(30.0) },
+                ..Default::default()
+            },
+            ComponentType::NumberInput => Style {
+                size: Size { width: length(150.0), height: length(30.0) },
+                ..Default::default()
+            },
+            ComponentType::Checkbox | ComponentType::Radio => Style {
+                size: Size { width: length(20.0), height: length(20.0) },
+                ..Default::default()
+            },
+            _ => Style::default(),
         }
     }
 
-    /// Calculate layout for this node and its children
-    pub fn calculate_layout(&mut self) -> Result<(), taffy::error::TaffyError> {
-        if !self.is_dirty {
-            return Ok(());
-        }
-
+    /// Calculate layout for this node and its children using the provided TaffyTree
+    pub fn calculate_layout(&mut self, taffy: &mut TaffyTree<()>) -> Result<(), taffy::TaffyError> {
         if let Some(node_id) = self.taffy_node {
-            // Compute layout (returns () on success)
-            self.taffy.compute_layout(node_id, Size::MAX_CONTENT)?;
-            // Get the layout result
-            self.layout_result = Some(*self.taffy.layout(node_id)?);
+            taffy.compute_layout(node_id, Size::MAX_CONTENT)?;
+            self.update_results_recursive(taffy, node_id)?;
             self.is_dirty = false;
         }
+        Ok(())
+    }
 
+    /// Recursively update layout results from the TaffyTree
+    /// This is internal but could be made public if needed
+    fn update_results_recursive(
+        &mut self,
+        taffy: &TaffyTree<()>,
+        node_id: NodeId,
+    ) -> Result<(), taffy::TaffyError> {
+        self.layout_result = Some(*taffy.layout(node_id)?);
         Ok(())
     }
 
     /// Mark the layout node as dirty (needs recalculation)
-    /// This should be called when style or content changes
     pub fn mark_dirty(&mut self) {
         self.is_dirty = true;
-        // Also mark children as dirty
-        // In a full implementation, we'd traverse the component tree
-    }
-
-    /// Update Taffy style when component props change
-    pub fn update_style(&mut self) -> Result<(), taffy::error::TaffyError> {
-        if let Some(node_id) = self.taffy_node {
-            let new_style = Self::component_to_taffy_style(&self.component);
-            self.taffy.set_style(node_id, new_style)?;
-            self.mark_dirty();
-        }
-        Ok(())
     }
 
     /// Check if the layout node is dirty
@@ -122,5 +152,10 @@ impl LayoutNode {
     /// Get the calculated layout result
     pub fn layout(&self) -> Option<&Layout> {
         self.layout_result.as_ref()
+    }
+
+    /// Get the taffy_node ID
+    pub fn taffy_node(&self) -> Option<NodeId> {
+        self.taffy_node
     }
 }

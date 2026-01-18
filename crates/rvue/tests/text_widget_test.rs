@@ -11,12 +11,12 @@ fn test_text_widget_creation() {
     );
 
     assert_eq!(text.component_type, ComponentType::Text);
-    match &text.props {
+    match &*text.props.borrow() {
         ComponentProps::Text { content } => {
             assert_eq!(content, "Hello World");
         }
         _ => panic!("Expected Text props"),
-    }
+    };
 }
 
 #[test]
@@ -24,12 +24,12 @@ fn test_text_widget_with_empty_string() {
     let text =
         Component::new(2, ComponentType::Text, ComponentProps::Text { content: String::new() });
 
-    match &text.props {
+    match &*text.props.borrow() {
         ComponentProps::Text { content } => {
             assert_eq!(content, "");
         }
         _ => panic!("Expected Text props"),
-    }
+    };
 }
 
 #[test]
@@ -40,12 +40,12 @@ fn test_text_widget_with_special_characters() {
         ComponentProps::Text { content: "Hello\nWorld\t!".to_string() },
     );
 
-    match &text.props {
+    match &*text.props.borrow() {
         ComponentProps::Text { content } => {
             assert_eq!(content, "Hello\nWorld\t!");
         }
         _ => panic!("Expected Text props"),
-    }
+    };
 }
 
 #[test]

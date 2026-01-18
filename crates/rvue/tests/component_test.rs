@@ -13,9 +13,9 @@ fn test_component_creation() {
 
     assert_eq!(component.id, 1);
     assert_eq!(component.component_type, ComponentType::Text);
-    assert!(component.children.is_empty());
-    assert!(component.parent.is_none());
-    assert!(component.effects.is_empty());
+    assert!(component.children.borrow().is_empty());
+    assert!(component.parent.borrow().is_none());
+    assert!(component.effects.borrow().is_empty());
 }
 
 #[test]
@@ -37,11 +37,10 @@ fn test_component_add_child() {
         ComponentProps::Text { content: "Child".to_string() },
     );
 
-    // Note: We need mutable access, but Component is in Gc
-    // For MVP, we'll test the structure exists
-    // In a real implementation, we'd use GcCell or handle mutations differently
-    assert_eq!(parent.children.len(), 0);
-    assert_eq!(child.id, 2);
+    // Test add_child works with GcCell
+    parent.add_child(Gc::clone(&child));
+    assert_eq!(parent.children.borrow().len(), 1);
+    assert_eq!(parent.children.borrow()[0].id, 2);
 }
 
 #[test]

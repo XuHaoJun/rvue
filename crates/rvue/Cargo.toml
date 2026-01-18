@@ -9,8 +9,13 @@ repository = "https://github.com/your-org/rvue"
 
 [dependencies]
 rudo-gc = "0.1"
-vello = "0.4"
-taffy = "0.3"
+vello = "0.7"
+wgpu = "27"
 winit = "0.30"
+pollster = "0.4"
+thiserror = "2"
+taffy = "0.9"
+wgpu-profiler = { version = "0.25", optional = true, default-features = false }
 
-[dev-dependencies]
+[features]
+tracy = ["wgpu-profiler"]

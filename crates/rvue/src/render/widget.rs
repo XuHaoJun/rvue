@@ -1,253 +1,286 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use rudo_gc::Gc;
+use rudo_gc::{Gc, GcCell};
 use vello::kurbo::{Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
 /// Vello fragment wrapper for scene graph
 pub struct VelloFragment {
     pub component: Gc<Component>,
-    pub is_dirty: bool,
+    pub cached_scene: GcCell<Option<vello::Scene>>,
 }
 
 impl VelloFragment {
-    /// Create a new Vello fragment for a component
     pub fn new(component: Gc<Component>) -> Self {
-        Self { component, is_dirty: true }
+        Self { component, cached_scene: GcCell::new(None) }
     }
 
-    /// Mark the fragment as dirty (needs update)
-    pub fn mark_dirty(&mut self) {
-        self.is_dirty = true;
+    pub fn mark_dirty(&self) {
+        self.component.mark_dirty();
+        *self.cached_scene.borrow_mut() = None;
     }
 
-    /// Check if the fragment is dirty
     pub fn is_dirty(&self) -> bool {
-        self.is_dirty
+        self.component.is_dirty() || self.cached_scene.borrow().is_none()
     }
 
-    /// Generate Vello scene items for this fragment
-    /// For MVP, this generates basic rendering commands
     pub fn generate_scene_items(&self, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
-        match &self.component.component_type {
-            ComponentType::Text => {
-                Self::render_text(&self.component, scene, transform);
+        if self.is_dirty() {
+            let mut sub_scene = vello::Scene::new();
+
+            match &self.component.component_type {
+                ComponentType::Text => {
+                    Self::render_text(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Button => {
+                    Self::render_button(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Show => {
+                    Self::render_show(
+                        Gc::clone(&self.component),
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::For => {
+                    Self::render_for(
+                        Gc::clone(&self.component),
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Flex => {
+                    Self::render_flex(
+                        Gc::clone(&self.component),
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::TextInput => {
+                    Self::render_text_input(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::NumberInput => {
+                    Self::render_number_input(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Checkbox => {
+                    Self::render_checkbox(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Radio => {
+                    Self::render_radio(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                _ => {}
             }
-            ComponentType::Button => {
-                Self::render_button(&self.component, scene, transform);
-            }
-            ComponentType::Show => {
-                Self::render_show(&self.component, scene, transform);
-            }
-            ComponentType::For => {
-                Self::render_for(&self.component, scene, transform);
-            }
-            ComponentType::Flex => {
-                Self::render_flex(&self.component, scene, transform);
-            }
-            ComponentType::TextInput => {
-                Self::render_text_input(&self.component, scene, transform);
-            }
-            ComponentType::NumberInput => {
-                Self::render_number_input(&self.component, scene, transform);
-            }
-            ComponentType::Checkbox => {
-                Self::render_checkbox(&self.component, scene, transform);
-            }
-            ComponentType::Radio => {
-                Self::render_radio(&self.component, scene, transform);
-            }
-            _ => {
-                // Other component types will be implemented later
-            }
+
+            *self.cached_scene.borrow_mut() = Some(sub_scene);
+            self.component.clear_dirty();
+        }
+
+        if let Some(ref sub_scene) = *self.cached_scene.borrow() {
+            scene.append(sub_scene, Some(transform));
         }
     }
 
-    /// Render a Text widget to the Vello scene
     fn render_text(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Text { content: _ } = &component.props {
-            // For MVP, we'll render text as a simple rectangle placeholder
-            // Full text rendering with fonts will be implemented later
+        if let ComponentProps::Text { content: _ } = &*component.props.borrow() {
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-
-            // Fill the text area (placeholder - actual text rendering needs font support)
-            let bg_color = Color::from_rgba8(200, 200, 200, 255); // Light gray background
+            let bg_color = Color::from_rgba8(200, 200, 200, 255);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-
-            // Note: Actual text rendering requires:
-            // 1. Font loading and management
-            // 2. Text layout (line breaking, etc.)
-            // 3. Glyph rendering
-            // This will be implemented in a future iteration
         }
     }
 
-    /// Render a Button widget to the Vello scene
     fn render_button(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Button { label: _ } = &component.props {
-            // Render button background
+        if let ComponentProps::Button { label: _ } = &*component.props.borrow() {
             let rect = RoundedRect::new(0.0, 0.0, 120.0, 40.0, 4.0);
-            let bg_color = Color::from_rgb8(70, 130, 180); // Steel blue
-
+            let bg_color = Color::from_rgb8(70, 130, 180);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-
-            // Render button border
-            // For MVP, we'll skip the border stroke - full stroke support will be added later
-            // when we have proper peniko::Stroke API access
-
-            // Note: Button text rendering will be added when text rendering is fully implemented
         }
     }
 
-    /// Render a Show widget to the Vello scene
-    /// Only renders children if when is true
     fn render_show(
-        component: &Component,
+        component: Gc<Component>,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Show { when } = &component.props {
-            // Only render children if when is true
+        if let ComponentProps::Show { when } = &*component.props.borrow() {
             if *when {
-                // Render all children
-                for child in &component.children {
-                    // Recursively render children
-                    let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
+                for child in component.children.borrow().iter() {
+                    let child_transform = if let Some(layout_node) = child.layout_node() {
+                        if let Some(layout) = layout_node.layout() {
+                            vello::kurbo::Affine::translate((
+                                layout.location.x as f64,
+                                layout.location.y as f64,
+                            ))
+                        } else {
+                            vello::kurbo::Affine::IDENTITY
+                        }
+                    } else {
+                        vello::kurbo::Affine::IDENTITY
+                    };
+                    let child_fragment = VelloFragment::new(Gc::clone(child));
+                    child_fragment.generate_scene_items(scene, transform * child_transform);
+                }
+            }
+        }
+    }
+
+    fn render_for(
+        component: Gc<Component>,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
+        if let ComponentProps::For { item_count: _ } = &*component.props.borrow() {
+            for child in component.children.borrow().iter() {
+                let child_transform = if let Some(layout_node) = child.layout_node() {
+                    if let Some(layout) = layout_node.layout() {
+                        vello::kurbo::Affine::translate((
+                            layout.location.x as f64,
+                            layout.location.y as f64,
+                        ))
+                    } else {
+                        vello::kurbo::Affine::IDENTITY
+                    }
+                } else {
+                    vello::kurbo::Affine::IDENTITY
+                };
+                let child_fragment = VelloFragment::new(Gc::clone(child));
+                child_fragment.generate_scene_items(scene, transform * child_transform);
+            }
+        }
+    }
+
+    fn render_flex(
+        component: Gc<Component>,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+    ) {
+        if let ComponentProps::Flex { .. } = &*component.props.borrow() {
+            let layout_node = component.layout_node();
+
+            if let Some(layout) = layout_node {
+                if let Some(flex_layout) = layout.layout() {
+                    let rect = Rect::new(
+                        0.0,
+                        0.0,
+                        flex_layout.size.width as f64,
+                        flex_layout.size.height as f64,
+                    );
+                    let bg_color = Color::from_rgba8(245, 245, 245, 255);
+                    scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+                }
+
+                // Render children using their cached layout locations
+                for child in component.children.borrow().iter() {
+                    if let Some(child_layout_node) = child.layout_node() {
+                        if let Some(child_layout) = child_layout_node.layout() {
+                            let child_transform = vello::kurbo::Affine::translate((
+                                child_layout.location.x as f64,
+                                child_layout.location.y as f64,
+                            ));
+                            let child_fragment = VelloFragment::new(Gc::clone(child));
+                            child_fragment.generate_scene_items(scene, transform * child_transform);
+                        }
+                    } else {
+                        // Fallback: render without translation if layout is missing
+                        let child_fragment = VelloFragment::new(Gc::clone(child));
+                        child_fragment.generate_scene_items(scene, transform);
+                    }
+                }
+            } else {
+                // Fallback for missing layout node
+                for child in component.children.borrow().iter() {
+                    let child_fragment = VelloFragment::new(Gc::clone(child));
                     child_fragment.generate_scene_items(scene, transform);
                 }
             }
-            // If when is false, skip rendering (hidden components don't consume rendering resources)
         }
     }
 
-    /// Render a For widget to the Vello scene
-    /// Renders all children (list items) efficiently
-    fn render_for(
-        component: &Component,
-        scene: &mut vello::Scene,
-        transform: vello::kurbo::Affine,
-    ) {
-        if let ComponentProps::For { item_count: _ } = &component.props {
-            // Render all children (list items)
-            let mut y_offset = 0.0;
-            for child in &component.children {
-                // Recursively render children with vertical stacking
-                let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
-                let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
-                child_fragment.generate_scene_items(scene, transform * child_transform);
-
-                // Simple vertical stacking for MVP
-                y_offset += 50.0;
-            }
-        }
-    }
-
-    /// Render a Flex widget to the Vello scene
-    /// Applies layout results to position children correctly
-    fn render_flex(
-        component: &Component,
-        scene: &mut vello::Scene,
-        transform: vello::kurbo::Affine,
-    ) {
-        if let ComponentProps::Flex { .. } = &component.props {
-            // For MVP, we'll render children with simple stacking
-            // In a full implementation, we'd use layout results from Taffy
-            let mut y_offset = 0.0;
-            for child in &component.children {
-                // Apply layout transform if available
-                // For MVP, use simple vertical stacking
-                let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
-                let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
-                child_fragment.generate_scene_items(scene, transform * child_transform);
-
-                y_offset += 50.0;
-            }
-        }
-    }
-
-    /// Render a TextInput widget to the Vello scene
     fn render_text_input(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::TextInput { value: _ } = &component.props {
-            // Render input field background
+        if let ComponentProps::TextInput { value: _ } = &*component.props.borrow() {
             let rect = RoundedRect::new(0.0, 0.0, 200.0, 30.0, 2.0);
-            let bg_color = Color::from_rgb8(255, 255, 255); // White background
-
+            let bg_color = Color::from_rgb8(255, 255, 255);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-
-            // Note: Text rendering and cursor will be added when text rendering is fully implemented
         }
     }
 
-    /// Render a NumberInput widget to the Vello scene
     fn render_number_input(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::NumberInput { value: _ } = &component.props {
-            // Render input field background (similar to TextInput)
+        if let ComponentProps::NumberInput { value: _ } = &*component.props.borrow() {
             let rect = RoundedRect::new(0.0, 0.0, 150.0, 30.0, 2.0);
-            let bg_color = Color::from_rgb8(255, 255, 255); // White background
-
+            let bg_color = Color::from_rgb8(255, 255, 255);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
         }
     }
 
-    /// Render a Checkbox widget to the Vello scene
     fn render_checkbox(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Checkbox { checked } = &component.props {
-            // Render checkbox square
+        if let ComponentProps::Checkbox { checked } = &*component.props.borrow() {
             let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
             let bg_color = if *checked {
-                Color::from_rgb8(70, 130, 180) // Steel blue when checked
+                Color::from_rgb8(70, 130, 180)
             } else {
-                Color::from_rgb8(255, 255, 255) // White when unchecked
+                Color::from_rgb8(255, 255, 255)
             };
-
-            // Fill background
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-
-            // Render border
-            // Note: Border rendering will be added when stroke API is fully available
         }
     }
 
-    /// Render a Radio widget to the Vello scene
     fn render_radio(
         component: &Component,
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Radio { value: _, checked } = &component.props {
-            // Render radio circle
+        if let ComponentProps::Radio { value: _, checked } = &*component.props.borrow() {
             let circle = Circle::new((10.0, 10.0), 10.0);
             let bg_color = if *checked {
-                Color::from_rgb8(70, 130, 180) // Steel blue when checked
+                Color::from_rgb8(70, 130, 180)
             } else {
-                Color::from_rgb8(255, 255, 255) // White when unchecked
+                Color::from_rgb8(255, 255, 255)
             };
-
-            // Fill background
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
-
-            // Render inner dot if checked
             if *checked {
                 let inner_circle = Circle::new((10.0, 10.0), 5.0);
                 let dot_color = Color::from_rgb8(255, 255, 255);
