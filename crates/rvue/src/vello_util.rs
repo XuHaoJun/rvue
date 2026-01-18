@@ -5,6 +5,7 @@
 
 use wgpu::{
     Device, Instance, InstanceDescriptor, PresentMode, Surface, SurfaceConfiguration, TextureFormat,
+    Texture, TextureView, TextureUsages,
 };
 
 use std::fmt;
@@ -65,17 +66,22 @@ impl RenderContext {
             .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
             .ok_or(CreateSurfaceError::UnsupportedSurfaceFormat)?;
 
-        let alpha_mode =
-            if capabilities.alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
-                wgpu::CompositeAlphaMode::PostMultiplied
-            } else if capabilities.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                wgpu::CompositeAlphaMode::PreMultiplied
-            } else {
-                wgpu::CompositeAlphaMode::Auto
-            };
+        let alpha_mode = if capabilities
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PostMultiplied
+        } else if capabilities
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
 
         let config = SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
             format,
             width,
             height,
@@ -85,13 +91,25 @@ impl RenderContext {
             view_formats: vec![],
         };
 
-        let surface = RenderSurface { surface, config, dev_id, format };
+        let (target_texture, target_view) = create_targets(width, height, &device_handle.device);
+
+        let surface = RenderSurface {
+            surface,
+            config,
+            dev_id,
+            format,
+            target_texture,
+            target_view,
+        };
         self.configure_surface(&surface);
         Ok(surface)
     }
 
     /// Resizes the surface to the new dimensions.
     pub fn resize_surface(&self, surface: &mut RenderSurface<'_>, width: u32, height: u32) {
+        let (texture, view) = create_targets(width, height, &self.devices[surface.dev_id].device);
+        surface.target_texture = texture;
+        surface.target_view = view;
         surface.config.width = width;
         surface.config.height = height;
         self.configure_surface(surface);
@@ -158,6 +176,21 @@ impl RenderContext {
     }
 }
 
+fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, TextureView) {
+    let target_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: None,
+        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_SRC,
+        format: TextureFormat::Rgba8Unorm,
+        view_formats: &[],
+    });
+    let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
+    (target_texture, target_view)
+}
+
 /// Errors that can occur when creating a surface.
 #[derive(Debug, thiserror::Error)]
 pub enum CreateSurfaceError {
@@ -175,6 +208,8 @@ pub struct RenderSurface<'s> {
     pub config: SurfaceConfiguration,
     pub dev_id: usize,
     pub format: TextureFormat,
+    pub target_texture: Texture,
+    pub target_view: TextureView,
 }
 
 impl fmt::Debug for RenderSurface<'_> {
@@ -184,6 +219,8 @@ impl fmt::Debug for RenderSurface<'_> {
             .field("config", &self.config)
             .field("dev_id", &self.dev_id)
             .field("format", &self.format)
+            .field("target_texture", &self.target_texture)
+            .field("target_view", &self.target_view)
             .finish()
     }
 }

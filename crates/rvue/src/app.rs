@@ -4,6 +4,7 @@ use crate::render::Scene as RvueScene;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use std::sync::Arc;
+use vello::kurbo::Affine;
 use vello::peniko::Color;
 use vello::{AaConfig, AaSupport, Renderer, RendererOptions};
 use wgpu::SurfaceTexture;
@@ -75,8 +76,8 @@ impl<'a> AppState<'a> {
     }
 
     fn render_frame(&mut self) {
-        let size = match self.window.as_ref().map(|w| w.inner_size()) {
-            Some(s) if s.width != 0 && s.height != 0 => s,
+        let (scale_factor, size) = match self.window.as_ref().map(|w| (w.scale_factor(), w.inner_size())) {
+            Some((sf, s)) if s.width != 0 && s.height != 0 => (sf, s),
             _ => return,
         };
 
@@ -127,17 +128,61 @@ impl<'a> AppState<'a> {
         self.scene.update();
 
         let scene = self.scene.vello_scene();
+
+        let transformed_scene = if scale_factor == 1.0 {
+            None
+        } else {
+            let mut new_scene = vello::Scene::new();
+            new_scene.append(scene, Some(Affine::scale(scale_factor)));
+            Some(new_scene)
+        };
+        let scene_ref = transformed_scene.as_ref().unwrap_or(scene);
+
+        // Render to intermediate texture
         if let Err(e) =
-            renderer.render_to_surface(device, queue, scene, &surface_texture, &render_params)
+            renderer.render_to_texture(device, queue, scene_ref, &surface.target_view, &render_params)
         {
-            eprintln!("Vello render failed: {}", e);
+            eprintln!("Vello render to texture failed: {}", e);
             return;
         }
+
+        // Blit to surface
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Surface Blit"),
+        });
+
+        if surface.format == wgpu::TextureFormat::Rgba8Unorm {
+            // Simple copy if formats match
+            encoder.copy_texture_to_texture(
+                surface.target_texture.as_image_copy(),
+                surface_texture.texture.as_image_copy(),
+                wgpu::Extent3d {
+                    width: size.width,
+                    height: size.height,
+                    depth_or_array_layers: 1,
+                },
+            );
+        } else {
+            // Fallback for non-matching formats: render-to-surface for now
+            // In a full implementation, we'd use a render pipeline for format conversion
+            eprintln!("Warning: Surface format {:?} doesn't match intermediate target format Rgba8Unorm. Using direct render as fallback.", surface.format);
+            if let Err(e) =
+                renderer.render_to_surface(device, queue, scene_ref, &surface_texture, &render_params)
+            {
+                eprintln!("Vello direct render fallback failed: {}", e);
+                return;
+            }
+        }
+
+        queue.submit([encoder.finish()]);
 
         if let Some(window) = &self.window {
             window.pre_present_notify();
         }
         surface_texture.present();
+
+        // GPU synchronization
+        device.poll(wgpu::Maintain::wait());
     }
 
     fn get_or_create_surface(
