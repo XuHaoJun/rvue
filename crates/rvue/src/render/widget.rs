@@ -119,7 +119,7 @@ impl VelloFragment {
             // Only render children if when is true
             if *when {
                 // Render all children
-                for child in &component.children {
+                for child in component.children.borrow().iter() {
                     // Recursively render children
                     let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
                     child_fragment.generate_scene_items(scene, transform);
@@ -139,7 +139,7 @@ impl VelloFragment {
         if let ComponentProps::For { item_count: _ } = &component.props {
             // Render all children (list items)
             let mut y_offset = 0.0;
-            for child in &component.children {
+            for child in component.children.borrow().iter() {
                 // Recursively render children with vertical stacking
                 let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));
                 let child_fragment = VelloFragment::new(rudo_gc::Gc::clone(child));
@@ -162,7 +162,7 @@ impl VelloFragment {
             // For MVP, we'll render children with simple stacking
             // In a full implementation, we'd use layout results from Taffy
             let mut y_offset = 0.0;
-            for child in &component.children {
+            for child in component.children.borrow().iter() {
                 // Apply layout transform if available
                 // For MVP, use simple vertical stacking
                 let child_transform = vello::kurbo::Affine::translate((0.0, y_offset));

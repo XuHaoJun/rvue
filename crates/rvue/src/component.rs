@@ -1,7 +1,7 @@
 //! Component trait and lifecycle management
 
 use crate::effect::Effect;
-use rudo_gc::{Gc, Trace};
+use rudo_gc::{Gc, GcCell, Trace};
 
 /// Unique identifier for a component
 pub type ComponentId = u64;
@@ -49,24 +49,18 @@ unsafe impl Trace for ComponentProps {
 pub struct Component {
     pub id: ComponentId,
     pub component_type: ComponentType,
-    pub children: Vec<Gc<Component>>,
-    pub parent: Option<Gc<Component>>,
-    pub effects: Vec<Gc<Effect>>,
+    pub children: GcCell<Vec<Gc<Component>>>,
+    pub parent: GcCell<Option<Gc<Component>>>,
+    pub effects: GcCell<Vec<Gc<Effect>>>,
     pub props: ComponentProps,
 }
 
 unsafe impl Trace for Component {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Trace all GC-managed fields
-        for child in &self.children {
-            child.trace(visitor);
-        }
-        if let Some(parent) = &self.parent {
-            parent.trace(visitor);
-        }
-        for effect in &self.effects {
-            effect.trace(visitor);
-        }
+        self.children.trace(visitor);
+        self.parent.trace(visitor);
+        self.effects.trace(visitor);
         self.props.trace(visitor);
     }
 }
@@ -97,50 +91,44 @@ impl Component {
         Gc::new(Self {
             id,
             component_type,
-            children: Vec::with_capacity(initial_children_capacity),
-            parent: None,
-            effects: Vec::new(),
+            children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
+            parent: GcCell::new(None),
+            effects: GcCell::new(Vec::new()),
             props,
         })
     }
 
     /// Add a child component
-    pub fn add_child(&mut self, child: Gc<Component>) {
-        self.children.push(child);
+    pub fn add_child(&self, child: Gc<Component>) {
+        self.children.borrow_mut().push(child);
     }
 
     /// Set the parent component
-    pub fn set_parent(&mut self, parent: Option<Gc<Component>>) {
-        self.parent = parent;
+    pub fn set_parent(&self, parent: Option<Gc<Component>>) {
+        *self.parent.borrow_mut() = parent;
     }
 
     /// Add an effect to this component
-    pub fn add_effect(&mut self, effect: Gc<Effect>) {
-        self.effects.push(effect);
+    pub fn add_effect(&self, effect: Gc<Effect>) {
+        self.effects.borrow_mut().push(effect);
     }
 }
 
 impl ComponentLifecycle for Component {
     fn mount(&self, _parent: Option<Gc<Component>>) {
-        // Set parent reference
-        // Note: We need mutable access, but Component is in Gc, so we'll need GcCell
-        // For MVP, we'll handle this at a higher level
-
         // For Show components, mount/unmount children based on when condition
-        // Note: We can't easily get the Gc wrapper from inside Component
-        // For MVP, we'll mount children without parent reference
         if let ComponentType::Show = self.component_type {
             if let ComponentProps::Show { when } = &self.props {
                 if *when {
                     // Mount children if visible
-                    for child in &self.children {
+                    for child in self.children.borrow().iter() {
                         child.mount(None);
                     }
                 }
             }
         } else {
             // For other components, mount all children
-            for child in &self.children {
+            for child in self.children.borrow().iter() {
                 child.mount(None);
             }
         }
@@ -148,7 +136,7 @@ impl ComponentLifecycle for Component {
 
     fn unmount(&self) {
         // Unmount all children
-        for child in &self.children {
+        for child in self.children.borrow().iter() {
             child.unmount();
         }
 
@@ -158,7 +146,7 @@ impl ComponentLifecycle for Component {
 
     fn update(&self) {
         // Run all effects that are dirty
-        for effect in &self.effects {
+        for effect in self.effects.borrow().iter() {
             Effect::update_if_dirty(effect);
         }
 
@@ -167,12 +155,12 @@ impl ComponentLifecycle for Component {
             if let ComponentProps::Show { when } = &self.props {
                 if *when {
                     // Ensure children are mounted
-                    for child in &self.children {
+                    for child in self.children.borrow().iter() {
                         child.mount(None);
                     }
                 } else {
                     // Unmount children if hidden
-                    for child in &self.children {
+                    for child in self.children.borrow().iter() {
                         child.unmount();
                     }
                 }
@@ -180,7 +168,7 @@ impl ComponentLifecycle for Component {
         }
 
         // Update all children
-        for child in &self.children {
+        for child in self.children.borrow().iter() {
             child.update();
         }
     }

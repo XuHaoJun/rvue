@@ -77,13 +77,13 @@ impl For {
     /// Apply efficient add/remove/update operations to component children
     /// For MVP, this is a placeholder that will be expanded with full implementation
     pub fn update_children(
-        component: &mut Component,
+        component: &Component,
         _added_keys: &[String],
         _removed_keys: &[String],
         _updated_keys: &[String],
     ) {
         // Remove components for removed keys
-        component.children.retain(|_child| {
+        component.children.borrow_mut().retain(|_child| {
             // In a full implementation, we'd check the child's key
             // For MVP, we'll keep all children
             true

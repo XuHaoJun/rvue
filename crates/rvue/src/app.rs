@@ -1,5 +1,6 @@
 //! Application runner with winit event loop
 
+use crate::render::Scene as RvueScene;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use std::sync::Arc;
@@ -19,7 +20,7 @@ pub struct AppState<'a> {
     render_cx: Option<RenderContext>,
     surface: Option<RenderSurface<'a>>,
     renderer: Option<Renderer>,
-    scene: vello::Scene,
+    scene: RvueScene,
 }
 
 impl<'a> AppState<'a> {
@@ -30,7 +31,7 @@ impl<'a> AppState<'a> {
             render_cx: None,
             surface: None,
             renderer: None,
-            scene: vello::Scene::new(),
+            scene: RvueScene::new(),
         }
     }
 }
@@ -115,7 +116,17 @@ impl<'a> AppState<'a> {
             Renderer::new(device, options).expect("Failed to create Vello renderer")
         });
 
-        let scene = &self.scene;
+        // Populate scene from view if not already done
+        if self.scene.fragments.is_empty() {
+            if let Some(view) = &self.view {
+                self.scene.add_fragment(view.root_component.clone());
+            }
+        }
+
+        // Update scene (regenerates the underlying vello::Scene if dirty)
+        self.scene.update();
+
+        let scene = self.scene.vello_scene();
         if let Err(e) =
             renderer.render_to_surface(device, queue, scene, &surface_texture, &render_params)
         {

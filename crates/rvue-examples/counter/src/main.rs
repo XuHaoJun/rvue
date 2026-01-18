@@ -52,14 +52,14 @@ fn create_counter_view() -> ViewStruct {
     // Create text component to display count
     // For MVP, we'll create a simple text component
     // In a full implementation, this would be reactive via effects
-    let _count_text = Component::new(
+    let count_text = Component::new(
         1,
         ComponentType::Text,
         ComponentProps::Text { content: format!("Count: {}", count.get()) },
     );
 
     // Create a message that can be shown/hidden
-    let _message_text = Component::new(
+    let message_text = Component::new(
         2,
         ComponentType::Text,
         ComponentProps::Text { content: "Counter is active!".to_string() },
@@ -67,23 +67,22 @@ fn create_counter_view() -> ViewStruct {
 
     // Create Show component to conditionally display the message
     // Note: In a full implementation, this would be connected to show_message signal
-    let _show_component = Show::new(3, show_message.get());
+    let show_component = Show::new(3, show_message.get());
+    show_component.add_child(message_text);
 
     // Create increment button
-    let _inc_button =
+    let inc_button =
         Component::new(4, ComponentType::Button, ComponentProps::Button { label: "+".to_string() });
 
     // Create decrement button
-    let _dec_button =
+    let dec_button =
         Component::new(5, ComponentType::Button, ComponentProps::Button { label: "-".to_string() });
 
-    // Note: In a full implementation, we would:
-    // 1. Use the view! macro to create components declaratively
-    // 2. Connect event handlers to buttons
-    // 3. Use effects to update text when count changes
-    // 4. Use effects to update Show component when show_message changes
-    // 5. Add components to the root component's children
-    // For MVP, this demonstrates the basic structure
+    // Add components to the root component's children
+    root.add_child(count_text);
+    root.add_child(show_component);
+    root.add_child(inc_button);
+    root.add_child(dec_button);
 
     // Create view
     let view = ViewStruct::new(root);
