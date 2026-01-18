@@ -1,6 +1,6 @@
 //! Unit tests for For component key-based diffing
 
-use rvue::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
+use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]
 fn test_for_component_creation() {
@@ -8,12 +8,12 @@ fn test_for_component_creation() {
         Component::new(1, ComponentType::For, ComponentProps::For { item_count: 5 });
 
     assert_eq!(for_component.component_type, ComponentType::For);
-    match &for_component.props {
+    match &*for_component.props.borrow() {
         ComponentProps::For { item_count } => {
             assert_eq!(*item_count, 5);
         }
         _ => panic!("Expected For props"),
-    }
+    };
 }
 
 #[test]
@@ -21,12 +21,12 @@ fn test_for_component_empty_list() {
     let for_component =
         Component::new(1, ComponentType::For, ComponentProps::For { item_count: 0 });
 
-    match &for_component.props {
+    match &*for_component.props.borrow() {
         ComponentProps::For { item_count } => {
             assert_eq!(*item_count, 0);
         }
         _ => panic!("Expected For props"),
-    }
+    };
 }
 
 #[test]

@@ -1,6 +1,5 @@
 //! Integration test for Show component
 
-use rudo_gc::Gc;
 use rvue::{create_signal, ComponentLifecycle, SignalRead, SignalWrite};
 use rvue::{Component, ComponentProps, ComponentType};
 

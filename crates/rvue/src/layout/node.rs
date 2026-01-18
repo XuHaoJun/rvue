@@ -28,7 +28,7 @@ impl LayoutNode {
         match &component.component_type {
             ComponentType::Flex => {
                 if let ComponentProps::Flex { direction, gap, align_items, justify_content } =
-                    &component.props
+                    &*component.props.borrow()
                 {
                     let flex_direction = match direction.as_str() {
                         "row" => taffy::prelude::FlexDirection::Row,

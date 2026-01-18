@@ -2,6 +2,7 @@
 
 use crate::effect::Effect;
 use rudo_gc::{Gc, GcCell, Trace};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Unique identifier for a component
 pub type ComponentId = u64;
@@ -52,7 +53,8 @@ pub struct Component {
     pub children: GcCell<Vec<Gc<Component>>>,
     pub parent: GcCell<Option<Gc<Component>>>,
     pub effects: GcCell<Vec<Gc<Effect>>>,
-    pub props: ComponentProps,
+    pub props: GcCell<ComponentProps>,
+    pub is_dirty: AtomicBool,
 }
 
 unsafe impl Trace for Component {
@@ -94,8 +96,24 @@ impl Component {
             children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
             parent: GcCell::new(None),
             effects: GcCell::new(Vec::new()),
-            props,
+            props: GcCell::new(props),
+            is_dirty: AtomicBool::new(true),
         })
+    }
+
+    /// Mark the component as dirty (needs re-render)
+    pub fn mark_dirty(&self) {
+        self.is_dirty.store(true, Ordering::SeqCst);
+    }
+
+    /// Clear the dirty flag
+    pub fn clear_dirty(&self) {
+        self.is_dirty.store(false, Ordering::SeqCst);
+    }
+
+    /// Check if the component is dirty
+    pub fn is_dirty(&self) -> bool {
+        self.is_dirty.load(Ordering::SeqCst)
     }
 
     /// Add a child component
@@ -118,7 +136,7 @@ impl ComponentLifecycle for Component {
     fn mount(&self, _parent: Option<Gc<Component>>) {
         // For Show components, mount/unmount children based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &self.props {
+            if let ComponentProps::Show { when } = &*self.props.borrow() {
                 if *when {
                     // Mount children if visible
                     for child in self.children.borrow().iter() {
@@ -152,7 +170,7 @@ impl ComponentLifecycle for Component {
 
         // For Show components, update children mounting based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &self.props {
+            if let ComponentProps::Show { when } = &*self.props.borrow() {
                 if *when {
                     // Ensure children are mounted
                     for child in self.children.borrow().iter() {

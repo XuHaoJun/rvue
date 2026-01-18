@@ -1,66 +1,115 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use rudo_gc::Gc;
+use rudo_gc::{Gc, GcCell};
 use vello::kurbo::{Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
 /// Vello fragment wrapper for scene graph
 pub struct VelloFragment {
     pub component: Gc<Component>,
-    pub is_dirty: bool,
+    pub cached_scene: GcCell<Option<vello::Scene>>,
 }
 
 impl VelloFragment {
     /// Create a new Vello fragment for a component
     pub fn new(component: Gc<Component>) -> Self {
-        Self { component, is_dirty: true }
+        Self { component, cached_scene: GcCell::new(None) }
     }
 
     /// Mark the fragment as dirty (needs update)
-    pub fn mark_dirty(&mut self) {
-        self.is_dirty = true;
+    pub fn mark_dirty(&self) {
+        self.component.mark_dirty();
+        *self.cached_scene.borrow_mut() = None;
     }
 
     /// Check if the fragment is dirty
     pub fn is_dirty(&self) -> bool {
-        self.is_dirty
+        self.component.is_dirty() || self.cached_scene.borrow().is_none()
     }
 
     /// Generate Vello scene items for this fragment
-    /// For MVP, this generates basic rendering commands
+    /// Optimized to use cached scene if not dirty
     pub fn generate_scene_items(&self, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
-        match &self.component.component_type {
-            ComponentType::Text => {
-                Self::render_text(&self.component, scene, transform);
+        if self.is_dirty() {
+            let mut sub_scene = vello::Scene::new();
+
+            // Render the component into the sub-scene (with identity transform)
+            match &self.component.component_type {
+                ComponentType::Text => {
+                    Self::render_text(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Button => {
+                    Self::render_button(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Show => {
+                    Self::render_show(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::For => {
+                    Self::render_for(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Flex => {
+                    Self::render_flex(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::TextInput => {
+                    Self::render_text_input(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::NumberInput => {
+                    Self::render_number_input(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Checkbox => {
+                    Self::render_checkbox(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                ComponentType::Radio => {
+                    Self::render_radio(
+                        &self.component,
+                        &mut sub_scene,
+                        vello::kurbo::Affine::IDENTITY,
+                    );
+                }
+                _ => {}
             }
-            ComponentType::Button => {
-                Self::render_button(&self.component, scene, transform);
-            }
-            ComponentType::Show => {
-                Self::render_show(&self.component, scene, transform);
-            }
-            ComponentType::For => {
-                Self::render_for(&self.component, scene, transform);
-            }
-            ComponentType::Flex => {
-                Self::render_flex(&self.component, scene, transform);
-            }
-            ComponentType::TextInput => {
-                Self::render_text_input(&self.component, scene, transform);
-            }
-            ComponentType::NumberInput => {
-                Self::render_number_input(&self.component, scene, transform);
-            }
-            ComponentType::Checkbox => {
-                Self::render_checkbox(&self.component, scene, transform);
-            }
-            ComponentType::Radio => {
-                Self::render_radio(&self.component, scene, transform);
-            }
-            _ => {
-                // Other component types will be implemented later
-            }
+
+            // Store the sub-scene in cache
+            *self.cached_scene.borrow_mut() = Some(sub_scene);
+            self.component.clear_dirty();
+        }
+
+        // Append the cached sub-scene to the main scene with the provided transform
+        if let Some(ref sub_scene) = *self.cached_scene.borrow() {
+            scene.append(sub_scene, Some(transform));
         }
     }
 
@@ -70,7 +119,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Text { content: _ } = &component.props {
+        if let ComponentProps::Text { content: _ } = &*component.props.borrow() {
             // For MVP, we'll render text as a simple rectangle placeholder
             // Full text rendering with fonts will be implemented later
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
@@ -93,7 +142,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Button { label: _ } = &component.props {
+        if let ComponentProps::Button { label: _ } = &*component.props.borrow() {
             // Render button background
             let rect = RoundedRect::new(0.0, 0.0, 120.0, 40.0, 4.0);
             let bg_color = Color::from_rgb8(70, 130, 180); // Steel blue
@@ -115,7 +164,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Show { when } = &component.props {
+        if let ComponentProps::Show { when } = &*component.props.borrow() {
             // Only render children if when is true
             if *when {
                 // Render all children
@@ -136,7 +185,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::For { item_count: _ } = &component.props {
+        if let ComponentProps::For { item_count: _ } = &*component.props.borrow() {
             // Render all children (list items)
             let mut y_offset = 0.0;
             for child in component.children.borrow().iter() {
@@ -158,7 +207,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Flex { .. } = &component.props {
+        if let ComponentProps::Flex { .. } = &*component.props.borrow() {
             // For MVP, we'll render children with simple stacking
             // In a full implementation, we'd use layout results from Taffy
             let mut y_offset = 0.0;
@@ -180,7 +229,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::TextInput { value: _ } = &component.props {
+        if let ComponentProps::TextInput { value: _ } = &*component.props.borrow() {
             // Render input field background
             let rect = RoundedRect::new(0.0, 0.0, 200.0, 30.0, 2.0);
             let bg_color = Color::from_rgb8(255, 255, 255); // White background
@@ -197,7 +246,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::NumberInput { value: _ } = &component.props {
+        if let ComponentProps::NumberInput { value: _ } = &*component.props.borrow() {
             // Render input field background (similar to TextInput)
             let rect = RoundedRect::new(0.0, 0.0, 150.0, 30.0, 2.0);
             let bg_color = Color::from_rgb8(255, 255, 255); // White background
@@ -212,7 +261,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Checkbox { checked } = &component.props {
+        if let ComponentProps::Checkbox { checked } = &*component.props.borrow() {
             // Render checkbox square
             let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
             let bg_color = if *checked {
@@ -235,7 +284,7 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Radio { value: _, checked } = &component.props {
+        if let ComponentProps::Radio { value: _, checked } = &*component.props.borrow() {
             // Render radio circle
             let circle = Circle::new((10.0, 10.0), 10.0);
             let bg_color = if *checked {

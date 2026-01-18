@@ -1,6 +1,6 @@
 //! Integration test for Flexbox layout
 
-use rvue::{AlignItems, Component, ComponentProps, ComponentType, FlexDirection, JustifyContent};
+use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]
 fn test_flexbox_layout_creation() {
@@ -17,7 +17,7 @@ fn test_flexbox_layout_creation() {
     );
 
     assert_eq!(flex.component_type, ComponentType::Flex);
-    match &flex.props {
+    match &*flex.props.borrow() {
         ComponentProps::Flex { direction, gap, align_items, justify_content } => {
             assert_eq!(direction, "row");
             assert_eq!(*gap, 10.0);
@@ -25,7 +25,7 @@ fn test_flexbox_layout_creation() {
             assert_eq!(justify_content, "start");
         }
         _ => panic!("Expected Flex props"),
-    }
+    };
 }
 
 #[test]
@@ -71,12 +71,12 @@ fn test_flexbox_spacing() {
         },
     );
 
-    match &flex.props {
+    match &*flex.props.borrow() {
         ComponentProps::Flex { gap, .. } => {
             assert_eq!(*gap, 15.0);
         }
         _ => panic!("Expected Flex props"),
-    }
+    };
 }
 
 #[test]
@@ -101,12 +101,12 @@ fn test_flexbox_alignment() {
             },
         );
 
-        match &flex.props {
+        match &*flex.props.borrow() {
             ComponentProps::Flex { align_items: ai, justify_content: jc, .. } => {
                 assert_eq!(ai, align_items);
                 assert_eq!(jc, justify_content);
             }
             _ => panic!("Expected Flex props"),
-        }
+        };
     }
 }

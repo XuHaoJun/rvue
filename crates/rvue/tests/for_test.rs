@@ -1,6 +1,5 @@
 //! Integration test for For component
 
-use rudo_gc::Gc;
 use rvue::{create_signal, SignalRead, SignalWrite};
 use rvue::{Component, ComponentProps, ComponentType};
 
@@ -8,7 +7,7 @@ use rvue::{Component, ComponentProps, ComponentType};
 fn test_for_component_list_rendering() {
     // Test that For component can render items from a collection
     let items = vec!["Item 1".to_string(), "Item 2".to_string(), "Item 3".to_string()];
-    let (items_signal, set_items) = create_signal(items.clone());
+    let (items_signal, _set_items) = create_signal(items.clone());
 
     // Create For component
     let for_component = Component::new(
@@ -18,12 +17,12 @@ fn test_for_component_list_rendering() {
     );
 
     assert_eq!(for_component.component_type, ComponentType::For);
-    match &for_component.props {
+    match &*for_component.props.borrow() {
         ComponentProps::For { item_count } => {
             assert_eq!(*item_count, 3);
         }
         _ => panic!("Expected For props"),
-    }
+    };
 }
 
 #[test]
@@ -32,7 +31,7 @@ fn test_for_component_add_item() {
     let items = vec!["Item 1".to_string()];
     let (items_signal, set_items) = create_signal(items);
 
-    let for_component = Component::new(
+    let _for_component = Component::new(
         1,
         ComponentType::For,
         ComponentProps::For { item_count: items_signal.get().len() },
@@ -52,7 +51,7 @@ fn test_for_component_remove_item() {
     let items = vec!["Item 1".to_string(), "Item 2".to_string(), "Item 3".to_string()];
     let (items_signal, set_items) = create_signal(items);
 
-    let for_component = Component::new(
+    let _for_component = Component::new(
         1,
         ComponentType::For,
         ComponentProps::For { item_count: items_signal.get().len() },

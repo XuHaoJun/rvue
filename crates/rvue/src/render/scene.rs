@@ -41,7 +41,10 @@ impl Scene {
 
     /// Update the scene by regenerating all fragments
     pub fn update(&mut self) {
-        if !self.is_dirty {
+        // Check if any fragment is dirty
+        let fragments_dirty = self.fragments.iter().any(|f| f.is_dirty());
+
+        if !self.is_dirty && !fragments_dirty {
             return;
         }
 
@@ -50,7 +53,7 @@ impl Scene {
 
         // Clear the Vello scene
         if let Some(ref mut scene) = self.vello_scene {
-            *scene = vello::Scene::new();
+            scene.reset();
         }
 
         // Regenerate all fragments
