@@ -76,10 +76,11 @@ impl<'a> AppState<'a> {
     }
 
     fn render_frame(&mut self) {
-        let (scale_factor, size) = match self.window.as_ref().map(|w| (w.scale_factor(), w.inner_size())) {
-            Some((sf, s)) if s.width != 0 && s.height != 0 => (sf, s),
-            _ => return,
-        };
+        let (scale_factor, size) =
+            match self.window.as_ref().map(|w| (w.scale_factor(), w.inner_size())) {
+                Some((sf, s)) if s.width != 0 && s.height != 0 => (sf, s),
+                _ => return,
+            };
 
         let surface_texture = match self.get_or_create_surface(size) {
             Ok(Some(st)) => st,
@@ -98,7 +99,7 @@ impl<'a> AppState<'a> {
         let dev_id = surface.dev_id;
         let device = &render_cx.devices[dev_id].device;
         let queue = &render_cx.devices[dev_id].queue;
-        let surface_format = surface.format;
+        let _surface_format = surface.format;
 
         let render_params = vello::RenderParams {
             base_color: Color::WHITE,
@@ -109,10 +110,10 @@ impl<'a> AppState<'a> {
 
         let renderer = self.renderer.get_or_insert_with(|| {
             let options = RendererOptions {
-                surface_format: Some(surface_format),
                 use_cpu: false,
                 antialiasing_support: AaSupport::area_only(),
                 num_init_threads: None,
+                pipeline_cache: None,
             };
             Renderer::new(device, options).expect("Failed to create Vello renderer")
         });
@@ -139,9 +140,13 @@ impl<'a> AppState<'a> {
         let scene_ref = transformed_scene.as_ref().unwrap_or(scene);
 
         // Render to intermediate texture
-        if let Err(e) =
-            renderer.render_to_texture(device, queue, scene_ref, &surface.target_view, &render_params)
-        {
+        if let Err(e) = renderer.render_to_texture(
+            device,
+            queue,
+            scene_ref,
+            &surface.target_view,
+            &render_params,
+        ) {
             eprintln!("Vello render to texture failed: {}", e);
             return;
         }
@@ -156,22 +161,17 @@ impl<'a> AppState<'a> {
             encoder.copy_texture_to_texture(
                 surface.target_texture.as_image_copy(),
                 surface_texture.texture.as_image_copy(),
-                wgpu::Extent3d {
-                    width: size.width,
-                    height: size.height,
-                    depth_or_array_layers: 1,
-                },
+                wgpu::Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
             );
         } else {
-            // Fallback for non-matching formats: render-to-surface for now
-            // In a full implementation, we'd use a render pipeline for format conversion
-            eprintln!("Warning: Surface format {:?} doesn't match intermediate target format Rgba8Unorm. Using direct render as fallback.", surface.format);
-            if let Err(e) =
-                renderer.render_to_surface(device, queue, scene_ref, &surface_texture, &render_params)
-            {
-                eprintln!("Vello direct render fallback failed: {}", e);
-                return;
-            }
+            // Fallback for non-matching formats: for now we just warn.
+            // In a full implementation, we'd use a render pipeline or TextureBlitter for format conversion.
+            eprintln!("Warning: Surface format {:?} doesn't match intermediate target format Rgba8Unorm. Blit might fail or be incorrect.", surface.format);
+            encoder.copy_texture_to_texture(
+                surface.target_texture.as_image_copy(),
+                surface_texture.texture.as_image_copy(),
+                wgpu::Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
+            );
         }
 
         queue.submit([encoder.finish()]);
@@ -182,7 +182,7 @@ impl<'a> AppState<'a> {
         surface_texture.present();
 
         // GPU synchronization
-        device.poll(wgpu::Maintain::wait());
+        let _ = device.poll(wgpu::PollType::wait_indefinitely());
     }
 
     fn get_or_create_surface(

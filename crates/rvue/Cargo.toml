@@ -9,8 +9,8 @@ repository = "https://github.com/your-org/rvue"
 
 [dependencies]
 rudo-gc = "0.1"
-vello = "0.4"
-wgpu = "23"
+vello = "0.7"
+wgpu = "27"
 winit = "0.30"
 pollster = "0.4"
 thiserror = "2"

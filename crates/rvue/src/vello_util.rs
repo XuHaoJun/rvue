@@ -4,8 +4,8 @@
 //! Simple helpers for managing wgpu state and surfaces.
 
 use wgpu::{
-    Device, Instance, InstanceDescriptor, PresentMode, Surface, SurfaceConfiguration, TextureFormat,
-    Texture, TextureView, TextureUsages,
+    Device, Instance, PresentMode, Surface, SurfaceConfiguration, Texture, TextureFormat,
+    TextureUsages, TextureView,
 };
 
 use std::fmt;
@@ -26,11 +26,12 @@ impl RenderContext {
     pub fn new() -> Self {
         let backends = wgpu::Backends::all();
         let flags = wgpu::InstanceFlags::from_build_config().with_env();
-        let instance = Instance::new(InstanceDescriptor {
+        let backend_options = wgpu::BackendOptions::from_env_or_default();
+        let instance = Instance::new(&wgpu::InstanceDescriptor {
             backends,
             flags,
-            dx12_shader_compiler: wgpu::Dx12Compiler::default(),
-            gles_minor_version: wgpu::Gles3MinorVersion::default(),
+            backend_options,
+            ..Default::default()
         });
         Self { instance, devices: Vec::new() }
     }
@@ -66,19 +67,14 @@ impl RenderContext {
             .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
             .ok_or(CreateSurfaceError::UnsupportedSurfaceFormat)?;
 
-        let alpha_mode = if capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-        {
-            wgpu::CompositeAlphaMode::PostMultiplied
-        } else if capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-        {
-            wgpu::CompositeAlphaMode::PreMultiplied
-        } else {
-            wgpu::CompositeAlphaMode::Auto
-        };
+        let alpha_mode =
+            if capabilities.alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+                wgpu::CompositeAlphaMode::PostMultiplied
+            } else if capabilities.alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                wgpu::CompositeAlphaMode::PreMultiplied
+            } else {
+                wgpu::CompositeAlphaMode::Auto
+            };
 
         let config = SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
@@ -93,14 +89,8 @@ impl RenderContext {
 
         let (target_texture, target_view) = create_targets(width, height, &device_handle.device);
 
-        let surface = RenderSurface {
-            surface,
-            config,
-            dev_id,
-            format,
-            target_texture,
-            target_view,
-        };
+        let surface =
+            RenderSurface { surface, config, dev_id, format, target_texture, target_view };
         self.configure_surface(&surface);
         Ok(surface)
     }
@@ -144,26 +134,22 @@ impl RenderContext {
 
     /// Creates a compatible device handle id.
     async fn new_device(&mut self, compatible_surface: Option<&Surface<'_>>) -> Option<usize> {
-        let adapter_result =
+        let adapter =
             wgpu::util::initialize_adapter_from_env_or_default(&self.instance, compatible_surface)
-                .await;
-        let adapter = match adapter_result {
-            Some(adapter) => adapter,
-            None => return None,
-        };
+                .await
+                .ok()?;
         let features = adapter.features();
         let limits = wgpu::Limits::default();
         let maybe_features = wgpu::Features::CLEAR_TEXTURE;
 
-        let device_request = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: features & maybe_features,
-                required_limits: limits,
-                memory_hints: wgpu::MemoryHints::default(),
-            },
-            None,
-        );
+        let device_request = adapter.request_device(&wgpu::DeviceDescriptor {
+            label: None,
+            required_features: features & maybe_features,
+            required_limits: limits,
+            memory_hints: wgpu::MemoryHints::default(),
+            trace: wgpu::Trace::Off,
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
+        });
 
         let (device, queue) = match device_request.await {
             Ok((d, q)) => (d, q),
@@ -183,7 +169,9 @@ fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, Texture
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_SRC,
+        usage: TextureUsages::STORAGE_BINDING
+            | TextureUsages::TEXTURE_BINDING
+            | TextureUsages::COPY_SRC,
         format: TextureFormat::Rgba8Unorm,
         view_formats: &[],
     });
