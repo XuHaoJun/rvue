@@ -1,6 +1,8 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType};
+use crate::text::BrushIndex;
+use parley::Layout;
 use rudo_gc::{Gc, GcCell};
 use vello::kurbo::{Circle, Rect, RoundedRect};
 use vello::peniko::Color;
@@ -110,10 +112,50 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Text { content: _ } = &*component.props.borrow() {
-            let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-            let bg_color = Color::from_rgba8(200, 200, 200, 255);
-            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+        if let ComponentProps::Text { content: _, font_size: _, color } = &*component.props.borrow()
+        {
+            let user_data = component.user_data.borrow();
+            let layout = user_data.as_ref().and_then(|d| d.downcast_ref::<Layout<BrushIndex>>());
+
+            if let Some(layout) = layout {
+                let brush = color.unwrap_or(Color::BLACK);
+                Self::render_text_layout(layout, scene, transform, brush);
+            } else {
+                let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+                let bg_color = Color::from_rgba8(200, 200, 200, 255);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+            }
+        }
+    }
+
+    fn render_text_layout(
+        layout: &Layout<BrushIndex>,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+        color: Color,
+    ) {
+        use parley::PositionedLayoutItem;
+        use vello::peniko::Fill;
+
+        let fill = Fill::NonZero;
+
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
+                    let run = glyph_run.run();
+
+                    let vello_glyphs: Vec<vello::Glyph> = glyph_run
+                        .glyphs()
+                        .map(|g| vello::Glyph { id: g.id, x: g.x as f32, y: g.y as f32 })
+                        .collect();
+
+                    scene
+                        .draw_glyphs(run.font())
+                        .font_size(run.font_size())
+                        .transform(transform)
+                        .draw(fill, vello_glyphs.into_iter());
+                }
+            }
         }
     }
 

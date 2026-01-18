@@ -3,6 +3,7 @@
 use crate::component::build_layout_tree;
 use crate::component::Component;
 use crate::render::widget::VelloFragment;
+use crate::text::TextContext;
 use rudo_gc::Gc;
 use taffy::prelude::*;
 use taffy::TaffyTree;
@@ -15,6 +16,7 @@ pub struct Scene {
     pub is_dirty: bool,
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
+    pub text_context: TextContext,
 }
 
 impl Scene {
@@ -26,6 +28,7 @@ impl Scene {
             is_dirty: true,
             renderer_initialized: false,
             taffy: TaffyTree::new(),
+            text_context: TextContext::new(),
         }
     }
 
@@ -65,7 +68,8 @@ impl Scene {
 
         for fragment in &self.fragments {
             // Build and compute layout in the shared tree
-            let layout = build_layout_tree(&fragment.component, &mut self.taffy);
+            let layout =
+                build_layout_tree(&fragment.component, &mut self.taffy, &mut self.text_context);
             fragment.component.set_layout_node(layout.clone());
             if let Some(node_id) = layout.taffy_node() {
                 if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {

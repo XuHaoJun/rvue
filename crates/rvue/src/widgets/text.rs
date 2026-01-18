@@ -11,7 +11,11 @@ pub struct Text;
 impl Text {
     /// Create a new Text component with static content
     pub fn new(id: ComponentId, content: String) -> Gc<Component> {
-        Component::new(id, ComponentType::Text, ComponentProps::Text { content })
+        Component::new(
+            id,
+            ComponentType::Text,
+            ComponentProps::Text { content, font_size: None, color: None },
+        )
     }
 
     /// Create a new Text component with reactive content from a signal
@@ -20,7 +24,7 @@ impl Text {
         let component = Component::new(
             id,
             ComponentType::Text,
-            ComponentProps::Text { content: initial_content },
+            ComponentProps::Text { content: initial_content, font_size: None, color: None },
         );
 
         // Setup reactive update
@@ -28,7 +32,8 @@ impl Text {
         let sig = signal.clone();
         let effect = create_effect(move || {
             let new_content = sig.get();
-            *comp.props.borrow_mut() = ComponentProps::Text { content: new_content };
+            *comp.props.borrow_mut() =
+                ComponentProps::Text { content: new_content, font_size: None, color: None };
             comp.mark_dirty();
         });
 

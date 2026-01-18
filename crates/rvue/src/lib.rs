@@ -14,6 +14,7 @@ pub mod prelude;
 pub mod render;
 pub mod signal;
 pub mod style;
+pub mod text;
 pub mod vello_util;
 pub mod view;
 pub mod widgets;
@@ -30,5 +31,6 @@ pub use style::{
     AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
     Spacing, Style,
 };
+pub use text::TextContext;
 pub use view::{View, ViewStruct};
 pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

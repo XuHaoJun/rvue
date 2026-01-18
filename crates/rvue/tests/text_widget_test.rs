@@ -7,12 +7,12 @@ fn test_text_widget_creation() {
     let text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello World".to_string() },
+        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, color: None },
     );
 
     assert_eq!(text.component_type, ComponentType::Text);
     match &*text.props.borrow() {
-        ComponentProps::Text { content } => {
+        ComponentProps::Text { content, .. } => {
             assert_eq!(content, "Hello World");
         }
         _ => panic!("Expected Text props"),
@@ -21,11 +21,14 @@ fn test_text_widget_creation() {
 
 #[test]
 fn test_text_widget_with_empty_string() {
-    let text =
-        Component::new(2, ComponentType::Text, ComponentProps::Text { content: String::new() });
+    let text = Component::new(
+        2,
+        ComponentType::Text,
+        ComponentProps::Text { content: String::new(), font_size: None, color: None },
+    );
 
     match &*text.props.borrow() {
-        ComponentProps::Text { content } => {
+        ComponentProps::Text { content, .. } => {
             assert_eq!(content, "");
         }
         _ => panic!("Expected Text props"),
@@ -37,11 +40,15 @@ fn test_text_widget_with_special_characters() {
     let text = Component::new(
         3,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello\nWorld\t!".to_string() },
+        ComponentProps::Text {
+            content: "Hello\nWorld\t!".to_string(),
+            font_size: None,
+            color: None,
+        },
     );
 
     match &*text.props.borrow() {
-        ComponentProps::Text { content } => {
+        ComponentProps::Text { content, .. } => {
             assert_eq!(content, "Hello\nWorld\t!");
         }
         _ => panic!("Expected Text props"),
@@ -52,9 +59,21 @@ fn test_text_widget_with_special_characters() {
 fn test_text_widget_rendering_properties() {
     // Test that Text widget can be created with different content
     let texts = vec![
-        Component::new(1, ComponentType::Text, ComponentProps::Text { content: "A".to_string() }),
-        Component::new(2, ComponentType::Text, ComponentProps::Text { content: "B".to_string() }),
-        Component::new(3, ComponentType::Text, ComponentProps::Text { content: "C".to_string() }),
+        Component::new(
+            1,
+            ComponentType::Text,
+            ComponentProps::Text { content: "A".to_string(), font_size: None, color: None },
+        ),
+        Component::new(
+            2,
+            ComponentType::Text,
+            ComponentProps::Text { content: "B".to_string(), font_size: None, color: None },
+        ),
+        Component::new(
+            3,
+            ComponentType::Text,
+            ComponentProps::Text { content: "C".to_string(), font_size: None, color: None },
+        ),
     ];
 
     assert_eq!(texts.len(), 3);

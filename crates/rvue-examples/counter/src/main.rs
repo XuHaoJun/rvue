@@ -55,14 +55,22 @@ fn create_counter_view() -> ViewStruct {
     let count_text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: format!("Count: {}", count.get()) },
+        ComponentProps::Text {
+            content: format!("Count: {}", count.get()),
+            font_size: None,
+            color: None,
+        },
     );
 
     // Create a message that can be shown/hidden
     let message_text = Component::new(
         2,
         ComponentType::Text,
-        ComponentProps::Text { content: "Counter is active!".to_string() },
+        ComponentProps::Text {
+            content: "Counter is active!".to_string(),
+            font_size: None,
+            color: None,
+        },
     );
 
     // Create Show component to conditionally display the message

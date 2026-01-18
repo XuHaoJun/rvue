@@ -2,6 +2,7 @@
 
 use crate::effect::Effect;
 use crate::layout::LayoutNode;
+use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicBool, Ordering};
 use taffy::TaffyTree;
@@ -29,7 +30,7 @@ pub enum ComponentType {
 /// and converted as needed by widget implementations
 #[derive(Debug, Clone)]
 pub enum ComponentProps {
-    Text { content: String },
+    Text { content: String, font_size: Option<f32>, color: Option<vello::peniko::Color> },
     Button { label: String },
     TextInput { value: String },
     NumberInput { value: f64 },
@@ -164,17 +165,25 @@ impl Component {
 }
 
 /// Build layout tree recursively in a shared TaffyTree and return the root layout node
-pub fn build_layout_tree(component: &Gc<Component>, taffy: &mut TaffyTree<()>) -> LayoutNode {
+pub fn build_layout_tree(
+    component: &Gc<Component>,
+    taffy: &mut TaffyTree<()>,
+    text_context: &mut TextContext,
+) -> LayoutNode {
     // Build child layout nodes first in the same tree
-    let child_layouts: Vec<LayoutNode> =
-        component.children.borrow().iter().map(|child| build_layout_tree(child, taffy)).collect();
+    let child_layouts: Vec<LayoutNode> = component
+        .children
+        .borrow()
+        .iter()
+        .map(|child| build_layout_tree(child, taffy, text_context))
+        .collect();
 
     // Get Taffy node IDs from child layouts
     let child_node_ids: Vec<taffy::NodeId> =
         child_layouts.iter().filter_map(|ln| ln.taffy_node()).collect();
 
     // Build this node with children in the shared tree
-    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids);
+    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context);
 
     // Store child layouts in their user_data for later retrieval
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {

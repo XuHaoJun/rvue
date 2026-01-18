@@ -32,7 +32,11 @@ fn create_form_view() -> ViewStruct {
     let _title = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "User Registration Form".to_string() },
+        ComponentProps::Text {
+            content: "User Registration Form".to_string(),
+            font_size: None,
+            color: None,
+        },
     );
 
     // Create name input
