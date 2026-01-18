@@ -1,5 +1,6 @@
 //! Scene graph management for Vello rendering
 
+use crate::component::build_layout_tree;
 use crate::component::Component;
 use crate::render::widget::VelloFragment;
 use rudo_gc::Gc;
@@ -41,31 +42,43 @@ impl Scene {
 
     /// Update the scene by regenerating all fragments
     pub fn update(&mut self) {
-        // Check if any fragment is dirty
         let fragments_dirty = self.fragments.iter().any(|f| f.is_dirty());
 
         if !self.is_dirty && !fragments_dirty {
             return;
         }
 
-        // Lazy initialization: Only create scene when actually needed
         self.ensure_initialized();
 
-        // Clear the Vello scene
         if let Some(ref mut scene) = self.vello_scene {
             scene.reset();
         }
 
-        // Regenerate all fragments
-        let mut y_offset = 0.0;
         for fragment in &self.fragments {
-            let transform = Affine::translate((0.0, y_offset));
+            // Build and compute layout
+            let mut layout = build_layout_tree(&fragment.component);
+            if layout.is_dirty() {
+                if let Err(e) = layout.calculate_layout() {
+                    eprintln!("Scene layout calculation failed: {:?}", e);
+                }
+            }
+            fragment.component.set_layout_node(layout.clone());
+
+            // Get layout position for transform
+            let layout_opt = fragment.component.layout_node();
+            let transform = if let Some(layout) = layout_opt {
+                if let Some(l) = layout.layout() {
+                    Affine::translate((l.location.x as f64, l.location.y as f64))
+                } else {
+                    Affine::IDENTITY
+                }
+            } else {
+                Affine::IDENTITY
+            };
+
             if let Some(ref mut scene) = self.vello_scene {
                 fragment.generate_scene_items(scene, transform);
             }
-
-            // Simple vertical stacking for MVP
-            y_offset += 50.0;
         }
 
         self.is_dirty = false;

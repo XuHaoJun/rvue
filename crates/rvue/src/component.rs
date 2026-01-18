@@ -1,6 +1,7 @@
 //! Component trait and lifecycle management
 
 use crate::effect::Effect;
+use crate::layout::LayoutNode;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -55,15 +56,16 @@ pub struct Component {
     pub effects: GcCell<Vec<Gc<Effect>>>,
     pub props: GcCell<ComponentProps>,
     pub is_dirty: AtomicBool,
+    pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
 }
 
 unsafe impl Trace for Component {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Trace all GC-managed fields
         self.children.trace(visitor);
         self.parent.trace(visitor);
         self.effects.trace(visitor);
         self.props.trace(visitor);
+        // user_data doesn't contain GC pointers
     }
 }
 
@@ -98,6 +100,7 @@ impl Component {
             effects: GcCell::new(Vec::new()),
             props: GcCell::new(props),
             is_dirty: AtomicBool::new(true),
+            user_data: GcCell::new(None),
         })
     }
 
@@ -116,9 +119,24 @@ impl Component {
         self.is_dirty.load(Ordering::SeqCst)
     }
 
+    /// Get user data
+    pub fn user_data(&self) -> &GcCell<Option<Box<dyn std::any::Any>>> {
+        &self.user_data
+    }
+
+    /// Get layout node from user_data (cloned)
+    pub fn layout_node(&self) -> Option<LayoutNode> {
+        self.user_data.borrow().as_ref().and_then(|d| d.downcast_ref::<LayoutNode>().cloned())
+    }
+
     /// Add a child component
     pub fn add_child(&self, child: Gc<Component>) {
-        self.children.borrow_mut().push(child);
+        self.children.borrow_mut().push(Gc::clone(&child));
+    }
+
+    /// Set layout node in user_data
+    pub fn set_layout_node(&self, layout_node: LayoutNode) {
+        *self.user_data.borrow_mut() = Some(Box::new(layout_node));
     }
 
     /// Set the parent component
@@ -130,6 +148,27 @@ impl Component {
     pub fn add_effect(&self, effect: Gc<Effect>) {
         self.effects.borrow_mut().push(effect);
     }
+}
+
+/// Build layout tree recursively and return the root layout node
+pub fn build_layout_tree(component: &Gc<Component>) -> LayoutNode {
+    // Build child layout nodes first
+    let child_layouts: Vec<LayoutNode> =
+        component.children.borrow().iter().map(|child| build_layout_tree(child)).collect();
+
+    // Get Taffy node IDs from child layouts
+    let child_node_ids: Vec<taffy::NodeId> =
+        child_layouts.iter().filter_map(|ln| ln.taffy_node()).collect();
+
+    // Build this node with children
+    let node = LayoutNode::build_with_children(component, &child_node_ids);
+
+    // Store child layouts in their user_data for later retrieval
+    for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+        child.set_layout_node(child_layout.clone());
+    }
+
+    node
 }
 
 impl ComponentLifecycle for Component {

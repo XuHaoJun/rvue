@@ -1,30 +1,39 @@
 //! Layout node wrapper around Taffy
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use rudo_gc::Gc;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 
 /// Layout node wrapper around Taffy node
+#[derive(Clone)]
 pub struct LayoutNode {
-    pub component: Gc<Component>,
-    pub taffy_node: Option<NodeId>,
     pub taffy: TaffyTree<()>,
+    pub taffy_node: Option<NodeId>,
     pub is_dirty: bool,
     pub layout_result: Option<Layout>,
 }
 
 impl LayoutNode {
-    /// Create a new layout node for a component
-    pub fn new(component: Gc<Component>) -> Self {
-        let mut taffy = TaffyTree::new();
-        let taffy_node = taffy.new_leaf(Self::component_to_taffy_style(&component)).ok();
+    /// Create a new layout node
+    pub fn new() -> Self {
+        Self { taffy: TaffyTree::new(), taffy_node: None, is_dirty: true, layout_result: None }
+    }
 
-        Self { component, taffy_node, taffy, is_dirty: true, layout_result: None }
+    /// Build a single layout node with given children
+    pub fn build_with_children(component: &Component, child_nodes: &[NodeId]) -> Self {
+        let mut taffy = TaffyTree::new();
+        let style = Self::component_to_taffy_style(component);
+        let taffy_node = if child_nodes.is_empty() {
+            taffy.new_leaf(style).ok()
+        } else {
+            taffy.new_with_children(style, child_nodes).ok()
+        };
+
+        Self { taffy, taffy_node, is_dirty: true, layout_result: None }
     }
 
     /// Convert component props to Taffy style
-    fn component_to_taffy_style(component: &Component) -> Style {
+    pub fn component_to_taffy_style(component: &Component) -> Style {
         match &component.component_type {
             ComponentType::Flex => {
                 if let ComponentProps::Flex { direction, gap, align_items, justify_content } =
@@ -69,46 +78,23 @@ impl LayoutNode {
                     Style::default()
                 }
             }
-            _ => {
-                // For non-flex components, use default style
-                Style::default()
-            }
+            _ => Style::default(),
         }
     }
 
     /// Calculate layout for this node and its children
     pub fn calculate_layout(&mut self) -> Result<(), taffy::TaffyError> {
-        if !self.is_dirty {
-            return Ok(());
-        }
-
         if let Some(node_id) = self.taffy_node {
-            // Compute layout (returns () on success)
             self.taffy.compute_layout(node_id, Size::MAX_CONTENT)?;
-            // Get the layout result
             self.layout_result = Some(*self.taffy.layout(node_id)?);
             self.is_dirty = false;
         }
-
         Ok(())
     }
 
     /// Mark the layout node as dirty (needs recalculation)
-    /// This should be called when style or content changes
     pub fn mark_dirty(&mut self) {
         self.is_dirty = true;
-        // Also mark children as dirty
-        // In a full implementation, we'd traverse the component tree
-    }
-
-    /// Update Taffy style when component props change
-    pub fn update_style(&mut self) -> Result<(), taffy::TaffyError> {
-        if let Some(node_id) = self.taffy_node {
-            let new_style = Self::component_to_taffy_style(&self.component);
-            self.taffy.set_style(node_id, new_style)?;
-            self.mark_dirty();
-        }
-        Ok(())
     }
 
     /// Check if the layout node is dirty
@@ -119,5 +105,26 @@ impl LayoutNode {
     /// Get the calculated layout result
     pub fn layout(&self) -> Option<&Layout> {
         self.layout_result.as_ref()
+    }
+
+    /// Get the TaffyTree for internal use
+    pub fn taffy(&self) -> &TaffyTree<()> {
+        &self.taffy
+    }
+
+    /// Get mutable access to TaffyTree for modifications
+    pub fn taffy_mut(&mut self) -> &mut TaffyTree<()> {
+        &mut self.taffy
+    }
+
+    /// Get the taffy_node ID
+    pub fn taffy_node(&self) -> Option<NodeId> {
+        self.taffy_node
+    }
+}
+
+impl Default for LayoutNode {
+    fn default() -> Self {
+        Self::new()
     }
 }

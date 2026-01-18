@@ -26,61 +26,68 @@ fn create_layout_view() -> ViewStruct {
     );
 
     // Create header section
-    let _header =
+    let header =
         Flex::new(1, FlexDirection::Row, 10.0, AlignItems::Center, JustifyContent::SpaceBetween);
 
     // Create header text
-    let _header_text = Component::new(
+    let header_text = Component::new(
         10,
         ComponentType::Text,
         ComponentProps::Text { content: "Rvue Layout Example".to_string() },
     );
+    header.add_child(header_text);
+
+    root.add_child(header);
 
     // Create main content area with nested layouts
-    let _main_content =
+    let main_content =
         Flex::new(2, FlexDirection::Row, 15.0, AlignItems::Stretch, JustifyContent::Start);
 
     // Create sidebar
-    let _sidebar =
+    let sidebar =
         Flex::new(3, FlexDirection::Column, 5.0, AlignItems::Start, JustifyContent::Start);
 
     // Create sidebar items
     for i in 1..=5 {
-        let _sidebar_item = Component::new(
+        let sidebar_item = Component::new(
             30 + i,
             ComponentType::Text,
             ComponentProps::Text { content: format!("Sidebar Item {}", i) },
         );
+        sidebar.add_child(sidebar_item);
     }
 
+    main_content.add_child(sidebar);
+
     // Create content area
-    let _content =
+    let content =
         Flex::new(4, FlexDirection::Column, 10.0, AlignItems::Start, JustifyContent::Start);
 
     // Create content items
     for i in 1..=3 {
-        let _content_item = Component::new(
+        let content_item = Component::new(
             40 + i,
             ComponentType::Text,
             ComponentProps::Text { content: format!("Content Section {}", i) },
         );
+        content.add_child(content_item);
     }
 
-    // Create footer
-    let _footer = Flex::new(5, FlexDirection::Row, 5.0, AlignItems::Center, JustifyContent::Center);
+    main_content.add_child(content);
 
-    let _footer_text = Component::new(
+    root.add_child(main_content);
+
+    // Create footer
+    let footer = Flex::new(5, FlexDirection::Row, 5.0, AlignItems::Center, JustifyContent::Center);
+
+    let footer_text = Component::new(
         50,
         ComponentType::Text,
         ComponentProps::Text { content: "Footer".to_string() },
     );
+    footer.add_child(footer_text);
 
-    // Note: In a full implementation, we would:
-    // 1. Use the view! macro to create components declaratively
-    // 2. Add children to parent components
-    // 3. Use effects to update layout when content changes
-    // 4. Apply Taffy layout results to Vello scene positions
-    // For MVP, this demonstrates the basic structure
+    root.add_child(footer);
 
     // Create view
     let view = ViewStruct::new(root);

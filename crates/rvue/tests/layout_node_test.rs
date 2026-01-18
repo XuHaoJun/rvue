@@ -16,10 +16,10 @@ fn test_layout_node_creation() {
         },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_with_children(&component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Flex);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn test_layout_node_dirty_marking() {
         },
     );
 
-    let mut layout_node = LayoutNode::new(component);
+    let mut layout_node = LayoutNode::build_with_children(&component, &[]);
 
     // Initially dirty
     assert!(layout_node.is_dirty());
@@ -55,10 +55,10 @@ fn test_layout_node_with_text_component() {
         ComponentProps::Text { content: "Hello".to_string() },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_with_children(&component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Text);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
@@ -69,10 +69,10 @@ fn test_layout_node_with_button_component() {
         ComponentProps::Button { label: "Click".to_string() },
     );
 
-    let layout_node = LayoutNode::new(component);
+    let layout_node = LayoutNode::build_with_children(&component, &[]);
 
     assert!(layout_node.is_dirty());
-    assert_eq!(layout_node.component.component_type, ComponentType::Button);
+    assert!(layout_node.taffy_node().is_some());
 }
 
 #[test]
@@ -101,9 +101,9 @@ fn test_layout_node_tree_structure() {
         ComponentProps::Text { content: "Child 2".to_string() },
     );
 
-    let root_layout = LayoutNode::new(root);
-    let child1_layout = LayoutNode::new(child1);
-    let child2_layout = LayoutNode::new(child2);
+    let root_layout = LayoutNode::build_with_children(&root, &[]);
+    let child1_layout = LayoutNode::build_with_children(&child1, &[]);
+    let child2_layout = LayoutNode::build_with_children(&child2, &[]);
 
     // All should be dirty initially
     assert!(root_layout.is_dirty());
@@ -124,7 +124,7 @@ fn test_layout_calculation() {
         },
     );
 
-    let mut layout_node = LayoutNode::new(component);
+    let mut layout_node = LayoutNode::build_with_children(&component, &[]);
     layout_node.calculate_layout().unwrap();
 
     assert!(!layout_node.is_dirty());
