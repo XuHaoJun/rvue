@@ -1,8 +1,7 @@
 //! Unit tests for Taffy layout integration
 
-use rudo_gc::Gc;
 use rvue::layout::LayoutNode;
-use rvue::{Component, ComponentId, ComponentProps, ComponentType};
+use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]
 fn test_layout_node_creation() {
@@ -110,4 +109,26 @@ fn test_layout_node_tree_structure() {
     assert!(root_layout.is_dirty());
     assert!(child1_layout.is_dirty());
     assert!(child2_layout.is_dirty());
+}
+
+#[test]
+fn test_layout_calculation() {
+    let component = Component::new(
+        1,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "row".to_string(),
+            gap: 10.0,
+            align_items: "center".to_string(),
+            justify_content: "start".to_string(),
+        },
+    );
+
+    let mut layout_node = LayoutNode::new(component);
+    layout_node.calculate_layout().unwrap();
+
+    assert!(!layout_node.is_dirty());
+    let result = layout_node.layout().unwrap();
+    assert!(result.size.width >= 0.0);
+    assert!(result.size.height >= 0.0);
 }

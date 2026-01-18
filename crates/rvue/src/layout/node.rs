@@ -3,13 +3,13 @@
 use crate::component::{Component, ComponentProps, ComponentType};
 use rudo_gc::Gc;
 use taffy::prelude::*;
-use taffy::Taffy;
+use taffy::TaffyTree;
 
 /// Layout node wrapper around Taffy node
 pub struct LayoutNode {
     pub component: Gc<Component>,
-    pub taffy_node: Option<Node>,
-    pub taffy: Taffy,
+    pub taffy_node: Option<NodeId>,
+    pub taffy: TaffyTree<()>,
     pub is_dirty: bool,
     pub layout_result: Option<Layout>,
 }
@@ -17,7 +17,7 @@ pub struct LayoutNode {
 impl LayoutNode {
     /// Create a new layout node for a component
     pub fn new(component: Gc<Component>) -> Self {
-        let mut taffy = Taffy::new();
+        let mut taffy = TaffyTree::new();
         let taffy_node = taffy.new_leaf(Self::component_to_taffy_style(&component)).ok();
 
         Self { component, taffy_node, taffy, is_dirty: true, layout_result: None }
@@ -61,8 +61,8 @@ impl LayoutNode {
                         display: Display::Flex,
                         flex_direction,
                         gap: Size {
-                            width: LengthPercentage::Points(*gap),
-                            height: LengthPercentage::Points(*gap),
+                            width: length(*gap),
+                            height: length(*gap),
                         },
                         align_items: Some(align_items_taffy),
                         justify_content: Some(justify_content_taffy),
@@ -80,7 +80,7 @@ impl LayoutNode {
     }
 
     /// Calculate layout for this node and its children
-    pub fn calculate_layout(&mut self) -> Result<(), taffy::error::TaffyError> {
+    pub fn calculate_layout(&mut self) -> Result<(), taffy::TaffyError> {
         if !self.is_dirty {
             return Ok(());
         }
@@ -105,7 +105,7 @@ impl LayoutNode {
     }
 
     /// Update Taffy style when component props change
-    pub fn update_style(&mut self) -> Result<(), taffy::error::TaffyError> {
+    pub fn update_style(&mut self) -> Result<(), taffy::TaffyError> {
         if let Some(node_id) = self.taffy_node {
             let new_style = Self::component_to_taffy_style(&self.component);
             self.taffy.set_style(node_id, new_style)?;
