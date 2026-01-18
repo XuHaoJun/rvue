@@ -140,6 +140,18 @@ impl Component {
         *self.user_data.borrow_mut() = Some(Box::new(layout_node));
     }
 
+    /// Clean up layout node from Taffy tree when component is unmounted
+    pub fn cleanup_layout(&self, taffy: &mut TaffyTree<()>) {
+        if let Some(layout_node) = self.layout_node() {
+            if let Some(node_id) = layout_node.taffy_node() {
+                let _ = taffy.remove(node_id);
+            }
+        }
+        for child in self.children.borrow().iter() {
+            child.cleanup_layout(taffy);
+        }
+    }
+
     /// Set the parent component
     pub fn set_parent(&self, parent: Option<Gc<Component>>) {
         *self.parent.borrow_mut() = parent;

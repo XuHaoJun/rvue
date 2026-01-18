@@ -19,17 +19,31 @@ impl LayoutNode {
     }
 
     /// Build a single layout node with given children in a specific TaffyTree
+    /// Reuses existing NodeId if the component already has one, to avoid invalidating references
     pub fn build_in_tree(
         taffy: &mut TaffyTree<()>,
         component: &Component,
         child_nodes: &[NodeId],
     ) -> Self {
         let style = Self::component_to_taffy_style(component);
-        let taffy_node = if child_nodes.is_empty() {
-            taffy.new_leaf(style).ok()
-        } else {
-            taffy.new_with_children(style, child_nodes).ok()
-        };
+
+        let taffy_node =
+            if let Some(existing_node) = component.layout_node().and_then(|ln| ln.taffy_node()) {
+                if taffy.set_style(existing_node, style.clone()).is_ok() {
+                    if !child_nodes.is_empty() {
+                        let _ = taffy.set_children(existing_node, child_nodes);
+                    }
+                    Some(existing_node)
+                } else if child_nodes.is_empty() {
+                    taffy.new_leaf(style).ok()
+                } else {
+                    taffy.new_with_children(style, child_nodes).ok()
+                }
+            } else if child_nodes.is_empty() {
+                taffy.new_leaf(style).ok()
+            } else {
+                taffy.new_with_children(style, child_nodes).ok()
+            };
 
         Self { taffy_node, is_dirty: true, layout_result: None }
     }

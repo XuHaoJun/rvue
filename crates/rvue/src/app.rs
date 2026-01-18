@@ -15,23 +15,24 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
 /// Application state
+/// Fields are ordered for correct drop order: renderer first, surface second, render_cx last
 pub struct AppState<'a> {
+    renderer: Option<Renderer>,
+    surface: Option<RenderSurface<'a>>,
+    render_cx: Option<RenderContext>,
     window: Option<Arc<Window>>,
     view: Option<ViewStruct>,
-    render_cx: Option<RenderContext>,
-    surface: Option<RenderSurface<'a>>,
-    renderer: Option<Renderer>,
     scene: RvueScene,
 }
 
 impl<'a> AppState<'a> {
     fn new() -> Self {
         Self {
+            renderer: None,
+            surface: None,
+            render_cx: None,
             window: None,
             view: None,
-            render_cx: None,
-            surface: None,
-            renderer: None,
             scene: RvueScene::new(),
         }
     }
@@ -62,6 +63,14 @@ impl ApplicationHandler for AppState<'_> {
                 self.render_frame();
             }
             _ => {}
+        }
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        if let (Some(ref render_cx), Some(ref surface)) = (&self.render_cx, &self.surface) {
+            let dev_id = surface.dev_id;
+            let device = &render_cx.devices[dev_id].device;
+            let _ = device.poll(wgpu::PollType::Poll);
         }
     }
 }

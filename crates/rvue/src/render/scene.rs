@@ -44,7 +44,8 @@ impl Scene {
         self.is_dirty = true;
     }
 
-    /// Update the scene by regenerating all fragments
+    /// Update the scene by regenerating dirty fragments
+    /// Optimized: Only reset the main scene when structural changes occur
     pub fn update(&mut self) {
         let fragments_dirty = self.fragments.iter().any(|f| f.is_dirty());
 
@@ -54,12 +55,13 @@ impl Scene {
 
         self.ensure_initialized();
 
-        if let Some(ref mut scene) = self.vello_scene {
-            scene.reset();
+        // Only reset the scene when structural changes occur (new/removed fragments)
+        // For content-only updates (dirty fragments), preserve the scene structure
+        if self.is_dirty {
+            if let Some(ref mut scene) = self.vello_scene {
+                scene.reset();
+            }
         }
-
-        // Clear taffy tree for a fresh layout pass
-        self.taffy.clear();
 
         for fragment in &self.fragments {
             // Build and compute layout in the shared tree
