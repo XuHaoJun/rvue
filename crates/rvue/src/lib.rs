@@ -14,6 +14,7 @@ pub mod prelude;
 pub mod render;
 pub mod signal;
 pub mod style;
+pub mod vello_util;
 pub mod view;
 pub mod widgets;
 
