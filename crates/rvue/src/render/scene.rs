@@ -58,9 +58,8 @@ impl Scene {
 
         self.ensure_initialized();
 
-        // Only reset the scene when structural changes occur (new/removed fragments)
-        // For content-only updates (dirty fragments), preserve the scene structure
-        if self.is_dirty {
+        // Reset the scene if anything is dirty
+        if self.is_dirty || fragments_dirty {
             if let Some(ref mut scene) = self.vello_scene {
                 scene.reset();
             }

@@ -1,8 +1,11 @@
+use parley::fontique::{Collection, CollectionOptions, SourceCache};
 use parley::{FontContext, Layout, LayoutContext};
-use vello::peniko::{Color, Fill, Style};
+use vello::peniko::{Color, Fill};
 
 #[derive(Clone, PartialEq, Default, Debug)]
 pub struct BrushIndex(pub usize);
+
+pub struct ParleyLayoutWrapper(pub Layout<BrushIndex>);
 
 pub struct TextContext {
     pub font_ctx: FontContext,
@@ -11,7 +14,14 @@ pub struct TextContext {
 
 impl TextContext {
     pub fn new() -> Self {
-        Self { font_ctx: FontContext::new(), layout_ctx: LayoutContext::new() }
+        let font_ctx = FontContext {
+            collection: Collection::new(CollectionOptions {
+                system_fonts: true,
+                ..Default::default()
+            }),
+            source_cache: SourceCache::default(),
+        };
+        Self { font_ctx, layout_ctx: LayoutContext::new() }
     }
 }
 
@@ -19,7 +29,7 @@ pub fn render_text(
     layout: &Layout<BrushIndex>,
     scene: &mut vello::Scene,
     transform: vello::kurbo::Affine,
-    color: Color,
+    _color: Color,
 ) {
     use parley::PositionedLayoutItem;
 

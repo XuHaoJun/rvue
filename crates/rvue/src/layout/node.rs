@@ -1,11 +1,9 @@
 //! Layout node wrapper around Taffy
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use crate::text::{BrushIndex, TextContext};
+use crate::text::{BrushIndex, ParleyLayoutWrapper, TextContext};
 use parley::Layout;
-use rudo_gc::Gc;
-use std::cell::RefCell;
-use std::rc::Rc;
+use rudo_gc::Trace;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 
@@ -15,6 +13,12 @@ pub struct LayoutNode {
     pub taffy_node: Option<NodeId>,
     pub is_dirty: bool,
     pub layout_result: Option<taffy::Layout>,
+}
+
+unsafe impl Trace for LayoutNode {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // LayoutNode contains only primitive types and Taffy types, no GC pointers
+    }
 }
 
 impl LayoutNode {
@@ -62,59 +66,50 @@ impl LayoutNode {
     fn build_text_node(
         taffy: &mut TaffyTree<()>,
         component: &Component,
-        style: Style,
+        mut style: Style,
         text_context: &mut TextContext,
     ) -> Self {
-        let measure = {
-            let content = if let ComponentProps::Text { content, .. } = &*component.props.borrow() {
-                content.clone()
-            } else {
-                String::new()
-            };
-            let component = component as *const Component;
-            let text_context_ptr = text_context as *mut TextContext;
-
-            move |known_dimensions: Size<Option<f32>>, max_axis_size: f32| -> Size<f32> {
-                let ctx = unsafe { &mut *text_context_ptr };
-                let comp = unsafe { &*component };
-                let max_advance = known_dimensions.width.unwrap_or(max_axis_size);
-
-                let mut layout_builder =
-                    ctx.layout_ctx.ranged_builder(&mut ctx.font_ctx, &content, 1.0, true);
-                let layout = layout_builder.build(&content);
-                let width = layout.width();
-                let height = layout.height();
-
-                {
-                    let mut user_data = comp.user_data.borrow_mut();
-                    use crate::text::BrushIndex;
-                    use parley::Layout;
-                    *user_data = Some(Box::new(layout));
-                }
-
-                Size { width, height }
-            }
+        let content = if let ComponentProps::Text { content, .. } = &*component.props.borrow() {
+            content.clone()
+        } else {
+            String::new()
         };
 
-        // Remove existing node if any, as we can't update the measure function easily in Taffy 0.9
+        // Eagerly build text layout to get dimensions
+        let mut layout_builder =
+            text_context.layout_ctx.ranged_builder(&mut text_context.font_ctx, &content, 1.0, true);
+        layout_builder.push_default(parley::style::StyleProperty::FontSize(16.0));
+        layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
+        // Use a more robust font stack
+        layout_builder.push_default(parley::style::FontStack::Source(std::borrow::Cow::Borrowed(
+            "sans-serif",
+        )));
+
+        let mut layout: Layout<BrushIndex> = layout_builder.build(&content);
+        layout.break_all_lines(None); // Generate lines (no max advance)
+
+        let width = layout.width();
+        let height = layout.height();
+
+        // Store layout in user_data for rendering
+        {
+            let mut user_data = component.user_data.borrow_mut();
+            *user_data = Some(Box::new(ParleyLayoutWrapper(layout)));
+        }
+
+        // Set explicit size in style based on text measurement
+        // If width/height is 0, provide a small default to avoid collapse in tests if fonts aren't loaded
+        let width = if width > 0.0 { width } else { 10.0 * content.len() as f32 };
+        let height = if height > 0.0 { height } else { 20.0 };
+
+        style.size = Size { width: length(width), height: length(height) };
+
+        // Remove existing node if any
         if let Some(existing_node) = component.layout_node().and_then(|ln| ln.taffy_node()) {
             let _ = taffy.remove(existing_node);
         }
 
-        // Fallback for incompatible Taffy versions (NodeContext not found)
         let taffy_node = taffy.new_leaf(style).ok();
-
-        // If we couldn't use a measure function (common in Taffy 0.9 breaking changes),
-        // ensure the node has a reasonable default size so layout doesn't collapse.
-        if let Some(node) = taffy_node {
-            let _ = taffy.set_style(
-                node,
-                Style {
-                    size: Size { width: length(100.0), height: length(20.0) },
-                    ..Default::default()
-                },
-            );
-        }
 
         Self { taffy_node, is_dirty: true, layout_result: None }
     }

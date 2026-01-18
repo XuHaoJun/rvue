@@ -50,8 +50,6 @@ fn create_counter_view() -> ViewStruct {
     );
 
     // Create text component to display count
-    // For MVP, we'll create a simple text component
-    // In a full implementation, this would be reactive via effects
     let count_text = Component::new(
         1,
         ComponentType::Text,
@@ -61,6 +59,19 @@ fn create_counter_view() -> ViewStruct {
             color: None,
         },
     );
+
+    // Add effect to update text when count changes
+    let count_comp = count_text.clone();
+    let count_read = count.clone();
+    let _count_effect = create_effect(move || {
+        let val = count_read.get();
+        *count_comp.props.borrow_mut() = ComponentProps::Text {
+            content: format!("Count: {}", val),
+            font_size: None,
+            color: None,
+        };
+        count_comp.mark_dirty();
+    });
 
     // Create a message that can be shown/hidden
     let message_text = Component::new(
@@ -74,9 +85,17 @@ fn create_counter_view() -> ViewStruct {
     );
 
     // Create Show component to conditionally display the message
-    // Note: In a full implementation, this would be connected to show_message signal
     let show_component = Show::new(3, show_message.get());
     show_component.add_child(message_text);
+
+    // Add effect to update Show component when show_message changes
+    let show_comp = show_component.clone();
+    let show_read = show_message.clone();
+    let _show_effect = create_effect(move || {
+        let when = show_read.get();
+        *show_comp.props.borrow_mut() = ComponentProps::Show { when };
+        show_comp.mark_dirty();
+    });
 
     // Create increment button
     let inc_button =
@@ -95,24 +114,8 @@ fn create_counter_view() -> ViewStruct {
     // Create view
     let view = ViewStruct::new(root);
 
-    // Add effect to update text when count changes
-    let _effect = create_effect({
-        let count = count.clone();
-        move || {
-            let _ = count.get(); // Track the signal
-                                 // In a full implementation, this would update the text component
-            println!("Count changed to: {}", count.get());
-        }
-    });
-
-    // Add effect to update Show component when show_message changes
-    let _show_effect = create_effect({
-        let show_message = show_message.clone();
-        move || {
-            let _ = show_message.get(); // Track the signal
-            println!("Show message changed to: {}", show_message.get());
-        }
-    });
+    // Note: In a full implementation, we would connect event handlers to buttons.
+    // For now, this example demonstrates the reactive structure.
 
     view
 }

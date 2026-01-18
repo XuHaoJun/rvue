@@ -1,15 +1,12 @@
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentProps, ComponentType};
-use rvue::text::TextContext;
 use rvue::Scene;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
 fn test_text_measure() {
-    let mut text_context = TextContext::new();
-
-    let id_counter = AtomicU64::new(0);
-    let next_id = |_| id_counter.fetch_add(1, Ordering::SeqCst);
+    let _id_counter = AtomicU64::new(0);
+    let next_id = |_| _id_counter.fetch_add(1, Ordering::SeqCst);
 
     // Create a simple Text component
     let component = Component::new(
@@ -50,10 +47,8 @@ fn test_text_measure() {
 #[test]
 fn test_text_in_flex() {
     // Test that text measures correctly inside a Flex container
-    let mut text_context = TextContext::new();
-
-    let id_counter = AtomicU64::new(0);
-    let next_id = |_| id_counter.fetch_add(1, Ordering::SeqCst);
+    let _id_counter = AtomicU64::new(0);
+    let next_id = |_| _id_counter.fetch_add(1, Ordering::SeqCst);
 
     // Create a Flex container
     let flex = Component::new(
