@@ -60,10 +60,7 @@ impl LayoutNode {
                     Style {
                         display: Display::Flex,
                         flex_direction,
-                        gap: Size {
-                            width: length(*gap),
-                            height: length(*gap),
-                        },
+                        gap: Size { width: length(*gap), height: length(*gap) },
                         align_items: Some(align_items_taffy),
                         justify_content: Some(justify_content_taffy),
                         ..Default::default()
