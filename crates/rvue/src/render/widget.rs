@@ -1,6 +1,5 @@
 //! Widget-to-Vello mapping
 
-use crate::component::build_layout_tree;
 use crate::component::{Component, ComponentProps, ComponentType};
 use rudo_gc::{Gc, GcCell};
 use vello::kurbo::{Circle, Rect, RoundedRect};
@@ -28,15 +27,6 @@ impl VelloFragment {
 
     pub fn generate_scene_items(&self, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
         if self.is_dirty() {
-            // Build and compute layout if dirty
-            let mut layout = build_layout_tree(&self.component);
-            if layout.is_dirty() {
-                if let Err(e) = layout.calculate_layout() {
-                    eprintln!("Layout calculation failed: {:?}", e);
-                }
-            }
-            self.component.set_layout_node(layout);
-
             let mut sub_scene = vello::Scene::new();
 
             match &self.component.component_type {
@@ -147,8 +137,20 @@ impl VelloFragment {
         if let ComponentProps::Show { when } = &*component.props.borrow() {
             if *when {
                 for child in component.children.borrow().iter() {
+                    let child_transform = if let Some(layout_node) = child.layout_node() {
+                        if let Some(layout) = layout_node.layout() {
+                            vello::kurbo::Affine::translate((
+                                layout.location.x as f64,
+                                layout.location.y as f64,
+                            ))
+                        } else {
+                            vello::kurbo::Affine::IDENTITY
+                        }
+                    } else {
+                        vello::kurbo::Affine::IDENTITY
+                    };
                     let child_fragment = VelloFragment::new(Gc::clone(child));
-                    child_fragment.generate_scene_items(scene, transform);
+                    child_fragment.generate_scene_items(scene, transform * child_transform);
                 }
             }
         }
@@ -161,8 +163,20 @@ impl VelloFragment {
     ) {
         if let ComponentProps::For { item_count: _ } = &*component.props.borrow() {
             for child in component.children.borrow().iter() {
+                let child_transform = if let Some(layout_node) = child.layout_node() {
+                    if let Some(layout) = layout_node.layout() {
+                        vello::kurbo::Affine::translate((
+                            layout.location.x as f64,
+                            layout.location.y as f64,
+                        ))
+                    } else {
+                        vello::kurbo::Affine::IDENTITY
+                    }
+                } else {
+                    vello::kurbo::Affine::IDENTITY
+                };
                 let child_fragment = VelloFragment::new(Gc::clone(child));
-                child_fragment.generate_scene_items(scene, transform);
+                child_fragment.generate_scene_items(scene, transform * child_transform);
             }
         }
     }
@@ -187,35 +201,25 @@ impl VelloFragment {
                     scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
                 }
 
-                let taffy = layout.taffy();
-                if let Some(taffy_node) = layout.taffy_node() {
-                    let child_nodes: Vec<_> = match taffy.children(taffy_node) {
-                        Ok(nodes) => nodes,
-                        Err(e) => {
-                            eprintln!("Failed to get children: {:?}", e);
-                            Vec::new()
-                        }
-                    };
-
-                    for (index, child) in component.children.borrow().iter().enumerate() {
-                        if index < child_nodes.len() {
-                            let child_taffy_node = child_nodes[index];
-                            if let Ok(child_layout) = taffy.layout(child_taffy_node) {
-                                let child_transform = vello::kurbo::Affine::translate((
-                                    child_layout.location.x as f64,
-                                    child_layout.location.y as f64,
-                                ));
-                                let child_fragment = VelloFragment::new(Gc::clone(child));
-                                child_fragment
-                                    .generate_scene_items(scene, transform * child_transform);
-                            }
-                        } else {
+                // Render children using their cached layout locations
+                for child in component.children.borrow().iter() {
+                    if let Some(child_layout_node) = child.layout_node() {
+                        if let Some(child_layout) = child_layout_node.layout() {
+                            let child_transform = vello::kurbo::Affine::translate((
+                                child_layout.location.x as f64,
+                                child_layout.location.y as f64,
+                            ));
                             let child_fragment = VelloFragment::new(Gc::clone(child));
-                            child_fragment.generate_scene_items(scene, transform);
+                            child_fragment.generate_scene_items(scene, transform * child_transform);
                         }
+                    } else {
+                        // Fallback: render without translation if layout is missing
+                        let child_fragment = VelloFragment::new(Gc::clone(child));
+                        child_fragment.generate_scene_items(scene, transform);
                     }
                 }
             } else {
+                // Fallback for missing layout node
                 for child in component.children.borrow().iter() {
                     let child_fragment = VelloFragment::new(Gc::clone(child));
                     child_fragment.generate_scene_items(scene, transform);

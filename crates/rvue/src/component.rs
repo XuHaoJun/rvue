@@ -4,6 +4,7 @@ use crate::effect::Effect;
 use crate::layout::LayoutNode;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicBool, Ordering};
+use taffy::TaffyTree;
 
 /// Unique identifier for a component
 pub type ComponentId = u64;
@@ -150,18 +151,18 @@ impl Component {
     }
 }
 
-/// Build layout tree recursively and return the root layout node
-pub fn build_layout_tree(component: &Gc<Component>) -> LayoutNode {
-    // Build child layout nodes first
+/// Build layout tree recursively in a shared TaffyTree and return the root layout node
+pub fn build_layout_tree(component: &Gc<Component>, taffy: &mut TaffyTree<()>) -> LayoutNode {
+    // Build child layout nodes first in the same tree
     let child_layouts: Vec<LayoutNode> =
-        component.children.borrow().iter().map(|child| build_layout_tree(child)).collect();
+        component.children.borrow().iter().map(|child| build_layout_tree(child, taffy)).collect();
 
     // Get Taffy node IDs from child layouts
     let child_node_ids: Vec<taffy::NodeId> =
         child_layouts.iter().filter_map(|ln| ln.taffy_node()).collect();
 
-    // Build this node with children
-    let node = LayoutNode::build_with_children(component, &child_node_ids);
+    // Build this node with children in the shared tree
+    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids);
 
     // Store child layouts in their user_data for later retrieval
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
@@ -228,5 +229,24 @@ impl ComponentLifecycle for Component {
         for child in self.children.borrow().iter() {
             child.update();
         }
+    }
+}
+
+/// Propagate layout results from TaffyTree back to components
+pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>) {
+    // Update this component's layout node with result from Taffy
+    if let Some(mut layout_node) = component.layout_node() {
+        if let Some(node_id) = layout_node.taffy_node() {
+            if let Ok(layout) = taffy.layout(node_id) {
+                layout_node.layout_result = Some(*layout);
+                layout_node.is_dirty = false;
+                component.set_layout_node(layout_node);
+            }
+        }
+    }
+
+    // Recurse to children
+    for child in component.children.borrow().iter() {
+        propagate_layout_results(child, taffy);
     }
 }

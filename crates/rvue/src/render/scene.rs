@@ -4,6 +4,8 @@ use crate::component::build_layout_tree;
 use crate::component::Component;
 use crate::render::widget::VelloFragment;
 use rudo_gc::Gc;
+use taffy::prelude::*;
+use taffy::TaffyTree;
 use vello::kurbo::Affine;
 
 /// Scene structure for managing Vello rendering
@@ -12,6 +14,7 @@ pub struct Scene {
     pub fragments: Vec<VelloFragment>,
     pub is_dirty: bool,
     pub renderer_initialized: bool,
+    pub taffy: TaffyTree<()>,
 }
 
 impl Scene {
@@ -22,6 +25,7 @@ impl Scene {
             fragments: Vec::new(),
             is_dirty: true,
             renderer_initialized: false,
+            taffy: TaffyTree::new(),
         }
     }
 
@@ -54,17 +58,23 @@ impl Scene {
             scene.reset();
         }
 
+        // Clear taffy tree for a fresh layout pass
+        self.taffy.clear();
+
         for fragment in &self.fragments {
-            // Build and compute layout
-            let mut layout = build_layout_tree(&fragment.component);
-            if layout.is_dirty() {
-                if let Err(e) = layout.calculate_layout() {
+            // Build and compute layout in the shared tree
+            let layout = build_layout_tree(&fragment.component, &mut self.taffy);
+            fragment.component.set_layout_node(layout.clone());
+            if let Some(node_id) = layout.taffy_node() {
+                if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {
                     eprintln!("Scene layout calculation failed: {:?}", e);
                 }
             }
-            fragment.component.set_layout_node(layout.clone());
 
-            // Get layout position for transform
+            // Propagate results back to the entire component tree
+            crate::component::propagate_layout_results(&fragment.component, &self.taffy);
+
+            // Get updated layout node from component (now has results)
             let layout_opt = fragment.component.layout_node();
             let transform = if let Some(layout) = layout_opt {
                 if let Some(l) = layout.layout() {

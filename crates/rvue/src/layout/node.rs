@@ -4,10 +4,9 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use taffy::prelude::*;
 use taffy::TaffyTree;
 
-/// Layout node wrapper around Taffy node
-#[derive(Clone)]
+/// Layout node wrapper holding calculation results
+#[derive(Clone, Debug, Default)]
 pub struct LayoutNode {
-    pub taffy: TaffyTree<()>,
     pub taffy_node: Option<NodeId>,
     pub is_dirty: bool,
     pub layout_result: Option<Layout>,
@@ -16,12 +15,15 @@ pub struct LayoutNode {
 impl LayoutNode {
     /// Create a new layout node
     pub fn new() -> Self {
-        Self { taffy: TaffyTree::new(), taffy_node: None, is_dirty: true, layout_result: None }
+        Self { taffy_node: None, is_dirty: true, layout_result: None }
     }
 
-    /// Build a single layout node with given children
-    pub fn build_with_children(component: &Component, child_nodes: &[NodeId]) -> Self {
-        let mut taffy = TaffyTree::new();
+    /// Build a single layout node with given children in a specific TaffyTree
+    pub fn build_in_tree(
+        taffy: &mut TaffyTree<()>,
+        component: &Component,
+        child_nodes: &[NodeId],
+    ) -> Self {
         let style = Self::component_to_taffy_style(component);
         let taffy_node = if child_nodes.is_empty() {
             taffy.new_leaf(style).ok()
@@ -29,7 +31,7 @@ impl LayoutNode {
             taffy.new_with_children(style, child_nodes).ok()
         };
 
-        Self { taffy, taffy_node, is_dirty: true, layout_result: None }
+        Self { taffy_node, is_dirty: true, layout_result: None }
     }
 
     /// Convert component props to Taffy style
@@ -78,17 +80,48 @@ impl LayoutNode {
                     Style::default()
                 }
             }
+            ComponentType::Text => Style {
+                size: Size { width: length(100.0), height: length(20.0) },
+                ..Default::default()
+            },
+            ComponentType::Button => Style {
+                size: Size { width: length(120.0), height: length(40.0) },
+                ..Default::default()
+            },
+            ComponentType::TextInput => Style {
+                size: Size { width: length(200.0), height: length(30.0) },
+                ..Default::default()
+            },
+            ComponentType::NumberInput => Style {
+                size: Size { width: length(150.0), height: length(30.0) },
+                ..Default::default()
+            },
+            ComponentType::Checkbox | ComponentType::Radio => Style {
+                size: Size { width: length(20.0), height: length(20.0) },
+                ..Default::default()
+            },
             _ => Style::default(),
         }
     }
 
-    /// Calculate layout for this node and its children
-    pub fn calculate_layout(&mut self) -> Result<(), taffy::TaffyError> {
+    /// Calculate layout for this node and its children using the provided TaffyTree
+    pub fn calculate_layout(&mut self, taffy: &mut TaffyTree<()>) -> Result<(), taffy::TaffyError> {
         if let Some(node_id) = self.taffy_node {
-            self.taffy.compute_layout(node_id, Size::MAX_CONTENT)?;
-            self.layout_result = Some(*self.taffy.layout(node_id)?);
+            taffy.compute_layout(node_id, Size::MAX_CONTENT)?;
+            self.update_results_recursive(taffy, node_id)?;
             self.is_dirty = false;
         }
+        Ok(())
+    }
+
+    /// Recursively update layout results from the TaffyTree
+    /// This is internal but could be made public if needed
+    fn update_results_recursive(
+        &mut self,
+        taffy: &TaffyTree<()>,
+        node_id: NodeId,
+    ) -> Result<(), taffy::TaffyError> {
+        self.layout_result = Some(*taffy.layout(node_id)?);
         Ok(())
     }
 
@@ -107,24 +140,8 @@ impl LayoutNode {
         self.layout_result.as_ref()
     }
 
-    /// Get the TaffyTree for internal use
-    pub fn taffy(&self) -> &TaffyTree<()> {
-        &self.taffy
-    }
-
-    /// Get mutable access to TaffyTree for modifications
-    pub fn taffy_mut(&mut self) -> &mut TaffyTree<()> {
-        &mut self.taffy
-    }
-
     /// Get the taffy_node ID
     pub fn taffy_node(&self) -> Option<NodeId> {
         self.taffy_node
-    }
-}
-
-impl Default for LayoutNode {
-    fn default() -> Self {
-        Self::new()
     }
 }
