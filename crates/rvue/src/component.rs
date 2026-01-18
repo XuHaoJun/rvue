@@ -2,6 +2,7 @@
 
 use crate::effect::Effect;
 use crate::layout::LayoutNode;
+use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicBool, Ordering};
 use taffy::TaffyTree;
@@ -29,7 +30,7 @@ pub enum ComponentType {
 /// and converted as needed by widget implementations
 #[derive(Debug, Clone)]
 pub enum ComponentProps {
-    Text { content: String },
+    Text { content: String, font_size: Option<f32>, color: Option<vello::peniko::Color> },
     Button { label: String },
     TextInput { value: String },
     NumberInput { value: f64 },
@@ -58,6 +59,7 @@ pub struct Component {
     pub props: GcCell<ComponentProps>,
     pub is_dirty: AtomicBool,
     pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
+    pub layout_node: GcCell<Option<LayoutNode>>,
 }
 
 unsafe impl Trace for Component {
@@ -66,6 +68,7 @@ unsafe impl Trace for Component {
         self.parent.trace(visitor);
         self.effects.trace(visitor);
         self.props.trace(visitor);
+        self.layout_node.trace(visitor);
         // user_data doesn't contain GC pointers
     }
 }
@@ -102,12 +105,17 @@ impl Component {
             props: GcCell::new(props),
             is_dirty: AtomicBool::new(true),
             user_data: GcCell::new(None),
+            layout_node: GcCell::new(None),
         })
     }
 
     /// Mark the component as dirty (needs re-render)
     pub fn mark_dirty(&self) {
         self.is_dirty.store(true, Ordering::SeqCst);
+        // Propagate dirty flag upwards so parents know they need to re-render
+        if let Some(parent) = self.parent.borrow().as_ref() {
+            parent.mark_dirty();
+        }
     }
 
     /// Clear the dirty flag
@@ -125,9 +133,9 @@ impl Component {
         &self.user_data
     }
 
-    /// Get layout node from user_data (cloned)
+    /// Get layout node (cloned)
     pub fn layout_node(&self) -> Option<LayoutNode> {
-        self.user_data.borrow().as_ref().and_then(|d| d.downcast_ref::<LayoutNode>().cloned())
+        self.layout_node.borrow().clone()
     }
 
     /// Add a child component
@@ -135,9 +143,9 @@ impl Component {
         self.children.borrow_mut().push(Gc::clone(&child));
     }
 
-    /// Set layout node in user_data
+    /// Set layout node
     pub fn set_layout_node(&self, layout_node: LayoutNode) {
-        *self.user_data.borrow_mut() = Some(Box::new(layout_node));
+        *self.layout_node.borrow_mut() = Some(layout_node);
     }
 
     /// Clean up layout node from Taffy tree when component is unmounted
@@ -164,21 +172,30 @@ impl Component {
 }
 
 /// Build layout tree recursively in a shared TaffyTree and return the root layout node
-pub fn build_layout_tree(component: &Gc<Component>, taffy: &mut TaffyTree<()>) -> LayoutNode {
+pub fn build_layout_tree(
+    component: &Gc<Component>,
+    taffy: &mut TaffyTree<()>,
+    text_context: &mut TextContext,
+) -> LayoutNode {
     // Build child layout nodes first in the same tree
-    let child_layouts: Vec<LayoutNode> =
-        component.children.borrow().iter().map(|child| build_layout_tree(child, taffy)).collect();
+    let child_layouts: Vec<LayoutNode> = component
+        .children
+        .borrow()
+        .iter()
+        .map(|child| build_layout_tree(child, taffy, text_context))
+        .collect();
 
     // Get Taffy node IDs from child layouts
     let child_node_ids: Vec<taffy::NodeId> =
         child_layouts.iter().filter_map(|ln| ln.taffy_node()).collect();
 
     // Build this node with children in the shared tree
-    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids);
+    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context);
 
-    // Store child layouts in their user_data for later retrieval
+    // Store child layouts in their dedicated field for later retrieval
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
         child.set_layout_node(child_layout.clone());
+        child.set_parent(Some(Gc::clone(component)));
     }
 
     node

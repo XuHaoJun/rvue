@@ -33,7 +33,11 @@ fn create_layout_view() -> ViewStruct {
     let header_text = Component::new(
         10,
         ComponentType::Text,
-        ComponentProps::Text { content: "Rvue Layout Example".to_string() },
+        ComponentProps::Text {
+            content: "Rvue Layout Example".to_string(),
+            font_size: None,
+            color: None,
+        },
     );
     header.add_child(header_text);
 
@@ -52,7 +56,11 @@ fn create_layout_view() -> ViewStruct {
         let sidebar_item = Component::new(
             30 + i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Sidebar Item {}", i) },
+            ComponentProps::Text {
+                content: format!("Sidebar Item {}", i),
+                font_size: None,
+                color: None,
+            },
         );
         sidebar.add_child(sidebar_item);
     }
@@ -68,7 +76,11 @@ fn create_layout_view() -> ViewStruct {
         let content_item = Component::new(
             40 + i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Content Section {}", i) },
+            ComponentProps::Text {
+                content: format!("Content Section {}", i),
+                font_size: None,
+                color: None,
+            },
         );
         content.add_child(content_item);
     }
@@ -83,7 +95,7 @@ fn create_layout_view() -> ViewStruct {
     let footer_text = Component::new(
         50,
         ComponentType::Text,
-        ComponentProps::Text { content: "Footer".to_string() },
+        ComponentProps::Text { content: "Footer".to_string(), font_size: None, color: None },
     );
     footer.add_child(footer_text);
 

@@ -54,7 +54,7 @@ fn create_todo_list_view() -> ViewStruct {
         let _item_component = Component::new(
             item_id,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("• {}", item) },
+            ComponentProps::Text { content: format!("• {}", item), font_size: None, color: None },
         );
         // In a full implementation, we'd add this to the For component's children
         item_id += 1;

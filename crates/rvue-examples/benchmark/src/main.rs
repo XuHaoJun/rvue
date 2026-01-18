@@ -40,7 +40,11 @@ fn create_counter_view() -> ViewStruct {
     let _count_text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: format!("Count: {}", count.get()) },
+        ComponentProps::Text {
+            content: format!("Count: {}", count.get()),
+            font_size: None,
+            color: None,
+        },
     );
 
     // Create increment button

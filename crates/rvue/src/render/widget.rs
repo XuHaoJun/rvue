@@ -1,6 +1,8 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType};
+use crate::text::{BrushIndex, ParleyLayoutWrapper};
+use parley::Layout;
 use rudo_gc::{Gc, GcCell};
 use vello::kurbo::{Circle, Rect, RoundedRect};
 use vello::peniko::Color;
@@ -22,7 +24,18 @@ impl VelloFragment {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.component.is_dirty() || self.cached_scene.borrow().is_none()
+        if self.component.is_dirty() || self.cached_scene.borrow().is_none() {
+            return true;
+        }
+
+        // Check if any child is dirty
+        for child in self.component.children.borrow().iter() {
+            if child.is_dirty() {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn generate_scene_items(&self, scene: &mut vello::Scene, transform: vello::kurbo::Affine) {
@@ -110,10 +123,82 @@ impl VelloFragment {
         scene: &mut vello::Scene,
         transform: vello::kurbo::Affine,
     ) {
-        if let ComponentProps::Text { content: _ } = &*component.props.borrow() {
-            let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-            let bg_color = Color::from_rgba8(200, 200, 200, 255);
-            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+        if let ComponentProps::Text { content: _, font_size: _, color } = &*component.props.borrow()
+        {
+            let user_data = component.user_data.borrow();
+            let layout_wrapper =
+                user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
+
+            if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
+                let brush = color.unwrap_or(Color::BLACK);
+                if layout.lines().next().is_none() {
+                    // Layout has no lines (likely font matching failed)
+                    // Draw an orange box
+                    let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+                    let bg_color = Color::from_rgb8(255, 165, 0);
+                    scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+                } else {
+                    Self::render_text_layout(layout, scene, transform, brush);
+                }
+            } else if user_data.is_some() {
+                // If we have user_data but couldn't downcast, draw a red box to indicate error
+                let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+                let bg_color = Color::from_rgb8(255, 0, 0);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+            } else {
+                // No layout yet
+                let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+                let bg_color = Color::from_rgba8(200, 200, 200, 255);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+            }
+        }
+    }
+
+    fn render_text_layout(
+        layout: &Layout<BrushIndex>,
+        scene: &mut vello::Scene,
+        transform: vello::kurbo::Affine,
+        color: Color,
+    ) {
+        use parley::PositionedLayoutItem;
+        use vello::peniko::Fill;
+
+        let fill = Fill::NonZero;
+
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
+                    let run = glyph_run.run();
+                    let mut x = glyph_run.offset();
+                    let y = glyph_run.baseline();
+
+                    let synthesis = run.synthesis();
+                    let glyph_xform = synthesis.skew().map(|angle| {
+                        vello::kurbo::Affine::skew(angle.to_radians().tan() as f64, 0.0)
+                    });
+                    let coords = run.normalized_coords();
+
+                    let vello_glyphs: Vec<vello::Glyph> = glyph_run
+                        .glyphs()
+                        .map(|g| {
+                            let gx = x + g.x;
+                            let gy = y - g.y;
+                            x += g.advance;
+                            vello::Glyph { id: g.id, x: gx, y: gy }
+                        })
+                        .collect();
+
+                    scene
+                        .draw_glyphs(run.font())
+                        .font_size(run.font_size())
+                        .transform(transform)
+                        .glyph_transform(glyph_xform)
+                        .normalized_coords(coords)
+                        .brush(color)
+                        .hint(true)
+                        .draw(fill, vello_glyphs.into_iter());
+                }
+            }
         }
     }
 

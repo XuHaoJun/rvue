@@ -60,7 +60,7 @@ fn benchmark_component_tree_creation() {
         let _child = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Item {}", i) },
+            ComponentProps::Text { content: format!("Item {}", i), font_size: None, color: None },
         );
         // Note: In a full implementation, we'd add this to root's children
     }
