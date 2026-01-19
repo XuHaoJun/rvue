@@ -10,3 +10,6 @@
 [submodule "learn-projects/xilem"]
 	path = learn-projects/xilem
 	url = git@github.com:linebender/xilem.git
+[submodule "learn-projects/stylo"]
+	path = learn-projects/stylo
+	url = git@github.com:servo/stylo.git
