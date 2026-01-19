@@ -1,0 +1,148 @@
+# AGENTS.md - Rvue Development Guidelines
+
+This document provides guidelines for AI agents working on the Rvue codebase.
+
+## Project Overview
+
+Rvue is a high-performance, GPU-accelerated Rust GUI framework inspired by Vue's developer experience and SolidJS's fine-grained reactivity. The project uses:
+- Rust 2021 Edition (minimum 1.75+)
+- Vello for GPU-accelerated rendering
+- Taffy for CSS-like layouts
+- rudo-gc for hybrid garbage collection
+
+## Build Commands
+
+```bash
+cargo build
+cargo run --bin counter
+cargo run --bin list
+cargo run --bin layout
+cargo run --bin form
+cargo build --release
+cargo build -p rvue
+cargo build -p rvue-macro
+```
+
+## Lint and Format
+
+```bash
+cargo clippy
+cargo clippy --fix
+cargo fmt
+cargo fmt --check
+```
+
+## Testing
+
+```bash
+cargo test
+cargo test -p rvue
+cargo test -p rvue-macro
+cargo test --test signal_test
+cargo test --test effect_test
+cargo test --test component_test
+cargo test test_create_signal
+cargo test test_signal_set
+cargo test -- --nocapture
+```
+
+## Code Style Guidelines
+
+### General Principles
+- Follow Rust standard conventions (RFC 1437)
+- Write self-documenting code with clear intent
+- Use exhaustive pattern matching for enums
+- Prefer Result/Option over unwrap in public APIs
+
+### Formatting
+- Max line width: 100 characters
+- Indentation: 4 spaces (no tabs)
+- Newline style: Unix (LF)
+- Use small heuristics for formatting decisions
+
+### Naming Conventions
+- **Crates/Modules**: snake_case (e.g., `rvue`, `signal`, `widgets`)
+- **Types/Traits**: PascalCase (e.g., `ReadSignal`, `ComponentProps`, `SignalRead`)
+- **Functions/Variables**: snake_case (e.g., `create_signal`, `signal_value`)
+- **Constants**: SCREAMING_SNAKE_CASE for const, snake_case for static
+- **Type parameters**: Short, camelCase (e.g., `T`, `U`)
+
+### Error Handling
+- Define custom error types with `thiserror` or manual `impl Error`
+- Use `AppError` enum for application-level errors
+- Use `ValidationError` for input validation errors
+- Propagate errors with `?` operator
+- Include context: `"Failed to X: {details}"`
+
+### Imports
+- Use absolute paths from crate root (e.g., `crate::signal::create_signal`)
+- Group imports: std → external → internal
+- Use `prelude::*` for commonly used traits and types
+
+### Type System
+- Use generics for reusable components (e.g., `ReadSignal<T>`)
+- Use `Gc<T>` and `GcCell<T>` for garbage-collected types
+- Derive `Debug` for non-secret-bearing structs
+- Use `#[derive(Clone)]` for signal handles
+
+### Reactivity Patterns
+- Signals: `create_signal(initial) -> (ReadSignal<T>, WriteSignal<T>)`
+- Effects: `create_effect(closure)` for side effects
+- Components implement `Component` trait
+- Views use `ViewStruct` for declarative UI
+
+### Testing
+- Unit tests in `tests/unit/` directory
+- Integration tests in `tests/` root
+- Name test functions: `test_<feature>_<behavior>`
+- Use `assert_eq!`, `assert!`, `assert_ne!` for assertions
+
+### Performance
+- Use `#[inline(always)]` for hot-path functions
+- Use `AtomicU64` with `Ordering::SeqCst` for version tracking
+- Use `Gc::clone()` for GC-managed types
+- Release borrows before running effects
+
+## Project Structure
+
+```
+crates/
+  rvue/              # Core framework
+    src/
+      signal.rs      # Fine-grained reactivity
+      effect.rs      # Effect tracking
+      component.rs   # Component system
+      view.rs        # View declaration
+      style.rs       # Styling types
+      widgets/       # Built-in widgets
+      layout/        # Layout (Taffy)
+      render/        # Vello rendering
+      app.rs         # Application entry
+      error.rs       # Error types
+    tests/           # Integration tests
+  rvue-macro/        # Procedural macros
+  rvue-examples/     # Example applications
+```
+
+## Common Patterns
+
+### Using Signals
+```rust
+let (count, set_count) = create_signal(0);
+let value = count.get();
+set_count(value + 1);
+```
+
+### Error Handling
+```rust
+fn some_function() -> Result<T, AppError> {
+    something()?;
+    Ok(result)
+}
+```
+
+## Notes
+
+- Tests run single-threaded (`[test] threads = 1`)
+- Minimum Rust version: 1.75 (from `clippy.toml`)
+- Project is in MVP stage - expect evolving APIs
