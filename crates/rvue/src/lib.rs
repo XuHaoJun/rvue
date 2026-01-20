@@ -5,10 +5,13 @@
 //! - Optimized component tree creation
 //! - Efficient memory allocation patterns
 
+#![feature(arbitrary_self_types)]
+
 pub mod app;
 pub mod component;
 pub mod effect;
 pub mod error;
+pub mod event;
 pub mod layout;
 pub mod prelude;
 pub mod render;
