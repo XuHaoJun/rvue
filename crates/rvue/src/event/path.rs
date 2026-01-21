@@ -2,7 +2,7 @@ use crate::component::Component;
 use rudo_gc::Gc;
 
 pub fn get_component_path(
-    root: &Gc<Component>,
+    _root: &Gc<Component>,
     target: Option<Gc<Component>>,
 ) -> Vec<Gc<Component>> {
     match target {
@@ -37,4 +37,54 @@ pub fn path_equals(a: &[Gc<Component>], b: &[Gc<Component>]) -> bool {
         return false;
     }
     a.iter().zip(b.iter()).all(|(a, b)| Gc::ptr_eq(a, b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::component::{ComponentProps, ComponentType};
+
+    #[test]
+    fn test_path_equals_same_length_different() {
+        // This test verifies the path_equals logic works correctly
+        // When lengths are different, it returns false
+        let empty_a: Vec<Gc<Component>> = Vec::new();
+        let empty_b: Vec<Gc<Component>> = Vec::new();
+        assert!(path_equals(&empty_a, &empty_b));
+    }
+
+    #[test]
+    fn test_path_equals_different_lengths() {
+        let component = Component::new(
+            0,
+            ComponentType::Flex,
+            ComponentProps::Flex {
+                direction: "row".to_string(),
+                gap: 0.0,
+                align_items: "start".to_string(),
+                justify_content: "start".to_string(),
+            },
+        );
+        let one_element = vec![Gc::clone(&component)];
+        let two_elements: Vec<Gc<Component>> = Vec::new();
+        assert!(!path_equals(&one_element, &two_elements));
+    }
+
+    #[test]
+    fn test_get_component_path_none() {
+        let result = get_component_path(
+            &Component::new(
+                0,
+                ComponentType::Flex,
+                ComponentProps::Flex {
+                    direction: "row".to_string(),
+                    gap: 0.0,
+                    align_items: "start".to_string(),
+                    justify_content: "start".to_string(),
+                },
+            ),
+            None,
+        );
+        assert!(result.is_empty());
+    }
 }

@@ -12,6 +12,7 @@ use crate::render::Scene as RvueScene;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, GcCell};
+use std::cell::RefMut;
 use std::sync::Arc;
 use vello::kurbo::Affine;
 use vello::kurbo::{Point, Vec2};
@@ -28,7 +29,7 @@ use winit::window::{Window, WindowId};
 pub trait AppStateLike {
     fn root_component(&self) -> Gc<Component>;
     fn pointer_capture(&self) -> Option<Gc<Component>>;
-    fn pointer_capture_mut(&mut self) -> &mut Option<Gc<Component>>;
+    fn pointer_capture_mut(&mut self) -> RefMut<'_, Option<Gc<Component>>>;
     fn last_pointer_pos(&self) -> Option<Point>;
     fn hovered_component(&self) -> Option<Gc<Component>>;
     fn focused(&self) -> Option<Gc<Component>>;
@@ -84,7 +85,7 @@ impl<'a> AppStateLike for AppState<'a> {
         self.pointer_capture.borrow().clone()
     }
 
-    fn pointer_capture_mut(&mut self) -> &mut Option<Gc<Component>> {
+    fn pointer_capture_mut(&mut self) -> RefMut<'_, Option<Gc<Component>>> {
         self.pointer_capture.borrow_mut()
     }
 
@@ -287,7 +288,7 @@ impl ApplicationHandler for AppState<'_> {
                 run_pointer_event_pass(self, &PointerEvent::Enter(Default::default()));
             }
             WindowEvent::CursorLeft { .. } => {
-                self.hovered_component = None;
+                *self.hovered_component.borrow_mut() = None;
                 run_pointer_event_pass(self, &PointerEvent::Leave(Default::default()));
             }
             WindowEvent::KeyboardInput { event: input, .. } => {

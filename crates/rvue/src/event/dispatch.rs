@@ -58,8 +58,8 @@ fn dispatch_pointer_event(
     let mut handled = Handled::No;
 
     while let Some(component) = current {
-        let pointer_capture_mut = app_state.pointer_capture_mut();
-        let mut ctx = EventContext::new(Gc::clone(&component), app_state, pointer_capture_mut);
+        let capture_clone = app_state.pointer_capture_mut().clone();
+        let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 
         let handlers = component.event_handlers.borrow();
         match event {
@@ -151,8 +151,8 @@ fn dispatch_text_event(
     let mut handled = Handled::No;
 
     while let Some(component) = current {
-        let pointer_capture_mut = app_state.pointer_capture_mut();
-        let mut ctx = EventContext::new(Gc::clone(&component), app_state, pointer_capture_mut);
+        let capture_clone = app_state.pointer_capture_mut().clone();
+        let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 
         let handlers = component.event_handlers.borrow();
         match event {

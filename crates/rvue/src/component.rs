@@ -210,7 +210,7 @@ impl Component {
         self.flags.borrow().contains(ComponentFlags::IS_STASHED)
     }
 
-    pub fn on_status_update(&mut self, update: &StatusUpdate) {
+    pub fn on_status_update(&self, update: &StatusUpdate) {
         match update {
             StatusUpdate::Mounted => {
                 self.mount(self.parent.borrow().clone());

@@ -20,14 +20,14 @@ pub struct EventContext<'a> {
     target: Gc<Component>,
     app_state: &'a mut dyn EventContextOps,
     is_handled: bool,
-    pointer_capture: &'a mut Option<Gc<Component>>,
+    pointer_capture: Option<Gc<Component>>,
 }
 
 impl<'a> EventContext<'a> {
     pub fn new(
         target: Gc<Component>,
         app_state: &'a mut dyn EventContextOps,
-        pointer_capture: &'a mut Option<Gc<Component>>,
+        pointer_capture: Option<Gc<Component>>,
     ) -> Self {
         EventContext { target, app_state, is_handled: false, pointer_capture }
     }
@@ -45,12 +45,12 @@ impl<'a> EventContext<'a> {
     }
 
     pub fn capture_pointer(&mut self) {
-        *self.pointer_capture = Some(Gc::clone(&self.target));
+        self.pointer_capture = Some(Gc::clone(&self.target));
         self.app_state.capture_pointer();
     }
 
     pub fn release_pointer(&mut self) {
-        *self.pointer_capture = None;
+        self.pointer_capture = None;
         self.app_state.release_pointer();
     }
 
