@@ -18,6 +18,12 @@ pub fn run_pointer_event_pass(
     app_state: &mut (impl crate::app::AppStateLike + crate::event::context::EventContextOps),
     event: &PointerEvent,
 ) -> Handled {
+    // Ensure state is up to date before dispatching
+    if app_state.needs_pointer_pass_update() {
+        crate::event::update::run_update_pointer_pass(app_state);
+        app_state.set_needs_pointer_pass_update(false);
+    }
+
     let target = get_pointer_target(app_state);
 
     if let Some(target) = target {

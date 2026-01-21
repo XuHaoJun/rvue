@@ -1,6 +1,6 @@
 //! Application runner with winit event loop
 
-use crate::component::Component;
+use crate::component::{Component, ComponentLifecycle};
 use crate::event::context::EventContextOps;
 use crate::event::dispatch::{run_pointer_event_pass, run_text_event_pass};
 use crate::event::hit_test::hit_test;
@@ -43,6 +43,7 @@ pub trait AppStateLike {
     fn set_hovered_path(&mut self, path: Vec<Gc<Component>>);
     fn set_focused_path(&mut self, path: Vec<Gc<Component>>);
     fn set_needs_pointer_pass_update(&mut self, _value: bool);
+    fn needs_pointer_pass_update(&self) -> bool;
     fn set_focused(&mut self, focused: Option<Gc<Component>>);
     fn clear_pointer_capture(&mut self);
 }
@@ -139,6 +140,10 @@ impl<'a> AppStateLike for AppState<'a> {
 
     fn set_needs_pointer_pass_update(&mut self, value: bool) {
         self.needs_pointer_pass_update = value;
+    }
+
+    fn needs_pointer_pass_update(&self) -> bool {
+        self.needs_pointer_pass_update
     }
 
     fn set_focused(&mut self, focused: Option<Gc<Component>>) {
@@ -254,6 +259,9 @@ impl ApplicationHandler for AppState<'_> {
                 let point = Point::new(position.x, position.y);
                 self.last_pointer_pos = Some(point);
 
+                // Ensure layout is up to date before hit testing
+                self.scene.update();
+
                 let new_hovered = hit_test(&self.root_component(), point);
                 *self.hovered_component.borrow_mut() = new_hovered;
 
@@ -280,6 +288,10 @@ impl ApplicationHandler for AppState<'_> {
                         modifiers: self.current_modifiers(),
                     }),
                 };
+
+                // Ensure layout is up to date before event dispatch (which includes hit testing)
+                self.scene.update();
+
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
             }
@@ -358,6 +370,9 @@ impl<'a> AppState<'a> {
             self.needs_pointer_pass_update = false;
         }
         run_update_focus_pass(self);
+
+        // Process component lifecycle updates and effects
+        self.root_component().update();
     }
 
     fn request_redraw_if_dirty(&self) {
