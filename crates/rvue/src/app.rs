@@ -1,18 +1,58 @@
 //! Application runner with winit event loop
 
+use crate::component::Component;
+use crate::event::context::EventContextOps;
+use crate::event::dispatch::{run_pointer_event_pass, run_text_event_pass};
+use crate::event::hit_test::hit_test;
+use crate::event::types::{
+    map_scroll_delta, KeyboardEvent, PointerButtonEvent, PointerEvent, PointerMoveEvent,
+};
+use crate::event::update::{run_update_focus_pass, run_update_pointer_pass};
 use crate::render::Scene as RvueScene;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
+use rudo_gc::{Gc, GcCell};
+use std::cell::RefMut;
 use std::sync::Arc;
 use vello::kurbo::Affine;
+use vello::kurbo::{Point, Vec2};
 use vello::peniko::Color;
 use vello::{AaConfig, AaSupport, Renderer, RendererOptions};
 use wgpu::SurfaceTexture;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::keyboard::ModifiersState;
 use winit::window::{Window, WindowId};
+
+pub trait AppStateLike {
+    fn root_component(&self) -> Gc<Component>;
+    fn pointer_capture(&self) -> Option<Gc<Component>>;
+    fn pointer_capture_mut(&mut self) -> RefMut<'_, Option<Gc<Component>>>;
+    fn last_pointer_pos(&self) -> Option<Point>;
+    fn hovered_component(&self) -> Option<Gc<Component>>;
+    fn focused(&self) -> Option<Gc<Component>>;
+    fn focused_mut(&mut self) -> &mut Option<Gc<Component>>;
+    fn fallback(&self) -> Option<Gc<Component>>;
+    fn pending_focus(&mut self) -> &mut Option<Gc<Component>>;
+    fn active_path(&mut self) -> &mut Vec<Gc<Component>>;
+    fn hovered_path(&mut self) -> &mut Vec<Gc<Component>>;
+    fn focused_path(&mut self) -> &mut Vec<Gc<Component>>;
+    fn set_active_path(&mut self, path: Vec<Gc<Component>>);
+    fn set_hovered_path(&mut self, path: Vec<Gc<Component>>);
+    fn set_focused_path(&mut self, path: Vec<Gc<Component>>);
+    fn set_needs_pointer_pass_update(&mut self, _value: bool);
+    fn set_focused(&mut self, focused: Option<Gc<Component>>);
+    fn clear_pointer_capture(&mut self);
+}
+
+pub struct FocusState {
+    pub focused: Option<Gc<Component>>,
+    pub fallback: Option<Gc<Component>>,
+    pub pending_focus: Option<Gc<Component>>,
+    pub focus_anchor: Option<Gc<Component>>,
+}
 
 /// Application state
 /// Fields are ordered for correct drop order: renderer first, surface second, render_cx last
@@ -23,6 +63,140 @@ pub struct AppState<'a> {
     window: Option<Arc<Window>>,
     view: Option<ViewStruct>,
     scene: RvueScene,
+    pub focus_state: FocusState,
+    pub pointer_capture: GcCell<Option<Gc<Component>>>,
+    pub last_pointer_pos: Option<Point>,
+    pub hovered_component: GcCell<Option<Gc<Component>>>,
+    pub active_path: Vec<Gc<Component>>,
+    pub hovered_path: Vec<Gc<Component>>,
+    pub focused_path: Vec<Gc<Component>>,
+    pub needs_pointer_pass_update: bool,
+}
+
+impl<'a> AppStateLike for AppState<'a> {
+    fn root_component(&self) -> Gc<Component> {
+        self.view
+            .as_ref()
+            .map(|v| v.root_component.clone())
+            .unwrap_or_else(|| panic!("No root component"))
+    }
+
+    fn pointer_capture(&self) -> Option<Gc<Component>> {
+        self.pointer_capture.borrow().clone()
+    }
+
+    fn pointer_capture_mut(&mut self) -> RefMut<'_, Option<Gc<Component>>> {
+        self.pointer_capture.borrow_mut()
+    }
+
+    fn last_pointer_pos(&self) -> Option<Point> {
+        self.last_pointer_pos
+    }
+
+    fn hovered_component(&self) -> Option<Gc<Component>> {
+        self.hovered_component.borrow().clone()
+    }
+
+    fn focused(&self) -> Option<Gc<Component>> {
+        self.focus_state.focused.clone()
+    }
+
+    fn focused_mut(&mut self) -> &mut Option<Gc<Component>> {
+        &mut self.focus_state.focused
+    }
+
+    fn fallback(&self) -> Option<Gc<Component>> {
+        self.focus_state.fallback.clone()
+    }
+
+    fn pending_focus(&mut self) -> &mut Option<Gc<Component>> {
+        &mut self.focus_state.pending_focus
+    }
+
+    fn active_path(&mut self) -> &mut Vec<Gc<Component>> {
+        &mut self.active_path
+    }
+
+    fn hovered_path(&mut self) -> &mut Vec<Gc<Component>> {
+        &mut self.hovered_path
+    }
+
+    fn focused_path(&mut self) -> &mut Vec<Gc<Component>> {
+        &mut self.focused_path
+    }
+
+    fn set_active_path(&mut self, path: Vec<Gc<Component>>) {
+        self.active_path = path;
+    }
+
+    fn set_hovered_path(&mut self, path: Vec<Gc<Component>>) {
+        self.hovered_path = path;
+    }
+
+    fn set_focused_path(&mut self, path: Vec<Gc<Component>>) {
+        self.focused_path = path;
+    }
+
+    fn set_needs_pointer_pass_update(&mut self, value: bool) {
+        self.needs_pointer_pass_update = value;
+    }
+
+    fn set_focused(&mut self, focused: Option<Gc<Component>>) {
+        self.focus_state.focused = focused;
+    }
+
+    fn clear_pointer_capture(&mut self) {
+        *self.pointer_capture.borrow_mut() = None;
+    }
+}
+
+impl EventContextOps for AppState<'_> {
+    fn request_paint(&mut self) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
+    fn request_layout(&mut self) {
+        if let Some(view) = &self.view {
+            view.root_component.mark_dirty();
+        }
+        self.request_paint();
+    }
+
+    fn capture_pointer(&mut self, component: Gc<Component>) {
+        *self.pointer_capture.borrow_mut() = Some(component);
+    }
+
+    fn release_pointer(&mut self) {
+        *self.pointer_capture.borrow_mut() = None;
+    }
+
+    fn request_focus(&mut self) {
+        // Focus will be applied in the next update pass
+    }
+
+    fn resign_focus(&mut self) {
+        self.focus_state.focused = None;
+    }
+
+    fn set_handled(&mut self) {}
+
+    fn is_handled(&self) -> bool {
+        false
+    }
+
+    fn target(&self) -> Gc<Component> {
+        self.root_component()
+    }
+
+    fn local_position(&self, window_pos: Point) -> Point {
+        window_pos
+    }
+
+    fn has_pointer_capture(&self) -> bool {
+        false
+    }
 }
 
 impl<'a> AppState<'a> {
@@ -34,6 +208,19 @@ impl<'a> AppState<'a> {
             window: None,
             view: None,
             scene: RvueScene::new(),
+            focus_state: FocusState {
+                focused: None,
+                fallback: None,
+                pending_focus: None,
+                focus_anchor: None,
+            },
+            pointer_capture: GcCell::new(None),
+            last_pointer_pos: None,
+            hovered_component: GcCell::new(None),
+            active_path: Vec::new(),
+            hovered_path: Vec::new(),
+            focused_path: Vec::new(),
+            needs_pointer_pass_update: false,
         }
     }
 }
@@ -60,7 +247,88 @@ impl ApplicationHandler for AppState<'_> {
                 self.handle_resize(size);
             }
             WindowEvent::RedrawRequested => {
+                self.run_update_passes();
                 self.render_frame();
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                let point = Point::new(position.x, position.y);
+                self.last_pointer_pos = Some(point);
+
+                let new_hovered = hit_test(&self.root_component(), point);
+                *self.hovered_component.borrow_mut() = new_hovered;
+
+                let event = PointerEvent::Move(PointerMoveEvent {
+                    position: point,
+                    delta: Vec2::ZERO,
+                    modifiers: self.current_modifiers(),
+                });
+                run_pointer_event_pass(self, &event);
+                self.request_redraw_if_dirty();
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let event = match state {
+                    ElementState::Pressed => PointerEvent::Down(PointerButtonEvent {
+                        button: button.into(),
+                        position: self.last_pointer_pos.unwrap_or_default(),
+                        click_count: 1,
+                        modifiers: self.current_modifiers(),
+                    }),
+                    ElementState::Released => PointerEvent::Up(PointerButtonEvent {
+                        button: button.into(),
+                        position: self.last_pointer_pos.unwrap_or_default(),
+                        click_count: 1,
+                        modifiers: self.current_modifiers(),
+                    }),
+                };
+                run_pointer_event_pass(self, &event);
+                self.request_redraw_if_dirty();
+            }
+            WindowEvent::CursorEntered { .. } => {
+                run_pointer_event_pass(self, &PointerEvent::Enter(Default::default()));
+            }
+            WindowEvent::CursorLeft { .. } => {
+                *self.hovered_component.borrow_mut() = None;
+                run_pointer_event_pass(self, &PointerEvent::Leave(Default::default()));
+            }
+            WindowEvent::KeyboardInput { event: input, .. } => {
+                let key_event = KeyboardEvent {
+                    key: input.logical_key,
+                    code: input.physical_key,
+                    state: input.state.into(),
+                    modifiers: self.current_modifiers(),
+                    repeat: input.repeat,
+                };
+                run_text_event_pass(self, &crate::event::types::TextEvent::Keyboard(key_event));
+                self.request_redraw_if_dirty();
+            }
+            WindowEvent::Ime(ime_event) => {
+                let ime = match ime_event {
+                    winit::event::Ime::Enabled => {
+                        crate::event::types::ImeEvent::Enabled(crate::event::types::ImeCause::Other)
+                    }
+                    winit::event::Ime::Preedit(text, cursor) => {
+                        crate::event::types::ImeEvent::Preedit(text, cursor.map_or(0, |c| c.0))
+                    }
+                    winit::event::Ime::Commit(text) => crate::event::types::ImeEvent::Commit(text),
+                    winit::event::Ime::Disabled => crate::event::types::ImeEvent::Disabled,
+                };
+                run_text_event_pass(self, &crate::event::types::TextEvent::Ime(ime));
+                self.request_redraw_if_dirty();
+            }
+            WindowEvent::Focused(focused) => {
+                if !focused {
+                    *self.pointer_capture.borrow_mut() = None;
+                    *self.hovered_component.borrow_mut() = None;
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
+                    delta: map_scroll_delta(delta),
+                    position: self.last_pointer_pos.unwrap_or_default(),
+                    modifiers: self.current_modifiers(),
+                });
+                run_pointer_event_pass(self, &event);
+                self.request_redraw_if_dirty();
             }
             _ => {}
         }
@@ -82,6 +350,28 @@ impl<'a> AppState<'a> {
         {
             render_cx.resize_surface(surface, size.width, size.height);
         }
+    }
+
+    fn run_update_passes(&mut self) {
+        if self.needs_pointer_pass_update {
+            run_update_pointer_pass(self);
+            self.needs_pointer_pass_update = false;
+        }
+        run_update_focus_pass(self);
+    }
+
+    fn request_redraw_if_dirty(&self) {
+        if let Some(view) = &self.view {
+            if view.root_component.is_dirty() {
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
+            }
+        }
+    }
+
+    fn current_modifiers(&self) -> crate::event::types::Modifiers {
+        ModifiersState::default().into()
     }
 
     fn render_frame(&mut self) {

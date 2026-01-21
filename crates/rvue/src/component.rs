@@ -1,6 +1,8 @@
 //! Component trait and lifecycle management
 
 use crate::effect::Effect;
+use crate::event::handler::EventHandlers;
+use crate::event::status::{ComponentFlags, StatusUpdate};
 use crate::layout::LayoutNode;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
@@ -60,6 +62,14 @@ pub struct Component {
     pub is_dirty: AtomicBool,
     pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
     pub layout_node: GcCell<Option<LayoutNode>>,
+    pub flags: GcCell<ComponentFlags>,
+    pub is_hovered: GcCell<bool>,
+    pub has_hovered: GcCell<bool>,
+    pub is_active: GcCell<bool>,
+    pub has_active: GcCell<bool>,
+    pub is_focused: GcCell<bool>,
+    pub has_focus_target: GcCell<bool>,
+    pub event_handlers: GcCell<EventHandlers>,
 }
 
 unsafe impl Trace for Component {
@@ -69,7 +79,13 @@ unsafe impl Trace for Component {
         self.effects.trace(visitor);
         self.props.trace(visitor);
         self.layout_node.trace(visitor);
-        // user_data doesn't contain GC pointers
+        self.flags.trace(visitor);
+        self.is_hovered.trace(visitor);
+        self.has_hovered.trace(visitor);
+        self.is_active.trace(visitor);
+        self.has_active.trace(visitor);
+        self.is_focused.trace(visitor);
+        self.has_focus_target.trace(visitor);
     }
 }
 
@@ -96,6 +112,18 @@ impl Component {
             _ => 0, // Leaf components typically have no children
         };
 
+        let mut flags = ComponentFlags::empty();
+        match component_type {
+            ComponentType::Button
+            | ComponentType::TextInput
+            | ComponentType::NumberInput
+            | ComponentType::Checkbox
+            | ComponentType::Radio => {
+                flags.insert(ComponentFlags::ACCEPTS_POINTER);
+            }
+            _ => {}
+        }
+
         Gc::new(Self {
             id,
             component_type,
@@ -106,6 +134,14 @@ impl Component {
             is_dirty: AtomicBool::new(true),
             user_data: GcCell::new(None),
             layout_node: GcCell::new(None),
+            flags: GcCell::new(flags),
+            is_hovered: GcCell::new(false),
+            has_hovered: GcCell::new(false),
+            is_active: GcCell::new(false),
+            has_active: GcCell::new(false),
+            is_focused: GcCell::new(false),
+            has_focus_target: GcCell::new(false),
+            event_handlers: GcCell::new(EventHandlers::default()),
         })
     }
 
@@ -168,6 +204,128 @@ impl Component {
     /// Add an effect to this component
     pub fn add_effect(&self, effect: Gc<Effect>) {
         self.effects.borrow_mut().push(effect);
+    }
+
+    pub fn accepts_pointer_interaction(&self) -> bool {
+        self.flags.borrow().contains(ComponentFlags::ACCEPTS_POINTER)
+    }
+
+    pub fn accepts_focus(&self) -> bool {
+        self.flags.borrow().contains(ComponentFlags::ACCEPTS_FOCUS)
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.flags.borrow().contains(ComponentFlags::IS_DISABLED)
+    }
+
+    pub fn is_stashed(&self) -> bool {
+        self.flags.borrow().contains(ComponentFlags::IS_STASHED)
+    }
+
+    pub fn on_status_update(&self, update: &StatusUpdate) {
+        match update {
+            StatusUpdate::Mounted => {
+                self.mount(self.parent.borrow().clone());
+            }
+            StatusUpdate::Unmounting => {
+                self.unmount();
+            }
+            StatusUpdate::HoveredChanged(hovered) => {
+                *self.is_hovered.borrow_mut() = *hovered;
+                self.mark_dirty();
+            }
+            StatusUpdate::ActiveChanged(active) => {
+                *self.is_active.borrow_mut() = *active;
+                self.mark_dirty();
+            }
+            StatusUpdate::FocusChanged(focused) => {
+                *self.is_focused.borrow_mut() = *focused;
+                self.mark_dirty();
+            }
+            StatusUpdate::DisabledChanged(disabled) => {
+                let mut flags = self.flags.borrow_mut();
+                if *disabled {
+                    flags.insert(ComponentFlags::IS_DISABLED);
+                } else {
+                    flags.remove(ComponentFlags::IS_DISABLED);
+                }
+                self.mark_dirty();
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_click<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_click = Some(handler);
+        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+    }
+
+    pub fn on_pointer_down<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+    }
+
+    pub fn on_pointer_up<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+    }
+
+    pub fn on_pointer_move<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerMoveEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+    }
+
+    pub fn on_key_down<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::KeyboardEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_key_down = Some(handler);
+    }
+
+    pub fn on_key_up<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::KeyboardEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_key_up = Some(handler);
+    }
+
+    pub fn on_focus<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::FocusEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_focus = Some(handler);
+    }
+
+    pub fn on_blur<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::FocusEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_blur = Some(handler);
     }
 }
 
