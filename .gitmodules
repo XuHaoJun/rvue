@@ -13,3 +13,6 @@
 [submodule "learn-projects/stylo"]
 	path = learn-projects/stylo
 	url = git@github.com:servo/stylo.git
+[submodule "learn-projects/svelte"]
+	path = learn-projects/svelte
+	url = git@github.com:sveltejs/svelte.git
