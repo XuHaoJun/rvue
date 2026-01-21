@@ -112,6 +112,18 @@ impl Component {
             _ => 0, // Leaf components typically have no children
         };
 
+        let mut flags = ComponentFlags::empty();
+        match component_type {
+            ComponentType::Button
+            | ComponentType::TextInput
+            | ComponentType::NumberInput
+            | ComponentType::Checkbox
+            | ComponentType::Radio => {
+                flags.insert(ComponentFlags::ACCEPTS_POINTER);
+            }
+            _ => {}
+        }
+
         Gc::new(Self {
             id,
             component_type,
@@ -122,7 +134,7 @@ impl Component {
             is_dirty: AtomicBool::new(true),
             user_data: GcCell::new(None),
             layout_node: GcCell::new(None),
-            flags: GcCell::new(ComponentFlags::empty()),
+            flags: GcCell::new(flags),
             is_hovered: GcCell::new(false),
             has_hovered: GcCell::new(false),
             is_active: GcCell::new(false),
@@ -250,6 +262,7 @@ impl Component {
     {
         let handler = crate::event::handler::EventHandler::new(handler);
         self.event_handlers.borrow_mut().on_click = Some(handler);
+        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_pointer_down<F>(self: &Gc<Self>, handler: F)

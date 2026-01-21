@@ -164,7 +164,9 @@ impl EventContextOps for AppState<'_> {
         self.request_paint();
     }
 
-    fn capture_pointer(&mut self) {}
+    fn capture_pointer(&mut self, component: Gc<Component>) {
+        *self.pointer_capture.borrow_mut() = Some(component);
+    }
 
     fn release_pointer(&mut self) {
         *self.pointer_capture.borrow_mut() = None;
@@ -253,10 +255,7 @@ impl ApplicationHandler for AppState<'_> {
                 self.last_pointer_pos = Some(point);
 
                 let new_hovered = hit_test(&self.root_component(), point);
-
-                if self.pointer_capture.borrow().is_none() {
-                    *self.hovered_component.borrow_mut() = new_hovered;
-                }
+                *self.hovered_component.borrow_mut() = new_hovered;
 
                 let event = PointerEvent::Move(PointerMoveEvent {
                     position: point,

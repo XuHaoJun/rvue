@@ -5,7 +5,7 @@ use vello::kurbo::Point;
 pub trait EventContextOps {
     fn request_paint(&mut self);
     fn request_layout(&mut self);
-    fn capture_pointer(&mut self);
+    fn capture_pointer(&mut self, component: Gc<Component>);
     fn release_pointer(&mut self);
     fn request_focus(&mut self);
     fn resign_focus(&mut self);
@@ -46,7 +46,7 @@ impl<'a> EventContext<'a> {
 
     pub fn capture_pointer(&mut self) {
         self.pointer_capture = Some(Gc::clone(&self.target));
-        self.app_state.capture_pointer();
+        self.app_state.capture_pointer(Gc::clone(&self.target));
     }
 
     pub fn release_pointer(&mut self) {

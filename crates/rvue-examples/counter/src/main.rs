@@ -1,5 +1,7 @@
-//! Counter example application with conditional rendering
+//! Counter example application with click event handling
 
+use rvue::event::context::EventContext;
+use rvue::event::types::PointerButtonEvent;
 use rvue::prelude::*;
 use rvue::{Component, ComponentProps, ComponentType, Show, ViewStruct};
 
@@ -19,23 +21,6 @@ fn create_counter_view() -> ViewStruct {
 
     // Create a signal for showing/hiding a message
     let (show_message, _set_show_message) = create_signal(true);
-
-    // Create increment handler
-    // Note: Event handlers will be connected when full event system is implemented
-    let _increment = {
-        let set_count = set_count.clone();
-        move || {
-            set_count.update(|x| *x += 1);
-        }
-    };
-
-    // Create decrement handler
-    let _decrement = {
-        let set_count = set_count.clone();
-        move || {
-            set_count.update(|x| *x -= 1);
-        }
-    };
 
     // Create root component (Flex container)
     let root = Component::new(
@@ -101,9 +86,23 @@ fn create_counter_view() -> ViewStruct {
     let inc_button =
         Component::new(4, ComponentType::Button, ComponentProps::Button { label: "+".to_string() });
 
+    // Register click handler for increment button
+    let set_count_inc = set_count.clone();
+    inc_button.on_click(move |_event: &PointerButtonEvent, _ctx: &mut EventContext| {
+        println!("Increment button clicked");
+        set_count_inc.update(|x| *x += 1);
+    });
+
     // Create decrement button
     let dec_button =
         Component::new(5, ComponentType::Button, ComponentProps::Button { label: "-".to_string() });
+
+    // Register click handler for decrement button
+    let set_count_dec = set_count;
+    dec_button.on_click(move |_event: &PointerButtonEvent, _ctx: &mut EventContext| {
+        println!("Decrement button clicked");
+        set_count_dec.update(|x| *x -= 1);
+    });
 
     // Add components to the root component's children
     root.add_child(count_text);
@@ -113,9 +112,6 @@ fn create_counter_view() -> ViewStruct {
 
     // Create view
     let view = ViewStruct::new(root);
-
-    // Note: In a full implementation, we would connect event handlers to buttons.
-    // For now, this example demonstrates the reactive structure.
 
     view
 }

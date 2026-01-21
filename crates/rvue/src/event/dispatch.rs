@@ -23,7 +23,7 @@ pub fn run_pointer_event_pass(
     if let Some(target) = target {
         let result = dispatch_pointer_event(app_state, &target, event);
 
-        if matches!(event, PointerEvent::Down(_)) {
+        if matches!(event, PointerEvent::Down(_) | PointerEvent::Up(_) | PointerEvent::Move(_)) {
             app_state.set_needs_pointer_pass_update(true);
         }
 
@@ -58,6 +58,11 @@ fn dispatch_pointer_event(
     let mut handled = Handled::No;
 
     while let Some(component) = current {
+        if component.is_disabled() {
+            current = component.parent.borrow().clone();
+            continue;
+        }
+
         let capture_clone = app_state.pointer_capture_mut().clone();
         let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 
@@ -67,10 +72,20 @@ fn dispatch_pointer_event(
                 if let Some(handler) = handlers.get_pointer_down() {
                     handler.call(e, &mut ctx);
                 }
+
+                if handlers.get_click().is_some() {
+                    ctx.capture_pointer();
+                }
             }
             PointerEvent::Up(e) => {
                 if let Some(handler) = handlers.get_pointer_up() {
                     handler.call(e, &mut ctx);
+                }
+
+                if let Some(handler) = handlers.get_click() {
+                    if *component.is_active.borrow() {
+                        handler.call(e, &mut ctx);
+                    }
                 }
             }
             PointerEvent::Move(e) => {
@@ -151,6 +166,11 @@ fn dispatch_text_event(
     let mut handled = Handled::No;
 
     while let Some(component) = current {
+        if component.is_disabled() {
+            current = component.parent.borrow().clone();
+            continue;
+        }
+
         let capture_clone = app_state.pointer_capture_mut().clone();
         let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 

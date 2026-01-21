@@ -7,11 +7,19 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
     let prev_active_path = std::mem::take(app_state.active_path());
     let prev_hovered_path = std::mem::take(app_state.hovered_path());
 
-    let capture_target = app_state.pointer_capture().clone();
-    let next_active_path = get_component_path(&app_state.root_component(), capture_target);
-
     let hovered_target = app_state.hovered_component().clone();
     let next_hovered_path = get_component_path(&app_state.root_component(), hovered_target);
+
+    let capture_target = app_state.pointer_capture().clone();
+    let is_capture_hovered = capture_target
+        .as_ref()
+        .map_or(false, |capture| next_hovered_path.iter().any(|h| Gc::ptr_eq(h, capture)));
+
+    let next_active_path = if is_capture_hovered {
+        get_component_path(&app_state.root_component(), capture_target)
+    } else {
+        Vec::new()
+    };
 
     for widget in prev_active_path.iter().chain(next_active_path.iter()) {
         let widget_ptr = Gc::as_ptr(widget) as *const Component;
