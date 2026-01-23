@@ -2,6 +2,7 @@
 //!
 //! This module generates code for each widget type, handling their
 //! specific attributes and converting them to builder patterns.
+#![allow(dead_code)]
 
 use crate::ast::{RvueAttribute, WidgetType};
 use proc_macro2::{Ident, TokenStream};
@@ -31,14 +32,63 @@ pub fn generate_widget_code(
 pub fn generate_event_handlers(id: &Ident, events: &[(&str, &Expr)]) -> TokenStream {
     let handlers = events.iter().map(|(name, handler)| {
         let handler_ident = format_ident!("on_{}", name);
-        quote! {
-            #id.#handler_ident(#handler)
+        let (event_ty, ctx_ty) = event_handler_types(name);
+        let wrapper = match closure_arg_count(handler) {
+            Some(0) => Some(quote! {
+                #id.#handler_ident(move |event: &#event_ty, ctx: &mut #ctx_ty| {
+                    let _ = (event, ctx);
+                    handler();
+                });
+            }),
+            Some(1) => Some(quote! {
+                #id.#handler_ident(move |event: &#event_ty, ctx: &mut #ctx_ty| {
+                    let _ = ctx;
+                    handler(event);
+                });
+            }),
+            Some(2) => None,
+            _ => None,
+        };
+
+        if let Some(wrapper) = wrapper {
+            quote! {
+                {
+                    let handler = #handler;
+                    #wrapper
+                }
+            }
+        } else {
+            quote! {
+                #id.#handler_ident(#handler)
+            }
         }
     });
 
     quote! {
         #(#handlers)*
     }
+}
+
+fn closure_arg_count(expr: &Expr) -> Option<usize> {
+    match expr {
+        Expr::Closure(closure) => Some(closure.inputs.len()),
+        _ => None,
+    }
+}
+
+fn event_handler_types(event_name: &str) -> (TokenStream, TokenStream) {
+    let ctx_ty = quote! { rvue::event::context::EventContext };
+    let event_ty = match event_name {
+        "click" | "pointer_down" | "pointer_up" => {
+            quote! { rvue::event::types::PointerButtonEvent }
+        }
+        "pointer_move" => quote! { rvue::event::types::PointerMoveEvent },
+        "key_down" | "key_up" => quote! { rvue::event::types::KeyboardEvent },
+        "focus" | "blur" => quote! { rvue::event::status::FocusEvent },
+        _ => quote! { rvue::event::types::PointerButtonEvent },
+    };
+
+    (event_ty, ctx_ty)
 }
 
 fn generate_text_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {

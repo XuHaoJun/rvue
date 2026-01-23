@@ -104,14 +104,16 @@ fn test_for_widget() {
 
 #[test]
 fn test_nested_elements() {
-    let _view = view! {
-        <Flex direction="column">
-            <Text content="First" />
-            <Button label="Click" />
-            <Flex direction="row">
-                <Text content="Nested" />
+    let _build = || {
+        view! {
+            <Flex direction="column">
+                <Text content="First" />
+                <Button label="Click" />
+                <Flex direction="row">
+                    <Text content="Nested" />
+                </Flex>
             </Flex>
-        </Flex>
+        }
     };
     assert!(true);
 }

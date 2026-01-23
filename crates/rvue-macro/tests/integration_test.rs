@@ -77,17 +77,79 @@ fn test_multiple_signals() {
     let _ = _view;
 }
 
-// Event handler tests are commented out until event handler generation is fixed
-// #[test]
-// fn test_event_handler_with_signal() {
-//     let (count, set_count) = create_signal(0);
-//
-//     let _view = view! {
-//         <Button
-//             label={format!("Count: {}", count.get())}
-//             on_click=move || set_count.update(|c| *c += 1)
-//         />
-//     };
-//
-//     let _ = _view;
-// }
+#[test]
+fn test_event_handler_with_signal() {
+    let (count, set_count) = create_signal(0);
+
+    let _view = view! {
+        <Button
+            label={format!("Count: {}", count.get())}
+            on_click=move || set_count.update(|c| *c += 1)
+        />
+    };
+
+    let _ = _view;
+}
+
+#[test]
+fn test_reactive_text_update() {
+    let (count, set_count) = create_signal(0);
+
+    let view = view! {
+        <Text content={format!("Count: {}", count.get())} />
+    };
+
+    set_count.set(1);
+
+    let content = {
+        let props = view.root_component.props.borrow();
+        if let ComponentProps::Text { content, .. } = &*props {
+            content.clone()
+        } else {
+            panic!("Expected Text component");
+        }
+    };
+    assert_eq!(content, "Count: 1");
+}
+
+#[test]
+fn test_static_vs_dynamic_effects() {
+    let (count, set_count) = create_signal(0);
+
+    let reactive_view = view! {
+        <Text content={format!("Count: {}", count.get())} />
+    };
+
+    let static_view = view! {
+        <Text content="Static" />
+    };
+
+    set_count.set(1);
+
+    assert_eq!(reactive_view.root_component.effects.borrow().len(), 1);
+    assert_eq!(static_view.root_component.effects.borrow().len(), 0);
+}
+
+#[test]
+fn test_nested_reactive_update() {
+    let (name, set_name) = create_signal("Alice".to_string());
+
+    let view = view! {
+        <Flex direction="column">
+            <Text content={format!("Name: {}", name.get())} />
+        </Flex>
+    };
+
+    set_name.set("Bob".to_string());
+
+    let content = {
+        let child = view.root_component.children.borrow().first().cloned().expect("child");
+        let props = child.props.borrow();
+        if let ComponentProps::Text { content, .. } = &*props {
+            content.clone()
+        } else {
+            panic!("Expected Text child component");
+        }
+    };
+    assert_eq!(content, "Name: Bob");
+}

@@ -384,6 +384,14 @@ impl Component {
         }
     }
 
+    /// Set radio value (for Radio components)
+    pub fn set_radio_value(&self, value: String) {
+        if let ComponentProps::Radio { checked, .. } = &*self.props.borrow() {
+            *self.props.borrow_mut() = ComponentProps::Radio { value, checked: *checked };
+            self.mark_dirty();
+        }
+    }
+
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
         if matches!(self.component_type, ComponentType::TextInput) {

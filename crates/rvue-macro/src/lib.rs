@@ -1,9 +1,11 @@
 //! Procedural macros for Rvue framework
 
+mod analysis;
 mod ast;
 mod attrs;
 mod codegen;
 mod parser;
+#[allow(dead_code)]
 mod widgets;
 
 use codegen::{convert_rstml_to_rvue, generate_view_code};
