@@ -83,6 +83,12 @@ pub enum FlexDirection {
     ColumnReverse,
 }
 
+unsafe impl rudo_gc::Trace for FlexDirection {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // FlexDirection contains no GC pointers
+    }
+}
+
 /// Alignment items (cross-axis alignment)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlignItems {
@@ -91,6 +97,12 @@ pub enum AlignItems {
     Center,
     Stretch,
     Baseline,
+}
+
+unsafe impl rudo_gc::Trace for AlignItems {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // AlignItems contains no GC pointers
+    }
 }
 
 /// Justify content (main-axis alignment)
@@ -102,6 +114,12 @@ pub enum JustifyContent {
     SpaceBetween,
     SpaceAround,
     SpaceEvenly,
+}
+
+unsafe impl rudo_gc::Trace for JustifyContent {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // JustifyContent contains no GC pointers
+    }
 }
 
 /// Style structure for component styling

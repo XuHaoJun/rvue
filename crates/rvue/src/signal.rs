@@ -25,6 +25,12 @@ pub struct ReadSignal<T: Trace + Clone + 'static> {
     data: Gc<SignalData<T>>,
 }
 
+unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.data.trace(visitor);
+    }
+}
+
 /// Write handle for a signal
 #[derive(Clone)]
 pub struct WriteSignal<T: Trace + Clone + 'static> {

@@ -20,6 +20,7 @@ pub mod style;
 pub mod text;
 pub mod vello_util;
 pub mod view;
+pub mod widget;
 pub mod widgets;
 
 pub use app::{run_app, AppError};
@@ -36,4 +37,11 @@ pub use style::{
 };
 pub use text::TextContext;
 pub use view::{View, ViewStruct};
-pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};
+pub use widget::{
+    BuildContext, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget, WidgetWrapper,
+};
+pub use widgets::{
+    Button, ButtonWidget, Checkbox, CheckboxWidget, Flex, FlexWidget, For, ForWidget, NumberInput,
+    NumberInputWidget, Radio, RadioWidget, Show, ShowWidget, Text, TextInput, TextInputWidget,
+    TextWidget,
+};

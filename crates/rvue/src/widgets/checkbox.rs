@@ -2,23 +2,131 @@
 
 use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
 use crate::effect::create_effect;
-use crate::signal::SignalRead;
-use rudo_gc::Gc;
+use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
+use rudo_gc::{Gc, Trace};
 
-/// Checkbox widget for boolean input
+/// Checkbox widget builder for boolean input
+#[derive(Clone)]
+pub struct CheckboxWidget {
+    checked: ReactiveValue<bool>,
+}
+
+unsafe impl Trace for CheckboxWidget {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.checked.trace(visitor);
+    }
+}
+
+impl CheckboxWidget {
+    /// Create a new Checkbox widget with checked state
+    pub fn new(checked: impl crate::widget::IntoReactiveValue<bool>) -> Self {
+        Self { checked: checked.into_reactive() }
+    }
+}
+
+/// State for a mounted Checkbox widget
+pub struct CheckboxState {
+    component: Gc<Component>,
+    checked_effect: Option<Gc<crate::effect::Effect>>,
+}
+
+impl CheckboxState {
+    /// Get the underlying component
+    pub fn component(&self) -> &Gc<Component> {
+        &self.component
+    }
+}
+
+unsafe impl Trace for CheckboxState {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.component.trace(visitor);
+        if let Some(effect) = &self.checked_effect {
+            effect.trace(visitor);
+        }
+    }
+}
+
+impl Mountable for CheckboxState {
+    fn mount(&self, parent: Option<Gc<Component>>) {
+        self.component.set_parent(parent.clone());
+        if let Some(parent) = parent {
+            parent.add_child(Gc::clone(&self.component));
+        }
+    }
+
+    fn unmount(&self) {
+        self.component.set_parent(None);
+    }
+}
+
+impl Widget for CheckboxWidget {
+    type State = CheckboxState;
+
+    fn build(self, ctx: &mut BuildContext) -> Self::State {
+        let id = ctx.next_id();
+        let initial_checked = self.checked.get();
+
+        let component =
+            Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked: initial_checked });
+
+        // Setup reactive update if checked is reactive
+        let checked_effect = if self.checked.is_reactive() {
+            let comp = Gc::clone(&component);
+            let checked = self.checked.clone();
+            let effect = create_effect(move || {
+                let new_checked = checked.get();
+                comp.set_checkbox_checked(new_checked);
+            });
+            component.add_effect(Gc::clone(&effect));
+            Some(effect)
+        } else {
+            None
+        };
+
+        CheckboxState { component, checked_effect }
+    }
+
+    fn rebuild(self, state: &mut Self::State) {
+        // Update checked if it changed
+        if self.checked.is_reactive() {
+            // Checked is reactive, effect will handle updates
+            if state.checked_effect.is_none() {
+                let comp = Gc::clone(&state.component);
+                let checked = self.checked.clone();
+                let effect = create_effect(move || {
+                    let new_checked = checked.get();
+                    comp.set_checkbox_checked(new_checked);
+                });
+                state.component.add_effect(Gc::clone(&effect));
+                state.checked_effect = Some(effect);
+            }
+        } else {
+            // Static checked - update directly
+            let new_checked = self.checked.get();
+            state.component.set_checkbox_checked(new_checked);
+        }
+    }
+}
+
+// Keep old API for backward compatibility
+#[deprecated(note = "Use CheckboxWidget::new() instead")]
 pub struct Checkbox;
 
+#[allow(deprecated)]
 impl Checkbox {
     /// Create a new Checkbox component with a static checked state
+    #[deprecated(note = "Use CheckboxWidget::new() instead")]
     pub fn new(id: ComponentId, checked: bool) -> Gc<Component> {
         Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked })
     }
 
     /// Create a new Checkbox component with a reactive signal
-    pub fn from_signal<T: SignalRead<bool> + Clone + 'static>(
+    #[deprecated(note = "Use CheckboxWidget::new() instead")]
+    pub fn from_signal<T: crate::signal::SignalRead<bool> + Clone + 'static>(
         id: ComponentId,
         checked_signal: T,
     ) -> Gc<Component> {
+        use crate::signal::SignalRead;
         let checked = checked_signal.get();
         let component =
             Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked });
@@ -27,6 +135,7 @@ impl Checkbox {
         let comp = Gc::clone(&component);
         let sig = checked_signal.clone();
         let effect = create_effect(move || {
+            use crate::signal::SignalRead;
             let new_checked = sig.get();
             *comp.props.borrow_mut() = ComponentProps::Checkbox { checked: new_checked };
             comp.mark_dirty();
