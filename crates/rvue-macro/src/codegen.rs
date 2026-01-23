@@ -4,15 +4,12 @@
 //! that creates widgets using rvue widget system.
 
 use crate::ast::{RvueAttribute, RvueElement, RvueNode, RvueText, WidgetType};
-use crate::widgets::{generate_event_handlers, generate_widget_code};
+use crate::widgets::generate_event_handlers;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use rstml::node::{Node, NodeAttribute, NodeElement, NodeName};
-use std::sync::atomic::{AtomicU64, Ordering};
 use syn::spanned::Spanned;
 use syn::{Block, Expr};
-
-static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 /// Generate view code from AST nodes
 pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
@@ -24,21 +21,23 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
 }
 
 fn generate_empty_view() -> TokenStream {
-    // For empty view, create a minimal Flex container
-    let (id_val, id_ident) = generate_unique_id();
+    // For empty view, create a minimal Flex container using new Widget API
     quote! {
         {
-            let #id_ident = rvue::Component::new(
-                #id_val,
-                rvue::ComponentType::Flex,
-                rvue::ComponentProps::Flex {
-                    direction: "row".to_string(),
-                    gap: 0.0,
-                    align_items: "start".to_string(),
-                    justify_content: "start".to_string(),
-                }
-            );
-            rvue::ViewStruct::new(#id_ident)
+            use rvue::widget::{BuildContext, Widget};
+            use rvue::text::TextContext;
+            use ::taffy::TaffyTree;
+
+            let mut taffy = TaffyTree::new();
+            let mut text_context = TextContext::new();
+            let mut id_counter = 0u64;
+            let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+            let widget = rvue::widgets::FlexWidget::new();
+            let state = widget.build(&mut ctx);
+            let component = state.component().clone();
+
+            rvue::ViewStruct::new(component)
         }
     }
 }
@@ -56,90 +55,82 @@ fn generate_node_code(node: &RvueNode) -> TokenStream {
     }
 }
 
-fn generate_unique_id() -> (u64, Ident) {
-    let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
-    (id, format_ident!("comp_{}", id))
-}
-
 fn generate_element_code(el: &RvueElement) -> TokenStream {
-    let (id_val, id_ident) = generate_unique_id();
-
-    let widget_code = generate_widget_code(&el.widget_type, id_val, &el.attributes);
-
-    let children_code = if !el.children.is_empty() {
-        generate_children_code(&el.children, &id_ident)
-    } else {
-        quote! {}
-    };
-
-    let events = el
-        .events()
-        .iter()
-        .filter_map(|a| match a {
-            RvueAttribute::Event { name, handler, .. } => Some((name.as_str(), handler)),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-
-    let events_code = if !events.is_empty() {
-        generate_event_handlers(&id_ident, &events)
-    } else {
-        quote! {}
-    };
+    let id_ident = format_ident!("comp");
+    let widget_code = generate_widget_builder_code(&el.widget_type, &el.attributes);
+    let children_code = generate_children_code(&el.children, &id_ident);
+    let events_code = generate_event_handlers_for_element(&id_ident, el);
 
     quote! {
-        let #id_ident = #widget_code;
-        #children_code
-        #events_code
-        #id_ident
+        {
+            use rvue::widget::{BuildContext, Widget};
+            use rvue::text::TextContext;
+            use ::taffy::TaffyTree;
+
+            let mut taffy = TaffyTree::new();
+            let mut text_context = TextContext::new();
+            let mut id_counter = 0u64;
+            let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+            let widget = #widget_code;
+            let state = widget.build(&mut ctx);
+            let #id_ident = state.component().clone();
+
+            #children_code
+            #events_code
+
+            #id_ident
+        }
     }
 }
 
 fn generate_element_code_wrapped(el: &RvueElement) -> TokenStream {
-    let (id_val, id_ident) = generate_unique_id();
-
-    let widget_code = generate_widget_code(&el.widget_type, id_val, &el.attributes);
-
-    let children_code = if !el.children.is_empty() {
-        generate_children_code(&el.children, &id_ident)
-    } else {
-        quote! {}
-    };
-
-    let events = el
-        .events()
-        .iter()
-        .filter_map(|a| match a {
-            RvueAttribute::Event { name, handler, .. } => Some((name.as_str(), handler)),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-
-    let events_code = if !events.is_empty() {
-        generate_event_handlers(&id_ident, &events)
-    } else {
-        quote! {}
-    };
+    let id_ident = format_ident!("comp");
+    let widget_code = generate_widget_builder_code(&el.widget_type, &el.attributes);
+    let children_code = generate_children_code(&el.children, &id_ident);
+    let events_code = generate_event_handlers_for_element(&id_ident, el);
 
     quote! {
         {
-            let #id_ident = #widget_code;
+            use rvue::widget::{BuildContext, Widget};
+            use rvue::text::TextContext;
+            use ::taffy::TaffyTree;
+
+            let mut taffy = TaffyTree::new();
+            let mut text_context = TextContext::new();
+            let mut id_counter = 0u64;
+            let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+            let widget = #widget_code;
+            let state = widget.build(&mut ctx);
+            let #id_ident = state.component().clone();
+
             #children_code
             #events_code
+
             rvue::ViewStruct::new(#id_ident)
         }
     }
 }
 
 fn generate_text_node_code(text: &RvueText) -> TokenStream {
-    let (id_val, _id_ident) = generate_unique_id();
     let content = &text.content;
 
     quote! {
-        rvue::widgets::Text::new(
-            #id_val,
-            #content.to_string()
-        )
+        {
+            use rvue::widget::{BuildContext, Widget};
+            use rvue::text::TextContext;
+            use ::taffy::TaffyTree;
+
+            let mut taffy = TaffyTree::new();
+            let mut text_context = TextContext::new();
+            let mut id_counter = 0u64;
+            let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+            let widget = rvue::widgets::TextWidget::new(#content.to_string());
+            let state = widget.build(&mut ctx);
+            state.component().clone()
+        }
     }
 }
 
@@ -148,27 +139,31 @@ fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
         0 => generate_empty_view(),
         1 => generate_node_code(&nodes[0]),
         _ => {
-            let (root_id_val, root_id_ident) = generate_unique_id();
-            let root = quote! {
-                rvue::Component::new(
-                    #root_id_val,
-                    rvue::ComponentType::Flex,
-                    rvue::ComponentProps::Flex {
-                        direction: "row".to_string(),
-                        gap: 0.0,
-                        align_items: "start".to_string(),
-                        justify_content: "start".to_string(),
-                    }
-                )
-            };
-
-            let children_code = generate_children_code(&nodes, &root_id_ident);
+            let root_id = format_ident!("root");
+            let children_code = generate_children_code(&nodes, &root_id);
 
             quote! {
                 {
-                    let #root_id_ident = #root;
+                    use rvue::widget::{BuildContext, Widget};
+                    use rvue::text::TextContext;
+                    use taffy::TaffyTree;
+
+                    let mut taffy = TaffyTree::new();
+                    let mut text_context = TextContext::new();
+                    let mut id_counter = 0u64;
+                    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+                    let root_widget = rvue::widgets::FlexWidget::new()
+                        .direction(rvue::style::FlexDirection::Row)
+                        .gap(0.0)
+                        .align_items(rvue::style::AlignItems::Start)
+                        .justify_content(rvue::style::JustifyContent::Start);
+                    let root_state = root_widget.build(&mut ctx);
+                    let #root_id = root_state.component().clone();
+
                     #children_code
-                    rvue::ViewStruct::new(#root_id_ident)
+
+                    rvue::ViewStruct::new(#root_id)
                 }
             }
         }
@@ -183,15 +178,19 @@ fn generate_children_code(children: &[RvueNode], parent_id: &Ident) -> TokenStre
             RvueNode::Element(el) => {
                 let child_code = generate_element_code(el);
                 quote! {
-                    let child = #child_code;
-                    #parent_id.add_child(child);
+                    {
+                        let child = #child_code;
+                        #parent_id.add_child(child);
+                    }
                 }
             }
             RvueNode::Text(text) => {
                 let text_code = generate_text_node_code(text);
                 quote! {
-                    let child = #text_code;
-                    #parent_id.add_child(child);
+                    {
+                        let child = #text_code;
+                        #parent_id.add_child(child);
+                    }
                 }
             }
             RvueNode::Fragment(_) => {
@@ -203,6 +202,158 @@ fn generate_children_code(children: &[RvueNode], parent_id: &Ident) -> TokenStre
 
     quote! {
         #(#child_vars)*
+    }
+}
+
+fn generate_event_handlers_for_element(component_id: &Ident, el: &RvueElement) -> TokenStream {
+    let events = el
+        .events()
+        .iter()
+        .filter_map(|a| match a {
+            RvueAttribute::Event { name, handler, .. } => Some((name.as_str(), handler)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    if !events.is_empty() {
+        generate_event_handlers(component_id, &events)
+    } else {
+        quote! {}
+    }
+}
+
+fn generate_widget_builder_code(
+    widget_type: &WidgetType,
+    attributes: &[RvueAttribute],
+) -> TokenStream {
+    match widget_type {
+        WidgetType::Text => {
+            let content = extract_prop_value(attributes, "content", || quote! { "" });
+            quote! {
+                rvue::widgets::TextWidget::new(#content.to_string())
+            }
+        }
+        WidgetType::Button => {
+            let label = extract_prop_value(attributes, "label", || quote! { "" });
+            quote! {
+                rvue::widgets::ButtonWidget::new(#label.to_string())
+            }
+        }
+        WidgetType::Flex => {
+            let direction = extract_prop_value(attributes, "direction", || quote! { "row" });
+            let gap = extract_prop_value(attributes, "gap", || quote! { 0.0 });
+            let align_items =
+                extract_prop_value(attributes, "align_items", || quote! { "stretch" });
+            let justify_content =
+                extract_prop_value(attributes, "justify_content", || quote! { "start" });
+            quote! {
+                {
+                    use rvue::style::{FlexDirection, AlignItems, JustifyContent};
+                    let direction_str = #direction.to_string();
+                    let direction_enum = match direction_str.as_str() {
+                        "row" => FlexDirection::Row,
+                        "column" => FlexDirection::Column,
+                        "row-reverse" => FlexDirection::RowReverse,
+                        "column-reverse" => FlexDirection::ColumnReverse,
+                        _ => FlexDirection::Row,
+                    };
+                    let align_str = #align_items.to_string();
+                    let align_enum = match align_str.as_str() {
+                        "start" => AlignItems::Start,
+                        "end" => AlignItems::End,
+                        "center" => AlignItems::Center,
+                        "stretch" => AlignItems::Stretch,
+                        "baseline" => AlignItems::Baseline,
+                        _ => AlignItems::Stretch,
+                    };
+                    let justify_str = #justify_content.to_string();
+                    let justify_enum = match justify_str.as_str() {
+                        "start" => JustifyContent::Start,
+                        "end" => JustifyContent::End,
+                        "center" => JustifyContent::Center,
+                        "space-between" => JustifyContent::SpaceBetween,
+                        "space-around" => JustifyContent::SpaceAround,
+                        "space-evenly" => JustifyContent::SpaceEvenly,
+                        _ => JustifyContent::Start,
+                    };
+                    rvue::widgets::FlexWidget::new()
+                        .direction(direction_enum)
+                        .gap(#gap)
+                        .align_items(align_enum)
+                        .justify_content(justify_enum)
+                }
+            }
+        }
+        WidgetType::TextInput => {
+            let value = extract_prop_value(attributes, "value", || quote! { "" });
+            quote! {
+                rvue::widgets::TextInputWidget::new(#value.to_string())
+            }
+        }
+        WidgetType::NumberInput => {
+            let value = extract_prop_value(attributes, "value", || quote! { 0.0 });
+            quote! {
+                rvue::widgets::NumberInputWidget::new(#value)
+            }
+        }
+        WidgetType::Checkbox => {
+            let checked = extract_prop_value(attributes, "checked", || quote! { false });
+            quote! {
+                rvue::widgets::CheckboxWidget::new(#checked)
+            }
+        }
+        WidgetType::Radio => {
+            let value = extract_prop_value(attributes, "value", || quote! { "" });
+            let checked = extract_prop_value(attributes, "checked", || quote! { false });
+            quote! {
+                rvue::widgets::RadioWidget::new(#value.to_string(), #checked)
+            }
+        }
+        WidgetType::Show => {
+            let when = extract_prop_value(attributes, "when", || quote! { false });
+            quote! {
+                rvue::widgets::ShowWidget::new(#when)
+            }
+        }
+        WidgetType::For => {
+            let item_count = extract_prop_value(attributes, "item_count", || quote! { 0 });
+            quote! {
+                rvue::widgets::ForWidget::new(#item_count)
+            }
+        }
+        WidgetType::Custom(name) => {
+            let widget_name = format_ident!("{}", name);
+            let props = attributes
+                .iter()
+                .filter(|a| !matches!(a, RvueAttribute::Event { .. }))
+                .map(|attr| {
+                    let name = format_ident!("{}", attr.name());
+                    let value = extract_attr_value(attr);
+                    quote! {
+                        .#name(#value)
+                    }
+                });
+            quote! {
+                #widget_name::new()#(#props)*
+            }
+        }
+    }
+}
+
+fn extract_prop_value<F>(attrs: &[RvueAttribute], name: &str, default: F) -> TokenStream
+where
+    F: FnOnce() -> TokenStream,
+{
+    attrs.iter().find(|a| a.name() == name).map(|a| extract_attr_value(a)).unwrap_or_else(default)
+}
+
+fn extract_attr_value(attr: &RvueAttribute) -> TokenStream {
+    match attr {
+        RvueAttribute::Static { value, .. } => quote! { #value },
+        RvueAttribute::Dynamic { expr, .. } => quote! { #expr },
+        RvueAttribute::Event { .. } => {
+            quote! { compile_error!("Unexpected event attribute in property position") }
+        }
     }
 }
 

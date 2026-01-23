@@ -2310,6 +2310,7 @@ dependencies = [
  "rstml",
  "rvue",
  "syn",
+ "taffy",
  "trybuild",
 ]
 
