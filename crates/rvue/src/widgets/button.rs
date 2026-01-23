@@ -65,8 +65,11 @@ impl Widget for ButtonWidget {
         let id = ctx.next_id();
         let initial_label = self.label.get();
 
-        let component =
-            Component::new(id, ComponentType::Button, ComponentProps::Button { label: initial_label });
+        let component = Component::new(
+            id,
+            ComponentType::Button,
+            ComponentProps::Button { label: initial_label },
+        );
 
         // Setup reactive update if label is reactive
         let label_effect = if self.label.is_reactive() {

@@ -17,7 +17,7 @@ fn test_view_macro_compiles() {
     let _view = view! {
         <Text content="Hello" />
     };
-    
+
     // If we get here, the macro compiled successfully
     assert!(true);
 }
@@ -27,7 +27,7 @@ fn test_view_macro_with_button() {
     let _view = view! {
         <Button label="Click Me" />
     };
-    
+
     assert!(true);
 }
 
@@ -37,7 +37,7 @@ fn test_view_macro_text_content() {
     let _view = view! {
         <Text>"Hello World"</Text>
     };
-    
+
     assert!(true);
 }
 
@@ -50,6 +50,6 @@ fn test_view_macro_text_content() {
 //         <Text content="First" />
 //         <Text content="Second" />
 //     };
-//     
+//
 //     assert!(true);
 // }

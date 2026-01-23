@@ -35,7 +35,10 @@ impl FlexWidget {
     }
 
     /// Set the flex direction
-    pub fn direction(mut self, direction: impl crate::widget::IntoReactiveValue<FlexDirection>) -> Self {
+    pub fn direction(
+        mut self,
+        direction: impl crate::widget::IntoReactiveValue<FlexDirection>,
+    ) -> Self {
         self.direction = direction.into_reactive();
         self
     }
@@ -47,7 +50,10 @@ impl FlexWidget {
     }
 
     /// Set the align items (cross-axis alignment)
-    pub fn align_items(mut self, align_items: impl crate::widget::IntoReactiveValue<AlignItems>) -> Self {
+    pub fn align_items(
+        mut self,
+        align_items: impl crate::widget::IntoReactiveValue<AlignItems>,
+    ) -> Self {
         self.align_items = align_items.into_reactive();
         self
     }

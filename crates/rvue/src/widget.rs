@@ -96,9 +96,7 @@ pub fn static_value<T: Trace + Clone + 'static>(value: T) -> ReactiveValue<T> {
 }
 
 // Helper function for closures
-pub fn derived_value<T: Trace + Clone + 'static, F: Fn() -> T + 'static>(
-    f: F,
-) -> ReactiveValue<T> {
+pub fn derived_value<T: Trace + Clone + 'static, F: Fn() -> T + 'static>(f: F) -> ReactiveValue<T> {
     ReactiveValue::Derived(Box::new(f))
 }
 
@@ -137,7 +135,9 @@ impl crate::widget::IntoReactiveValue<crate::style::AlignItems> for crate::style
     }
 }
 
-impl crate::widget::IntoReactiveValue<crate::style::JustifyContent> for crate::style::JustifyContent {
+impl crate::widget::IntoReactiveValue<crate::style::JustifyContent>
+    for crate::style::JustifyContent
+{
     fn into_reactive(self) -> ReactiveValue<crate::style::JustifyContent> {
         ReactiveValue::Static(self)
     }

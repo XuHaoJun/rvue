@@ -20,14 +20,8 @@ unsafe impl Trace for RadioWidget {
 
 impl RadioWidget {
     /// Create a new Radio widget with a value and checked state
-    pub fn new(
-        value: String,
-        checked: impl crate::widget::IntoReactiveValue<bool>,
-    ) -> Self {
-        Self {
-            value,
-            checked: checked.into_reactive(),
-        }
+    pub fn new(value: String, checked: impl crate::widget::IntoReactiveValue<bool>) -> Self {
+        Self { value, checked: checked.into_reactive() }
     }
 }
 
@@ -76,10 +70,7 @@ impl Widget for RadioWidget {
         let component = Component::new(
             id,
             ComponentType::Radio,
-            ComponentProps::Radio {
-                value: self.value.clone(),
-                checked: initial_checked,
-            },
+            ComponentProps::Radio { value: self.value.clone(), checked: initial_checked },
         );
 
         // Setup reactive update if checked is reactive

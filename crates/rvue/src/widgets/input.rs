@@ -231,7 +231,10 @@ impl TextInput {
 
     /// Create a new TextInput component with a reactive signal
     #[deprecated(note = "Use TextInputWidget::new() instead")]
-    pub fn from_signal(id: ComponentId, value_signal: crate::signal::ReadSignal<String>) -> Gc<Component> {
+    pub fn from_signal(
+        id: ComponentId,
+        value_signal: crate::signal::ReadSignal<String>,
+    ) -> Gc<Component> {
         use crate::signal::SignalRead;
         let initial_value = SignalRead::get(&value_signal);
         let component = Component::new(

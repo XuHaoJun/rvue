@@ -122,7 +122,10 @@ impl Show {
 
     /// Create a new Show component with a reactive signal
     #[deprecated(note = "Use ShowWidget::new() instead")]
-    pub fn from_signal(id: ComponentId, when_signal: crate::signal::ReadSignal<bool>) -> Gc<Component> {
+    pub fn from_signal(
+        id: ComponentId,
+        when_signal: crate::signal::ReadSignal<bool>,
+    ) -> Gc<Component> {
         use crate::signal::SignalRead;
         // Get the current value from the signal
         let initial_when = SignalRead::get(&when_signal);

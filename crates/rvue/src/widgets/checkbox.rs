@@ -66,8 +66,11 @@ impl Widget for CheckboxWidget {
         let id = ctx.next_id();
         let initial_checked = self.checked.get();
 
-        let component =
-            Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked: initial_checked });
+        let component = Component::new(
+            id,
+            ComponentType::Checkbox,
+            ComponentProps::Checkbox { checked: initial_checked },
+        );
 
         // Setup reactive update if checked is reactive
         let checked_effect = if self.checked.is_reactive() {

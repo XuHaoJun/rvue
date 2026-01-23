@@ -234,11 +234,7 @@ fn test_component_setters() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Initial".to_string(),
-            font_size: None,
-            color: None,
-        },
+        ComponentProps::Text { content: "Initial".to_string(), font_size: None, color: None },
     );
 
     // Test set_text_content

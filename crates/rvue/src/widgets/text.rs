@@ -23,11 +23,7 @@ unsafe impl Trace for TextWidget {
 impl TextWidget {
     /// Create a new Text widget with content
     pub fn new(content: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self {
-            content: content.into_reactive(),
-            font_size: None,
-            color: None,
-        }
+        Self { content: content.into_reactive(), font_size: None, color: None }
     }
 
     /// Set the font size

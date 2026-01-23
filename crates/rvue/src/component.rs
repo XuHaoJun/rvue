@@ -266,11 +266,7 @@ impl Component {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Text {
-            content,
-            font_size,
-            color,
-        };
+        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color };
         self.mark_dirty();
     }
 
@@ -283,11 +279,8 @@ impl Component {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Text {
-            content,
-            font_size: Some(font_size),
-            color,
-        };
+        *self.props.borrow_mut() =
+            ComponentProps::Text { content, font_size: Some(font_size), color };
         self.mark_dirty();
     }
 
@@ -300,11 +293,7 @@ impl Component {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Text {
-            content,
-            font_size,
-            color: Some(color),
-        };
+        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color: Some(color) };
         self.mark_dirty();
     }
 
@@ -319,72 +308,63 @@ impl Component {
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
         let (gap, align_items, justify_content) = {
-            if let ComponentProps::Flex { gap, align_items, justify_content, .. } = &*self.props.borrow() {
+            if let ComponentProps::Flex { gap, align_items, justify_content, .. } =
+                &*self.props.borrow()
+            {
                 (*gap, align_items.clone(), justify_content.clone())
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Flex {
-            direction,
-            gap,
-            align_items,
-            justify_content,
-        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
         self.mark_dirty();
     }
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
         let (direction, align_items, justify_content) = {
-            if let ComponentProps::Flex { direction, align_items, justify_content, .. } = &*self.props.borrow() {
+            if let ComponentProps::Flex { direction, align_items, justify_content, .. } =
+                &*self.props.borrow()
+            {
                 (direction.clone(), align_items.clone(), justify_content.clone())
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Flex {
-            direction,
-            gap,
-            align_items,
-            justify_content,
-        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
         self.mark_dirty();
     }
 
     /// Set flex align items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
         let (direction, gap, justify_content) = {
-            if let ComponentProps::Flex { direction, gap, justify_content, .. } = &*self.props.borrow() {
+            if let ComponentProps::Flex { direction, gap, justify_content, .. } =
+                &*self.props.borrow()
+            {
                 (direction.clone(), *gap, justify_content.clone())
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Flex {
-            direction,
-            gap,
-            align_items,
-            justify_content,
-        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
         self.mark_dirty();
     }
 
     /// Set flex justify content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
         let (direction, gap, align_items) = {
-            if let ComponentProps::Flex { direction, gap, align_items, .. } = &*self.props.borrow() {
+            if let ComponentProps::Flex { direction, gap, align_items, .. } = &*self.props.borrow()
+            {
                 (direction.clone(), *gap, align_items.clone())
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Flex {
-            direction,
-            gap,
-            align_items,
-            justify_content,
-        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
         self.mark_dirty();
     }
 
@@ -399,10 +379,7 @@ impl Component {
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
         if let ComponentProps::Radio { value, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() = ComponentProps::Radio {
-                value: value.clone(),
-                checked,
-            };
+            *self.props.borrow_mut() = ComponentProps::Radio { value: value.clone(), checked };
             self.mark_dirty();
         }
     }
