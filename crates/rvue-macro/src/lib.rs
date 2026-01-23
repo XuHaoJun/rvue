@@ -1,32 +1,92 @@
 //! Procedural macros for Rvue framework
 
+mod ast;
+mod attrs;
+mod codegen;
+mod parser;
+mod widgets;
+
+use codegen::{convert_rstml_to_rvue, generate_view_code};
+use parser::{parse_global_class, parse_view, strip_global_class};
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{parse_macro_input, Expr, ItemFn};
+use proc_macro_error2::proc_macro_error;
 
 /// The `view!` macro provides HTML-like syntax for creating UI components
 ///
-/// Basic usage:
+/// # Basic Usage
+///
 /// ```ignore
+/// use rvue::prelude::*;
+///
 /// view! {
-///     <Text value="Hello" />
-///     <Button on_click=|| println!("clicked")> "Click me" </Button>
+///     <Text value="Hello, World!" />
+///     <Button on_click=|| println!("clicked")>"Click me"</Button>
+///     <Flex direction="column" gap={20.0}>
+///         <Text value={signal.get()} />
+///     </Flex>
 /// }
 /// ```
+///
+/// # Supported Widgets
+///
+/// - `Text` - Display text with optional font_size and color
+/// - `Button` - Interactive button with label
+/// - `Flex` - Flexbox container with direction, gap, align_items, justify_content
+/// - `TextInput` - Text input field
+/// - `NumberInput` - Numeric input field
+/// - `Checkbox` - Boolean checkbox
+/// - `Radio` - Radio button
+/// - `Show` - Conditional rendering
+/// - `For` - List rendering
+///
+/// # Attributes
+///
+/// Static attributes: `attr="value"`
+/// Dynamic attributes: `attr={expression}`
+/// Event handlers: `on_event=handler`
+///
+/// # Examples
+///
+/// Static text widget:
+/// ```ignore
+/// view! { <Text value="Hello" /> }
+/// ```
+///
+/// Button with click handler:
+/// ```ignore
+/// view! { <Button on_click=|| println!("clicked")>"Click me"</Button> }
+/// ```
+///
+/// Flex container with children:
+/// ```ignore
+/// view! {
+///     <Flex direction="column" gap={20.0}>
+///         <Text value="Child 1" />
+///         <Text value="Child 2" />
+///     </Flex>
+/// }
+/// ```
+#[proc_macro_error]
 #[proc_macro]
 pub fn view(input: TokenStream) -> TokenStream {
-    // For MVP, we'll create a simplified parser
-    // This is a placeholder that will be expanded in future iterations
-    let _input = parse_macro_input!(input as Expr);
+    let input2: proc_macro2::TokenStream = input.clone().into();
 
-    // Generate basic component creation code
-    // TODO: Parse HTML-like syntax and generate proper component tree
-    quote! {
+    let global_class = parse_global_class(input2.clone());
+    let tokens = strip_global_class(input2, global_class.as_ref());
+
+    let nodes = match parse_view(tokens) {
+        Ok(nodes) => nodes,
+        Err(e) => return e.into(),
+    };
+
+    let rvue_nodes: Vec<_> = nodes.iter().filter_map(|n| convert_rstml_to_rvue(n, None)).collect();
+
+    let output = generate_view_code(rvue_nodes);
+
+    quote::quote! {
         {
             use rvue::prelude::*;
-            // Placeholder: return a simple component
-            // This will be replaced with actual parsing logic
-            rvue::Component::new(0, rvue::ComponentType::Text, rvue::ComponentProps::Text { content: "".to_string() })
+            #output
         }
     }
     .into()
@@ -34,25 +94,36 @@ pub fn view(input: TokenStream) -> TokenStream {
 
 /// The `#[component]` macro marks a function as a component
 ///
-/// Components are functions that return `impl View` and are automatically
-/// allocated in the GC heap.
+/// Components are functions that return `impl View` and can be used
+/// within `view!` macro as PascalCase tags.
 ///
-/// Basic usage:
+/// # Basic Usage
+///
 /// ```ignore
 /// #[component]
 /// fn MyComponent() -> impl View {
 ///     view! { <Text value="Hello" /> }
 /// }
+///
+/// #[component]
+/// fn App() -> impl View {
+///     view! {
+///         <Flex direction="column">
+///             <MyComponent />
+///         </Flex>
+///     }
+/// }
 /// ```
+///
+/// # Component Properties
+///
+/// Function parameters become component properties that can be passed
+/// when using the component in `view!`.
 #[proc_macro_attribute]
 pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(item as ItemFn);
+    let input = syn::parse_macro_input!(item as syn::ItemFn);
 
-    // For MVP, we'll just pass through the function
-    // GC allocation will be handled by the framework runtime
-    // TODO: Add GC allocation wrapper and lifecycle management
-
-    quote! {
+    quote::quote! {
         #input
     }
     .into()
