@@ -22,7 +22,7 @@ where
 fn test_text_widget_builder() {
     with_build_context(|ctx| {
         // Test static text
-        let widget = TextWidget::new("Hello World");
+        let widget = Text::new("Hello World");
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Text);
@@ -44,7 +44,7 @@ fn test_text_widget_with_signal() {
 
     with_build_context(|ctx| {
         // Test reactive text
-        let widget = TextWidget::new(text_signal);
+        let widget = Text::new(text_signal);
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Text);
@@ -64,7 +64,7 @@ fn test_text_widget_with_signal() {
 #[test]
 fn test_button_widget_builder() {
     with_build_context(|ctx| {
-        let widget = ButtonWidget::new("Click Me");
+        let widget = Button::new("Click Me");
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Button);
@@ -83,7 +83,7 @@ fn test_button_widget_builder() {
 #[test]
 fn test_flex_widget_builder() {
     with_build_context(|ctx| {
-        let widget = FlexWidget::new()
+        let widget = Flex::new()
             .direction(rvue::FlexDirection::Column)
             .gap(10.0)
             .align_items(rvue::AlignItems::Center)
@@ -108,7 +108,7 @@ fn test_flex_widget_builder() {
 #[test]
 fn test_checkbox_widget_builder() {
     with_build_context(|ctx| {
-        let widget = CheckboxWidget::new(true);
+        let widget = Checkbox::new(true);
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Checkbox);
@@ -127,7 +127,7 @@ fn test_checkbox_widget_builder() {
 #[test]
 fn test_text_input_widget_builder() {
     with_build_context(|ctx| {
-        let widget = TextInputWidget::new("test input");
+        let widget = TextInput::new("test input");
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::TextInput);
@@ -146,7 +146,7 @@ fn test_text_input_widget_builder() {
 #[test]
 fn test_show_widget_builder() {
     with_build_context(|ctx| {
-        let widget = ShowWidget::new(true);
+        let widget = Show::new(true);
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Show);
@@ -166,11 +166,11 @@ fn test_show_widget_builder() {
 fn test_fine_grained_text_update() {
     with_build_context(|ctx| {
         // Create initial widget
-        let widget = TextWidget::new("Initial");
+        let widget = Text::new("Initial");
         let mut state = widget.build(ctx);
 
         // Update with new content
-        let updated_widget = TextWidget::new("Updated");
+        let updated_widget = Text::new("Updated");
         updated_widget.rebuild(&mut state);
 
         // Verify the content was updated
@@ -189,10 +189,10 @@ fn test_fine_grained_text_update() {
 #[test]
 fn test_fine_grained_button_update() {
     with_build_context(|ctx| {
-        let widget = ButtonWidget::new("Initial Label");
+        let widget = Button::new("Initial Label");
         let mut state = widget.build(ctx);
 
-        let updated_widget = ButtonWidget::new("Updated Label");
+        let updated_widget = Button::new("Updated Label");
         updated_widget.rebuild(&mut state);
 
         {
@@ -210,10 +210,10 @@ fn test_fine_grained_button_update() {
 #[test]
 fn test_fine_grained_flex_update() {
     with_build_context(|ctx| {
-        let widget = FlexWidget::new().gap(5.0);
+        let widget = Flex::new().gap(5.0);
         let mut state = widget.build(ctx);
 
-        let updated_widget = FlexWidget::new().gap(20.0);
+        let updated_widget = Flex::new().gap(20.0);
         updated_widget.rebuild(&mut state);
 
         {

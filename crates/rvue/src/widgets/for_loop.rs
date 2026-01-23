@@ -7,17 +7,17 @@ use rudo_gc::{Gc, Trace};
 
 /// For widget builder for rendering lists of items
 #[derive(Clone)]
-pub struct ForWidget {
+pub struct For {
     item_count: ReactiveValue<usize>,
 }
 
-unsafe impl Trace for ForWidget {
+unsafe impl Trace for For {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.item_count.trace(visitor);
     }
 }
 
-impl ForWidget {
+impl For {
     /// Create a new For widget with item count
     pub fn new(item_count: impl crate::widget::IntoReactiveValue<usize>) -> Self {
         Self { item_count: item_count.into_reactive() }
@@ -59,7 +59,7 @@ impl Mountable for ForState {
     }
 }
 
-impl Widget for ForWidget {
+impl Widget for For {
     type State = ForState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

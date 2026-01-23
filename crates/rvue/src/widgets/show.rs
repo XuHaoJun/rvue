@@ -7,17 +7,17 @@ use rudo_gc::{Gc, Trace};
 
 /// Show widget builder for conditionally rendering content
 #[derive(Clone)]
-pub struct ShowWidget {
+pub struct Show {
     when: ReactiveValue<bool>,
 }
 
-unsafe impl Trace for ShowWidget {
+unsafe impl Trace for Show {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.when.trace(visitor);
     }
 }
 
-impl ShowWidget {
+impl Show {
     /// Create a new Show widget with a boolean condition
     pub fn new(when: impl crate::widget::IntoReactiveValue<bool>) -> Self {
         Self { when: when.into_reactive() }
@@ -59,7 +59,7 @@ impl Mountable for ShowState {
     }
 }
 
-impl Widget for ShowWidget {
+impl Widget for Show {
     type State = ShowState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

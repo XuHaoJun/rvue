@@ -41,7 +41,4 @@ pub use view::{View, ViewStruct};
 pub use widget::{
     BuildContext, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget, WidgetWrapper,
 };
-pub use widgets::{
-    ButtonWidget, CheckboxWidget, FlexWidget, ForWidget, NumberInputWidget, RadioWidget,
-    ShowWidget, TextInputWidget, TextWidget,
-};
+pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

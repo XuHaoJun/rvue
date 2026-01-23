@@ -7,17 +7,17 @@ use rudo_gc::{Gc, Trace};
 
 /// TextInput widget builder for text input
 #[derive(Clone)]
-pub struct TextInputWidget {
+pub struct TextInput {
     value: ReactiveValue<String>,
 }
 
-unsafe impl Trace for TextInputWidget {
+unsafe impl Trace for TextInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
     }
 }
 
-impl TextInputWidget {
+impl TextInput {
     /// Create a new TextInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<String>) -> Self {
         Self { value: value.into_reactive() }
@@ -59,7 +59,7 @@ impl Mountable for TextInputState {
     }
 }
 
-impl Widget for TextInputWidget {
+impl Widget for TextInput {
     type State = TextInputState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
@@ -113,17 +113,17 @@ impl Widget for TextInputWidget {
 
 /// NumberInput widget builder for numeric input
 #[derive(Clone)]
-pub struct NumberInputWidget {
+pub struct NumberInput {
     value: ReactiveValue<f64>,
 }
 
-unsafe impl Trace for NumberInputWidget {
+unsafe impl Trace for NumberInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
     }
 }
 
-impl NumberInputWidget {
+impl NumberInput {
     /// Create a new NumberInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<f64>) -> Self {
         Self { value: value.into_reactive() }
@@ -165,7 +165,7 @@ impl Mountable for NumberInputState {
     }
 }
 
-impl Widget for NumberInputWidget {
+impl Widget for NumberInput {
     type State = NumberInputState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

@@ -8,7 +8,10 @@ mod parser;
 #[allow(dead_code)]
 mod widgets;
 
+mod component;
+
 use codegen::{convert_rstml_to_rvue, generate_view_code};
+use component::component_impl;
 use parser::{parse_global_class, parse_view, strip_global_class};
 use proc_macro::TokenStream;
 use proc_macro_error2::proc_macro_error;
@@ -122,11 +125,6 @@ pub fn view(input: TokenStream) -> TokenStream {
 /// Function parameters become component properties that can be passed
 /// when using the component in `view!`.
 #[proc_macro_attribute]
-pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(item as syn::ItemFn);
-
-    quote::quote! {
-        #input
-    }
-    .into()
+pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
+    component_impl(attr.into(), item.into()).into()
 }

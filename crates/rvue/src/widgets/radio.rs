@@ -7,18 +7,18 @@ use rudo_gc::{Gc, Trace};
 
 /// Radio widget builder for single selection from multiple options
 #[derive(Clone)]
-pub struct RadioWidget {
+pub struct Radio {
     value: String,
     checked: ReactiveValue<bool>,
 }
 
-unsafe impl Trace for RadioWidget {
+unsafe impl Trace for Radio {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.checked.trace(visitor);
     }
 }
 
-impl RadioWidget {
+impl Radio {
     /// Create a new Radio widget with a value and checked state
     pub fn new(value: String, checked: impl crate::widget::IntoReactiveValue<bool>) -> Self {
         Self { value, checked: checked.into_reactive() }
@@ -60,7 +60,7 @@ impl Mountable for RadioState {
     }
 }
 
-impl Widget for RadioWidget {
+impl Widget for Radio {
     type State = RadioState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

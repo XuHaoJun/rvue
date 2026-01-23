@@ -7,14 +7,14 @@ use rudo_gc::{Gc, Trace};
 
 /// Flex widget builder for creating flexbox layouts
 #[derive(Clone)]
-pub struct FlexWidget {
+pub struct Flex {
     direction: ReactiveValue<FlexDirection>,
     gap: ReactiveValue<f32>,
     align_items: ReactiveValue<AlignItems>,
     justify_content: ReactiveValue<JustifyContent>,
 }
 
-unsafe impl Trace for FlexWidget {
+unsafe impl Trace for Flex {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.direction.trace(visitor);
         self.gap.trace(visitor);
@@ -23,7 +23,7 @@ unsafe impl Trace for FlexWidget {
     }
 }
 
-impl FlexWidget {
+impl Flex {
     /// Create a new Flex widget with default values
     pub fn new() -> Self {
         Self {
@@ -68,7 +68,7 @@ impl FlexWidget {
     }
 }
 
-impl Default for FlexWidget {
+impl Default for Flex {
     fn default() -> Self {
         Self::new()
     }
@@ -121,7 +121,7 @@ impl Mountable for FlexState {
     }
 }
 
-impl Widget for FlexWidget {
+impl Widget for Flex {
     type State = FlexState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

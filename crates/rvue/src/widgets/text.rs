@@ -7,19 +7,19 @@ use rudo_gc::{Gc, Trace};
 
 /// Text widget builder for displaying text content
 #[derive(Clone)]
-pub struct TextWidget {
+pub struct Text {
     content: ReactiveValue<String>,
     font_size: Option<f32>,
     color: Option<vello::peniko::Color>,
 }
 
-unsafe impl Trace for TextWidget {
+unsafe impl Trace for Text {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.content.trace(visitor);
     }
 }
 
-impl TextWidget {
+impl Text {
     /// Create a new Text widget with content
     pub fn new(content: impl crate::widget::IntoReactiveValue<String>) -> Self {
         Self { content: content.into_reactive(), font_size: None, color: None }
@@ -73,7 +73,7 @@ impl Mountable for TextState {
     }
 }
 
-impl Widget for TextWidget {
+impl Widget for Text {
     type State = TextState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

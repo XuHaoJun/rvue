@@ -41,7 +41,7 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
 fn generate_empty_component(ctx_ident: &Ident) -> TokenStream {
     quote! {
         {
-            let widget = rvue::widgets::FlexWidget::new();
+            let widget = rvue::widgets::Flex::new();
             let state = widget.build(&mut #ctx_ident);
             state.component().clone()
         }
@@ -58,22 +58,58 @@ fn generate_node_code(node: &RvueNode, ctx_ident: &Ident) -> TokenStream {
 
 fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
     let component_ident = format_ident!("component");
-    let widget_code = generate_widget_builder_code(&el.widget_type, &el.attributes);
-    let effects_code = generate_reactive_effects(&el.widget_type, &el.attributes, &component_ident);
-    let children_code = generate_children_code(&el.children, &component_ident, ctx_ident);
-    let events_code = generate_event_handlers_for_element(&component_ident, el);
 
-    quote! {
-        {
-            let widget = #widget_code;
-            let state = widget.build(&mut #ctx_ident);
-            let #component_ident = state.component().clone();
+    match &el.widget_type {
+        WidgetType::Custom(name) => {
+            let widget_name = Ident::new(name, el.span);
+            let props_struct_name = Ident::new(&format!("{}Props", name), el.span);
 
-            #children_code
-            #events_code
-            #effects_code
+            let props_init =
+                el.attributes.iter().filter(|a| !matches!(a, RvueAttribute::Event { .. })).map(
+                    |attr| {
+                        let name = format_ident!("{}", attr.name());
+                        let PropValue { value, .. } = extract_attr_value(attr);
+                        quote! { #name: #value }
+                    },
+                );
 
-            #component_ident
+            let events_code = generate_event_handlers_for_element(&component_ident, el);
+
+            quote! {
+                {
+                    let props = #props_struct_name {
+                        #(#props_init),*
+                    };
+                    let view = #widget_name(props);
+                    let #component_ident = rvue::prelude::View::into_component(view);
+
+                    #events_code
+
+                    #component_ident
+                }
+            }
+        }
+        _ => {
+            let widget_code =
+                generate_widget_builder_code(&el.widget_type, &el.attributes, el.span);
+            let effects_code =
+                generate_reactive_effects(&el.widget_type, &el.attributes, &component_ident);
+            let children_code = generate_children_code(&el.children, &component_ident, ctx_ident);
+            let events_code = generate_event_handlers_for_element(&component_ident, el);
+
+            quote! {
+                {
+                    let widget = #widget_code;
+                    let state = widget.build(&mut #ctx_ident);
+                    let #component_ident = state.component().clone();
+
+                    #children_code
+                    #events_code
+                    #effects_code
+
+                    #component_ident
+                }
+            }
         }
     }
 }
@@ -83,7 +119,7 @@ fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
 
     quote! {
         {
-            let widget = rvue::widgets::TextWidget::new(#content.to_string());
+            let widget = rvue::widgets::Text::new(#content.to_string());
             let state = widget.build(&mut #ctx_ident);
             state.component().clone()
         }
@@ -100,7 +136,7 @@ fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStrea
 
             quote! {
                 {
-                    let root_widget = rvue::widgets::FlexWidget::new()
+                    let root_widget = rvue::widgets::Flex::new()
                         .direction(rvue::style::FlexDirection::Row)
                         .gap(0.0)
                         .align_items(rvue::style::AlignItems::Start)
@@ -180,20 +216,23 @@ fn generate_event_handlers_for_element(component_id: &Ident, el: &RvueElement) -
 fn generate_widget_builder_code(
     widget_type: &WidgetType,
     attributes: &[RvueAttribute],
+    span: Span,
 ) -> TokenStream {
     let props = WidgetProps::new(attributes);
 
     match widget_type {
         WidgetType::Text => {
             let PropValue { value: content_value, .. } = props.value("content", || quote! { "" });
+            let widget_ident = Ident::new("Text", span);
             quote! {
-                rvue::widgets::TextWidget::new(#content_value.to_string())
+                rvue::widgets::#widget_ident::new(#content_value.to_string())
             }
         }
         WidgetType::Button => {
             let PropValue { value: label_value, .. } = props.value("label", || quote! { "" });
+            let widget_ident = Ident::new("Button", span);
             quote! {
-                rvue::widgets::ButtonWidget::new(#label_value.to_string())
+                rvue::widgets::#widget_ident::new(#label_value.to_string())
             }
         }
         WidgetType::Flex => {
@@ -204,6 +243,9 @@ fn generate_widget_builder_code(
                 props.value("align_items", || quote! { "stretch" });
             let PropValue { value: justify_content_value, .. } =
                 props.value("justify_content", || quote! { "start" });
+
+            let widget_ident = Ident::new("Flex", span);
+
             quote! {
                 {
                     use rvue::style::{FlexDirection, AlignItems, JustifyContent};
@@ -234,7 +276,7 @@ fn generate_widget_builder_code(
                         "space-evenly" => JustifyContent::SpaceEvenly,
                         _ => JustifyContent::Start,
                     };
-                    rvue::widgets::FlexWidget::new()
+                    rvue::widgets::#widget_ident::new()
                         .direction(direction_enum)
                         .gap(#gap_value)
                         .align_items(align_enum)
@@ -244,46 +286,52 @@ fn generate_widget_builder_code(
         }
         WidgetType::TextInput => {
             let PropValue { value: value_value, .. } = props.value("value", || quote! { "" });
+            let widget_ident = Ident::new("TextInput", span);
             quote! {
-                rvue::widgets::TextInputWidget::new(#value_value.to_string())
+                rvue::widgets::#widget_ident::new(#value_value.to_string())
             }
         }
         WidgetType::NumberInput => {
             let PropValue { value: value_value, .. } = props.value("value", || quote! { 0.0 });
+            let widget_ident = Ident::new("NumberInput", span);
             quote! {
-                rvue::widgets::NumberInputWidget::new(#value_value)
+                rvue::widgets::#widget_ident::new(#value_value)
             }
         }
         WidgetType::Checkbox => {
             let PropValue { value: checked_value, .. } =
                 props.value("checked", || quote! { false });
+            let widget_ident = Ident::new("Checkbox", span);
             quote! {
-                rvue::widgets::CheckboxWidget::new(#checked_value)
+                rvue::widgets::#widget_ident::new(#checked_value)
             }
         }
         WidgetType::Radio => {
             let PropValue { value: value_value, .. } = props.value("value", || quote! { "" });
             let PropValue { value: checked_value, .. } =
                 props.value("checked", || quote! { false });
+            let widget_ident = Ident::new("Radio", span);
             quote! {
-                rvue::widgets::RadioWidget::new(#value_value.to_string(), #checked_value)
+                rvue::widgets::#widget_ident::new(#value_value.to_string(), #checked_value)
             }
         }
         WidgetType::Show => {
             let PropValue { value: when_value, .. } = props.value("when", || quote! { false });
+            let widget_ident = Ident::new("Show", span);
             quote! {
-                rvue::widgets::ShowWidget::new(#when_value)
+                rvue::widgets::#widget_ident::new(#when_value)
             }
         }
         WidgetType::For => {
             let PropValue { value: item_count_value, .. } =
                 props.value("item_count", || quote! { 0 });
+            let widget_ident = Ident::new("For", span);
             quote! {
-                rvue::widgets::ForWidget::new(#item_count_value)
+                rvue::widgets::#widget_ident::new(#item_count_value)
             }
         }
         WidgetType::Custom(name) => {
-            let widget_name = format_ident!("{}", name);
+            let widget_name = Ident::new(name, span);
             let props = attributes
                 .iter()
                 .filter(|a| !matches!(a, RvueAttribute::Event { .. }))

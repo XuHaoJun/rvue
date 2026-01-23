@@ -6,17 +6,17 @@ use rudo_gc::{Gc, Trace};
 
 /// Button widget builder for user interaction
 #[derive(Clone)]
-pub struct ButtonWidget {
+pub struct Button {
     label: ReactiveValue<String>,
 }
 
-unsafe impl Trace for ButtonWidget {
+unsafe impl Trace for Button {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.label.trace(visitor);
     }
 }
 
-impl ButtonWidget {
+impl Button {
     /// Create a new Button widget with a label
     pub fn new(label: impl crate::widget::IntoReactiveValue<String>) -> Self {
         Self { label: label.into_reactive() }
@@ -58,7 +58,7 @@ impl Mountable for ButtonState {
     }
 }
 
-impl Widget for ButtonWidget {
+impl Widget for Button {
     type State = ButtonState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {

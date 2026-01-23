@@ -10,11 +10,11 @@ pub mod show;
 pub mod text;
 
 // New widget builders
-pub use button::ButtonWidget;
-pub use checkbox::CheckboxWidget;
-pub use flex::FlexWidget;
-pub use for_loop::ForWidget;
-pub use input::{NumberInputWidget, TextInputWidget};
-pub use radio::RadioWidget;
-pub use show::ShowWidget;
-pub use text::TextWidget;
+pub use button::Button;
+pub use checkbox::Checkbox;
+pub use flex::Flex;
+pub use for_loop::For;
+pub use input::{NumberInput, TextInput};
+pub use radio::Radio;
+pub use show::Show;
+pub use text::Text;

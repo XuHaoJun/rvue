@@ -7,17 +7,17 @@ use rudo_gc::{Gc, Trace};
 
 /// Checkbox widget builder for boolean input
 #[derive(Clone)]
-pub struct CheckboxWidget {
+pub struct Checkbox {
     checked: ReactiveValue<bool>,
 }
 
-unsafe impl Trace for CheckboxWidget {
+unsafe impl Trace for Checkbox {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.checked.trace(visitor);
     }
 }
 
-impl CheckboxWidget {
+impl Checkbox {
     /// Create a new Checkbox widget with checked state
     pub fn new(checked: impl crate::widget::IntoReactiveValue<bool>) -> Self {
         Self { checked: checked.into_reactive() }
@@ -59,7 +59,7 @@ impl Mountable for CheckboxState {
     }
 }
 
-impl Widget for CheckboxWidget {
+impl Widget for Checkbox {
     type State = CheckboxState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
