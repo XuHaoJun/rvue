@@ -2308,6 +2308,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rstml",
+ "rvue",
  "syn",
  "trybuild",
 ]

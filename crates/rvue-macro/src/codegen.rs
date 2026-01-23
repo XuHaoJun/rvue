@@ -39,13 +39,18 @@ fn generate_node_code(node: &RvueNode) -> TokenStream {
     }
 }
 
-fn generate_element_code(el: &RvueElement) -> TokenStream {
-    let id = generate_unique_id();
+fn generate_unique_id() -> (u64, Ident) {
+    let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+    (id, format_ident!("comp_{}", id))
+}
 
-    let widget_code = generate_widget_code(&el.widget_type, &id, &el.attributes);
+fn generate_element_code(el: &RvueElement) -> TokenStream {
+    let (id_val, id_ident) = generate_unique_id();
+
+    let widget_code = generate_widget_code(&el.widget_type, id_val, &el.attributes);
 
     let children_code = if !el.children.is_empty() {
-        generate_children_code(&el.children, &id)
+        generate_children_code(&el.children, &id_ident)
     } else {
         quote! {}
     };
@@ -60,31 +65,27 @@ fn generate_element_code(el: &RvueElement) -> TokenStream {
         .collect::<Vec<_>>();
 
     let events_code = if !events.is_empty() {
-        generate_event_handlers(&id, &events)
+        generate_event_handlers(&id_ident, &events)
     } else {
         quote! {}
     };
 
     quote! {
-        let #id = #widget_code;
+        let #id_ident = #widget_code;
         #children_code
         #events_code
-        #id
+        #id_ident
     }
 }
 
 fn generate_text_node_code(text: &RvueText) -> TokenStream {
-    let id = generate_unique_id();
+    let (id_val, _id_ident) = generate_unique_id();
     let content = &text.content;
 
     quote! {
         rvue::widgets::Text::new(
-            #id,
-            rvue::ComponentProps::Text {
-                content: #content.to_string(),
-                font_size: None,
-                color: None,
-            }
+            #id_val,
+            #content.to_string()
         )
     }
 }
@@ -99,10 +100,10 @@ fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
             }
         }
         _ => {
-            let root_id = generate_unique_id();
+            let (root_id_val, root_id_ident) = generate_unique_id();
             let root = quote! {
                 rvue::Component::new(
-                    #root_id,
+                    #root_id_val,
                     rvue::ComponentType::Flex,
                     rvue::ComponentProps::Flex {
                         direction: "row".to_string(),
@@ -113,12 +114,12 @@ fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
                 )
             };
 
-            let children_code = generate_children_code(&nodes, &root_id);
+            let children_code = generate_children_code(&nodes, &root_id_ident);
 
             quote! {
-                let #root_id = #root;
+                let #root_id_ident = #root;
                 #children_code
-                rvue::ViewStruct::new(#root_id)
+                rvue::ViewStruct::new(#root_id_ident)
             }
         }
     }
@@ -136,10 +137,6 @@ fn generate_children_code(children: &[RvueNode], parent_id: &Ident) -> TokenStre
     quote! {
         #(#child_vars)*
     }
-}
-
-pub fn generate_unique_id() -> Ident {
-    format_ident!("comp_{}", NEXT_ID.fetch_add(1, Ordering::SeqCst))
 }
 
 pub fn convert_rstml_to_rvue(node: &Node, parent_type: Option<&WidgetType>) -> Option<RvueNode> {
