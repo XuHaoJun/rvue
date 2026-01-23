@@ -50,7 +50,17 @@ pub enum FocusEvent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InputEvent {
-    TextInput { value: String },
-    NumberInput { value: f64 },
+pub struct InputEvent {
+    pub value: String,
+    pub number_value: f64,
+    pub checked: bool,
+    pub input_type: InputEventType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InputEventType {
+    Text,
+    Number,
+    Checkbox,
+    Radio,
 }

@@ -1,6 +1,6 @@
 //! Show widget for conditional rendering
 
-use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
@@ -104,53 +104,6 @@ impl Widget for ShowWidget {
             // Static when - update directly
             let new_when = self.when.get();
             state.component.set_show_when(new_when);
-        }
-    }
-}
-
-// Keep old API for backward compatibility
-#[deprecated(note = "Use ShowWidget::new() instead")]
-pub struct Show;
-
-#[allow(deprecated)]
-impl Show {
-    /// Create a new Show component with a boolean condition
-    #[deprecated(note = "Use ShowWidget::new() instead")]
-    pub fn new(id: ComponentId, when: bool) -> Gc<Component> {
-        Component::new(id, ComponentType::Show, ComponentProps::Show { when })
-    }
-
-    /// Create a new Show component with a reactive signal
-    #[deprecated(note = "Use ShowWidget::new() instead")]
-    pub fn from_signal(
-        id: ComponentId,
-        when_signal: crate::signal::ReadSignal<bool>,
-    ) -> Gc<Component> {
-        use crate::signal::SignalRead;
-        // Get the current value from the signal
-        let initial_when = SignalRead::get(&when_signal);
-        let component =
-            Component::new(id, ComponentType::Show, ComponentProps::Show { when: initial_when });
-
-        // Setup reactive update
-        let comp = Gc::clone(&component);
-        let sig = when_signal.clone();
-        let effect = create_effect(move || {
-            use crate::signal::SignalRead;
-            let new_when = SignalRead::get(&sig);
-            *comp.props.borrow_mut() = ComponentProps::Show { when: new_when };
-            comp.mark_dirty();
-        });
-
-        component.add_effect(effect);
-        component
-    }
-
-    /// Check if the Show component should display its children
-    pub fn should_show(component: &Component) -> bool {
-        match &*component.props.borrow() {
-            ComponentProps::Show { when } => *when,
-            _ => false,
         }
     }
 }

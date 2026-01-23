@@ -1,8 +1,7 @@
 //! Text widget component
 
-use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
-use crate::signal::ReadSignal;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 
@@ -138,48 +137,5 @@ impl Widget for TextWidget {
         if let Some(color) = self.color {
             state.component.set_text_color(color);
         }
-    }
-}
-
-// Keep old API for backward compatibility
-#[deprecated(note = "Use TextWidget::new() instead")]
-pub struct Text;
-
-#[allow(deprecated)]
-impl Text {
-    /// Create a new Text component with static content
-    #[deprecated(note = "Use TextWidget::new() instead")]
-    pub fn new(id: ComponentId, content: String) -> Gc<Component> {
-        Component::new(
-            id,
-            ComponentType::Text,
-            ComponentProps::Text { content, font_size: None, color: None },
-        )
-    }
-
-    /// Create a new Text component with reactive content from a signal
-    #[deprecated(note = "Use TextWidget::new() instead")]
-    pub fn from_signal(id: ComponentId, signal: ReadSignal<String>) -> Gc<Component> {
-        use crate::signal::SignalRead;
-        let initial_content = SignalRead::get(&signal);
-        let component = Component::new(
-            id,
-            ComponentType::Text,
-            ComponentProps::Text { content: initial_content, font_size: None, color: None },
-        );
-
-        // Setup reactive update
-        let comp = Gc::clone(&component);
-        let sig = signal.clone();
-        let effect = create_effect(move || {
-            use crate::signal::SignalRead;
-            let new_content = SignalRead::get(&sig);
-            *comp.props.borrow_mut() =
-                ComponentProps::Text { content: new_content, font_size: None, color: None };
-            comp.mark_dirty();
-        });
-
-        component.add_effect(effect);
-        component
     }
 }

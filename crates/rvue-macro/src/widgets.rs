@@ -96,6 +96,7 @@ fn event_handler_types(event_name: &str) -> (TokenStream, TokenStream) {
         "pointer_move" => quote! { rvue::event::types::PointerMoveEvent },
         "key_down" | "key_up" => quote! { rvue::event::types::KeyboardEvent },
         "focus" | "blur" => quote! { rvue::event::status::FocusEvent },
+        "input" | "change" => quote! { rvue::event::status::InputEvent },
         _ => quote! { rvue::event::types::PointerButtonEvent },
     };
 

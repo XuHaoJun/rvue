@@ -229,17 +229,24 @@ mod tests {
 
     #[test]
     fn test_input_event() {
-        let text_input = status::InputEvent::TextInput { value: "Hello".to_string() };
-        match text_input {
-            status::InputEvent::TextInput { value } => assert_eq!(value, "Hello"),
-            _ => panic!("Expected TextInput"),
-        }
+        use status::InputEventType;
+        let text_input = status::InputEvent {
+            value: "Hello".to_string(),
+            number_value: 0.0,
+            checked: false,
+            input_type: InputEventType::Text,
+        };
+        assert_eq!(text_input.value, "Hello");
+        assert_eq!(text_input.input_type, InputEventType::Text);
 
-        let number_input = status::InputEvent::NumberInput { value: 42.0 };
-        match number_input {
-            status::InputEvent::NumberInput { value } => assert_eq!(value, 42.0),
-            _ => panic!("Expected NumberInput"),
-        }
+        let number_input = status::InputEvent {
+            value: String::new(),
+            number_value: 42.0,
+            checked: false,
+            input_type: InputEventType::Number,
+        };
+        assert_eq!(number_input.number_value, 42.0);
+        assert_eq!(number_input.input_type, InputEventType::Number);
     }
 
     #[test]

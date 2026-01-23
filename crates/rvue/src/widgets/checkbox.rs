@@ -1,6 +1,6 @@
 //! Checkbox widget component
 
-use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
@@ -108,43 +108,5 @@ impl Widget for CheckboxWidget {
             let new_checked = self.checked.get();
             state.component.set_checkbox_checked(new_checked);
         }
-    }
-}
-
-// Keep old API for backward compatibility
-#[deprecated(note = "Use CheckboxWidget::new() instead")]
-pub struct Checkbox;
-
-#[allow(deprecated)]
-impl Checkbox {
-    /// Create a new Checkbox component with a static checked state
-    #[deprecated(note = "Use CheckboxWidget::new() instead")]
-    pub fn new(id: ComponentId, checked: bool) -> Gc<Component> {
-        Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked })
-    }
-
-    /// Create a new Checkbox component with a reactive signal
-    #[deprecated(note = "Use CheckboxWidget::new() instead")]
-    pub fn from_signal<T: crate::signal::SignalRead<bool> + Clone + 'static>(
-        id: ComponentId,
-        checked_signal: T,
-    ) -> Gc<Component> {
-        use crate::signal::SignalRead;
-        let checked = checked_signal.get();
-        let component =
-            Component::new(id, ComponentType::Checkbox, ComponentProps::Checkbox { checked });
-
-        // Setup reactive update
-        let comp = Gc::clone(&component);
-        let sig = checked_signal.clone();
-        let effect = create_effect(move || {
-            use crate::signal::SignalRead;
-            let new_checked = sig.get();
-            *comp.props.borrow_mut() = ComponentProps::Checkbox { checked: new_checked };
-            comp.mark_dirty();
-        });
-
-        component.add_effect(effect);
-        component
     }
 }

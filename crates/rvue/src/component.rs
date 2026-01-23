@@ -496,6 +496,24 @@ impl Component {
         let handler = crate::event::handler::EventHandler::new(handler);
         self.event_handlers.borrow_mut().on_blur = Some(handler);
     }
+
+    pub fn on_input<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_input = Some(handler);
+    }
+
+    pub fn on_change<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_change = Some(handler);
+    }
 }
 
 /// Build layout tree recursively in a shared TaffyTree and return the root layout node

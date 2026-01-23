@@ -42,7 +42,6 @@ pub use widget::{
     BuildContext, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget, WidgetWrapper,
 };
 pub use widgets::{
-    Button, ButtonWidget, Checkbox, CheckboxWidget, Flex, FlexWidget, For, ForWidget, NumberInput,
-    NumberInputWidget, Radio, RadioWidget, Show, ShowWidget, Text, TextInput, TextInputWidget,
-    TextWidget,
+    ButtonWidget, CheckboxWidget, FlexWidget, ForWidget, NumberInputWidget, RadioWidget,
+    ShowWidget, TextInputWidget, TextWidget,
 };

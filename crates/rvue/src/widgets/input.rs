@@ -1,6 +1,6 @@
 //! Input widget components (TextInput, NumberInput)
 
-use crate::component::{Component, ComponentId, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
@@ -214,86 +214,5 @@ impl Widget for NumberInputWidget {
             let new_value = self.value.get();
             state.component.set_number_input_value(new_value);
         }
-    }
-}
-
-// Keep old API for backward compatibility
-#[deprecated(note = "Use TextInputWidget::new() instead")]
-pub struct TextInput;
-
-#[allow(deprecated)]
-impl TextInput {
-    /// Create a new TextInput component with a static value
-    #[deprecated(note = "Use TextInputWidget::new() instead")]
-    pub fn new(id: ComponentId, value: String) -> Gc<Component> {
-        Component::new(id, ComponentType::TextInput, ComponentProps::TextInput { value })
-    }
-
-    /// Create a new TextInput component with a reactive signal
-    #[deprecated(note = "Use TextInputWidget::new() instead")]
-    pub fn from_signal(
-        id: ComponentId,
-        value_signal: crate::signal::ReadSignal<String>,
-    ) -> Gc<Component> {
-        use crate::signal::SignalRead;
-        let initial_value = SignalRead::get(&value_signal);
-        let component = Component::new(
-            id,
-            ComponentType::TextInput,
-            ComponentProps::TextInput { value: initial_value },
-        );
-
-        // Setup reactive update
-        let comp = Gc::clone(&component);
-        let sig = value_signal.clone();
-        let effect = create_effect(move || {
-            use crate::signal::SignalRead;
-            let new_value = SignalRead::get(&sig);
-            *comp.props.borrow_mut() = ComponentProps::TextInput { value: new_value };
-            comp.mark_dirty();
-        });
-
-        component.add_effect(effect);
-        component
-    }
-}
-
-#[deprecated(note = "Use NumberInputWidget::new() instead")]
-pub struct NumberInput;
-
-#[allow(deprecated)]
-impl NumberInput {
-    /// Create a new NumberInput component with a static value
-    #[deprecated(note = "Use NumberInputWidget::new() instead")]
-    pub fn new(id: ComponentId, value: f64) -> Gc<Component> {
-        Component::new(id, ComponentType::NumberInput, ComponentProps::NumberInput { value })
-    }
-
-    /// Create a new NumberInput component with a reactive signal
-    #[deprecated(note = "Use NumberInputWidget::new() instead")]
-    pub fn from_signal<T: crate::signal::SignalRead<f64> + Clone + 'static>(
-        id: ComponentId,
-        value_signal: T,
-    ) -> Gc<Component> {
-        use crate::signal::SignalRead;
-        let initial_value = value_signal.get();
-        let component = Component::new(
-            id,
-            ComponentType::NumberInput,
-            ComponentProps::NumberInput { value: initial_value },
-        );
-
-        // Setup reactive update
-        let comp = Gc::clone(&component);
-        let sig = value_signal.clone();
-        let effect = create_effect(move || {
-            use crate::signal::SignalRead;
-            let new_value = sig.get();
-            *comp.props.borrow_mut() = ComponentProps::NumberInput { value: new_value };
-            comp.mark_dirty();
-        });
-
-        component.add_effect(effect);
-        component
     }
 }
