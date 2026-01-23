@@ -24,17 +24,34 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
 }
 
 fn generate_empty_view() -> TokenStream {
+    // For empty view, create a minimal Flex container
+    let (id_val, id_ident) = generate_unique_id();
     quote! {
-        rvue::ViewStruct::new(
-            rvue::Component::new_empty()
-        )
+        {
+            let #id_ident = rvue::Component::new(
+                #id_val,
+                rvue::ComponentType::Flex,
+                rvue::ComponentProps::Flex {
+                    direction: "row".to_string(),
+                    gap: 0.0,
+                    align_items: "start".to_string(),
+                    justify_content: "start".to_string(),
+                }
+            );
+            rvue::ViewStruct::new(#id_ident)
+        }
     }
 }
 
 fn generate_node_code(node: &RvueNode) -> TokenStream {
     match node {
-        RvueNode::Element(el) => generate_element_code(el),
-        RvueNode::Text(text) => generate_text_node_code(text),
+        RvueNode::Element(el) => generate_element_code_wrapped(el),
+        RvueNode::Text(text) => {
+            let text_code = generate_text_node_code(text);
+            quote! {
+                rvue::ViewStruct::new(#text_code)
+            }
+        }
         RvueNode::Fragment(nodes) => generate_fragment_code(nodes.clone()),
     }
 }
@@ -78,6 +95,42 @@ fn generate_element_code(el: &RvueElement) -> TokenStream {
     }
 }
 
+fn generate_element_code_wrapped(el: &RvueElement) -> TokenStream {
+    let (id_val, id_ident) = generate_unique_id();
+
+    let widget_code = generate_widget_code(&el.widget_type, id_val, &el.attributes);
+
+    let children_code = if !el.children.is_empty() {
+        generate_children_code(&el.children, &id_ident)
+    } else {
+        quote! {}
+    };
+
+    let events = el
+        .events()
+        .iter()
+        .filter_map(|a| match a {
+            RvueAttribute::Event { name, handler, .. } => Some((name.as_str(), handler)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    let events_code = if !events.is_empty() {
+        generate_event_handlers(&id_ident, &events)
+    } else {
+        quote! {}
+    };
+
+    quote! {
+        {
+            let #id_ident = #widget_code;
+            #children_code
+            #events_code
+            rvue::ViewStruct::new(#id_ident)
+        }
+    }
+}
+
 fn generate_text_node_code(text: &RvueText) -> TokenStream {
     let (id_val, _id_ident) = generate_unique_id();
     let content = &text.content;
@@ -93,12 +146,7 @@ fn generate_text_node_code(text: &RvueText) -> TokenStream {
 fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
     match nodes.len() {
         0 => generate_empty_view(),
-        1 => {
-            let root = generate_node_code(&nodes[0]);
-            quote! {
-                rvue::ViewStruct::new(#root)
-            }
-        }
+        1 => generate_node_code(&nodes[0]),
         _ => {
             let (root_id_val, root_id_ident) = generate_unique_id();
             let root = quote! {
@@ -117,9 +165,11 @@ fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
             let children_code = generate_children_code(&nodes, &root_id_ident);
 
             quote! {
-                let #root_id_ident = #root;
-                #children_code
-                rvue::ViewStruct::new(#root_id_ident)
+                {
+                    let #root_id_ident = #root;
+                    #children_code
+                    rvue::ViewStruct::new(#root_id_ident)
+                }
             }
         }
     }
@@ -127,10 +177,27 @@ fn generate_fragment_code(nodes: Vec<RvueNode>) -> TokenStream {
 
 fn generate_children_code(children: &[RvueNode], parent_id: &Ident) -> TokenStream {
     let child_vars = children.iter().map(|child| {
-        let child_code = generate_node_code(child);
-        quote! {
-            let child = #child_code;
-            #parent_id.add_child(child);
+        // For children, we need Gc<Component>, not ViewStruct
+        // So we generate element code directly (not wrapped)
+        match child {
+            RvueNode::Element(el) => {
+                let child_code = generate_element_code(el);
+                quote! {
+                    let child = #child_code;
+                    #parent_id.add_child(child);
+                }
+            }
+            RvueNode::Text(text) => {
+                let text_code = generate_text_node_code(text);
+                quote! {
+                    let child = #text_code;
+                    #parent_id.add_child(child);
+                }
+            }
+            RvueNode::Fragment(_) => {
+                // Fragments as children are not supported - skip
+                quote! {}
+            }
         }
     });
 

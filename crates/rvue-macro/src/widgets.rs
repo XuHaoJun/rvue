@@ -63,7 +63,7 @@ fn generate_button_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     quote! {
         rvue::widgets::Button::new(
             #id,
-            #label
+            #label.to_string()
         )
     }
 }
@@ -79,29 +79,52 @@ fn generate_flex_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     // I'll assume for now we use defaults or expressions.
 
     // Check if attributes exist, otherwise use defaults
-    let direction =
-        extract_prop_value(attrs, "direction", || quote! { rvue::style::FlexDirection::Row });
+    // For string literals, we need to convert them to enums
+    let direction = extract_prop_value(attrs, "direction", || quote! { "row" });
     let gap = extract_prop_value(attrs, "gap", || quote! { 0.0 });
-    let align_items =
-        extract_prop_value(attrs, "align_items", || quote! { rvue::style::AlignItems::Stretch });
-    let justify_content = extract_prop_value(
-        attrs,
-        "justify_content",
-        || quote! { rvue::style::JustifyContent::Start },
-    );
+    let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
+    let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
 
-    // Warning: If the user passes a string literal "row", it won't be FlexDirection::Row.
-    // The user must pass `direction={FlexDirection::Row}` or I need a helper.
-    // For now, let's just generate the code as expressions.
-
+    // Convert string literals to enum values
+    // This is a temporary solution - in Phase 3, the macro will use the new Widget API
     quote! {
-        rvue::widgets::Flex::new(
-            #id,
-            #direction,
-            #gap,
-            #align_items,
-            #justify_content
-        )
+        {
+            use rvue::style::{FlexDirection, AlignItems, JustifyContent};
+            let direction_str = #direction.to_string();
+            let direction_enum = match direction_str.as_str() {
+                "row" => FlexDirection::Row,
+                "column" => FlexDirection::Column,
+                "row-reverse" => FlexDirection::RowReverse,
+                "column-reverse" => FlexDirection::ColumnReverse,
+                _ => FlexDirection::Row,
+            };
+            let align_str = #align_items.to_string();
+            let align_enum = match align_str.as_str() {
+                "start" => AlignItems::Start,
+                "end" => AlignItems::End,
+                "center" => AlignItems::Center,
+                "stretch" => AlignItems::Stretch,
+                "baseline" => AlignItems::Baseline,
+                _ => AlignItems::Stretch,
+            };
+            let justify_str = #justify_content.to_string();
+            let justify_enum = match justify_str.as_str() {
+                "start" => JustifyContent::Start,
+                "end" => JustifyContent::End,
+                "center" => JustifyContent::Center,
+                "space-between" => JustifyContent::SpaceBetween,
+                "space-around" => JustifyContent::SpaceAround,
+                "space-evenly" => JustifyContent::SpaceEvenly,
+                _ => JustifyContent::Start,
+            };
+            rvue::widgets::Flex::new(
+                #id,
+                direction_enum,
+                #gap,
+                align_enum,
+                justify_enum
+            )
+        }
     }
 }
 
