@@ -657,6 +657,7 @@ name = "counter-example"
 version = "0.1.0"
 dependencies = [
  "rvue",
+ "rvue-macro",
 ]
 
 [[package]]
@@ -928,6 +929,7 @@ name = "form-example"
 version = "0.1.0"
 dependencies = [
  "rvue",
+ "rvue-macro",
 ]
 
 [[package]]
@@ -1299,6 +1301,7 @@ name = "layout-example"
 version = "0.1.0"
 dependencies = [
  "rvue",
+ "rvue-macro",
 ]
 
 [[package]]
@@ -1357,6 +1360,7 @@ name = "list-example"
 version = "0.1.0"
 dependencies = [
  "rvue",
+ "rvue-macro",
 ]
 
 [[package]]

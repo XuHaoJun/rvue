@@ -24,9 +24,9 @@ fn create_counter_view() -> ViewStruct {
     let set_count_dec = set_count;
 
     let view = view! {
-        <Flex direction="column" gap={20.0} align_items="center" justify_content="center">
+        <Flex direction="column" gap=20.0 align_items="center" justify_content="center">
             <Text content={format!("Count: {}", count.get())} />
-            <Show when={show_message.get()}>
+            <Show when=show_message.get()>
                 <Text content="Counter is active!" />
             </Show>
             <Button label="+" on_click={move || set_count_inc.update(|x| *x += 1)} />

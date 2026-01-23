@@ -25,7 +25,7 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
         {
             use rvue::widget::{BuildContext, Widget};
             use rvue::text::TextContext;
-            use ::taffy::TaffyTree;
+            use rvue::TaffyTree;
 
             let mut taffy = TaffyTree::new();
             let mut text_context = TextContext::new();

@@ -59,20 +59,31 @@ pub fn generate_event_handlers(id: &Ident, events: &[(&str, &Expr)]) -> TokenStr
             }
         } else {
             quote! {
-                #id.#handler_ident(#handler)
+                #id.#handler_ident(#handler);
             }
         }
     });
 
     quote! {
-        #(#handlers)*
+        #(#handlers;)*
     }
 }
 
 fn closure_arg_count(expr: &Expr) -> Option<usize> {
-    match expr {
+    match unwrap_expr(expr) {
         Expr::Closure(closure) => Some(closure.inputs.len()),
         _ => None,
+    }
+}
+
+fn unwrap_expr(expr: &Expr) -> &Expr {
+    match expr {
+        Expr::Block(block) if block.block.stmts.len() == 1 => match block.block.stmts.first() {
+            Some(syn::Stmt::Expr(inner, _)) => inner,
+            _ => expr,
+        },
+        Expr::Paren(paren) => unwrap_expr(&paren.expr),
+        _ => expr,
     }
 }
 

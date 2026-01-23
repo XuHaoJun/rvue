@@ -35,6 +35,7 @@ pub use style::{
     AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
     Spacing, Style,
 };
+pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};
 pub use widget::{
