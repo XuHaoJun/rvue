@@ -2,7 +2,7 @@
 
 use crate::component::build_layout_tree;
 use crate::component::Component;
-use crate::render::widget::VelloFragment;
+use crate::render::widget::render_component;
 use crate::text::TextContext;
 use rudo_gc::Gc;
 use taffy::prelude::*;
@@ -12,7 +12,7 @@ use vello::kurbo::Affine;
 /// Scene structure for managing Vello rendering
 pub struct Scene {
     pub vello_scene: Option<vello::Scene>, // Lazy initialization
-    pub fragments: Vec<VelloFragment>,
+    pub root_components: Vec<Gc<Component>>,
     pub is_dirty: bool,
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
@@ -24,7 +24,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             vello_scene: None, // Defer scene creation until first render
-            fragments: Vec::new(),
+            root_components: Vec::new(),
             is_dirty: true,
             renderer_initialized: false,
             taffy: TaffyTree::new(),
@@ -40,59 +40,47 @@ impl Scene {
         }
     }
 
-    /// Add a component fragment to the scene
+    /// Add a root component to the scene
     pub fn add_fragment(&mut self, component: Gc<Component>) {
-        let fragment = VelloFragment::new(component);
-        self.fragments.push(fragment);
+        self.root_components.push(component);
         self.is_dirty = true;
     }
 
     /// Update the scene by regenerating dirty fragments
-    /// Optimized: Only reset the main scene when structural changes occur
     pub fn update(&mut self) {
-        let fragments_dirty = self.fragments.iter().any(|f| f.is_dirty());
+        // We always update layout if any component is dirty.
+        // For rendering, we reset the main scene and recompose it.
 
-        if !self.is_dirty && !fragments_dirty {
+        // Check if anything is dirty in the entire tree
+        let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
+
+        if !self.is_dirty && !any_dirty {
             return;
         }
 
         self.ensure_initialized();
 
-        // Reset the scene if anything is dirty
-        if self.is_dirty || fragments_dirty {
-            if let Some(ref mut scene) = self.vello_scene {
-                scene.reset();
-            }
+        // Always reset the main scene when recomposing
+        if let Some(ref mut scene) = self.vello_scene {
+            scene.reset();
         }
 
-        for fragment in &self.fragments {
-            // Build and compute layout in the shared tree
-            let layout =
-                build_layout_tree(&fragment.component, &mut self.taffy, &mut self.text_context);
-            fragment.component.set_layout_node(layout.clone());
+        for component in &self.root_components {
+            // 1. Layout Pass (shared tree)
+            let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
+            component.set_layout_node(layout.clone());
             if let Some(node_id) = layout.taffy_node() {
                 if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {
                     eprintln!("Scene layout calculation failed: {:?}", e);
                 }
             }
 
-            // Propagate results back to the entire component tree
-            crate::component::propagate_layout_results(&fragment.component, &self.taffy);
+            // Propagate results back
+            crate::component::propagate_layout_results(component, &self.taffy);
 
-            // Get updated layout node from component (now has results)
-            let layout_opt = fragment.component.layout_node();
-            let transform = if let Some(layout) = layout_opt {
-                if let Some(l) = layout.layout() {
-                    Affine::translate((l.location.x as f64, l.location.y as f64))
-                } else {
-                    Affine::IDENTITY
-                }
-            } else {
-                Affine::IDENTITY
-            };
-
+            // 2. Render Pass (recomposes fragments)
             if let Some(ref mut scene) = self.vello_scene {
-                fragment.generate_scene_items(scene, transform);
+                render_component(component, scene, Affine::IDENTITY);
             }
         }
 
@@ -110,14 +98,12 @@ impl Scene {
     }
 
     /// Get a reference to the underlying Vello scene
-    /// Initializes the scene if it hasn't been created yet
     pub fn vello_scene(&mut self) -> &vello::Scene {
         self.ensure_initialized();
         self.vello_scene.as_ref().unwrap()
     }
 
     /// Get a mutable reference to the underlying Vello scene
-    /// Initializes the scene if it hasn't been created yet
     pub fn vello_scene_mut(&mut self) -> &mut vello::Scene {
         self.ensure_initialized();
         self.vello_scene.as_mut().unwrap()

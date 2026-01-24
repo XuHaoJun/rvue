@@ -459,7 +459,7 @@ impl<'a> AppState<'a> {
         });
 
         // Populate scene from view if not already done
-        if self.scene.fragments.is_empty() {
+        if self.scene.root_components.is_empty() {
             if let Some(view) = &self.view {
                 self.scene.add_fragment(view.root_component.clone());
             }
@@ -496,23 +496,12 @@ impl<'a> AppState<'a> {
             label: Some("Surface Blit"),
         });
 
-        if surface.format == wgpu::TextureFormat::Rgba8Unorm {
-            // Simple copy if formats match
-            encoder.copy_texture_to_texture(
-                surface.target_texture.as_image_copy(),
-                surface_texture.texture.as_image_copy(),
-                wgpu::Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
-            );
-        } else {
-            // Fallback for non-matching formats: for now we just warn.
-            // In a full implementation, we'd use a render pipeline or TextureBlitter for format conversion.
-            eprintln!("Warning: Surface format {:?} doesn't match intermediate target format Rgba8Unorm. Blit might fail or be incorrect.", surface.format);
-            encoder.copy_texture_to_texture(
-                surface.target_texture.as_image_copy(),
-                surface_texture.texture.as_image_copy(),
-                wgpu::Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
-            );
-        }
+        // Intermediate texture format now matches the surface format
+        encoder.copy_texture_to_texture(
+            surface.target_texture.as_image_copy(),
+            surface_texture.texture.as_image_copy(),
+            wgpu::Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
+        );
 
         queue.submit([encoder.finish()]);
 

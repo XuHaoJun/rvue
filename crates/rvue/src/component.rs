@@ -8,9 +8,20 @@ use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::sync::atomic::{AtomicBool, Ordering};
 use taffy::TaffyTree;
+use vello::Scene;
 
 /// Unique identifier for a component
 pub type ComponentId = u64;
+
+/// Wrapper for vello::Scene to implement Trace
+#[derive(Default)]
+pub struct SceneWrapper(pub Scene);
+
+unsafe impl Trace for SceneWrapper {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // vello::Scene does not contain any GC pointers
+    }
+}
 
 /// Component type enumeration
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,6 +81,7 @@ pub struct Component {
     pub is_focused: GcCell<bool>,
     pub has_focus_target: GcCell<bool>,
     pub event_handlers: GcCell<EventHandlers>,
+    pub vello_cache: GcCell<Option<SceneWrapper>>,
 }
 
 unsafe impl Trace for Component {
@@ -86,6 +98,9 @@ unsafe impl Trace for Component {
         self.has_active.trace(visitor);
         self.is_focused.trace(visitor);
         self.has_focus_target.trace(visitor);
+        // Note: vello::Scene is not GC-managed, but GcCell needs tracing if it could contain GC pointers.
+        // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
+        self.vello_cache.trace(visitor);
     }
 }
 
@@ -142,12 +157,15 @@ impl Component {
             is_focused: GcCell::new(false),
             has_focus_target: GcCell::new(false),
             event_handlers: GcCell::new(EventHandlers::default()),
+            vello_cache: GcCell::new(None),
         })
     }
 
     /// Mark the component as dirty (needs re-render)
     pub fn mark_dirty(&self) {
         self.is_dirty.store(true, Ordering::SeqCst);
+        // Clear vello cache when dirty
+        *self.vello_cache.borrow_mut() = None;
         // Propagate dirty flag upwards so parents know they need to re-render
         if let Some(parent) = self.parent.borrow().as_ref() {
             parent.mark_dirty();

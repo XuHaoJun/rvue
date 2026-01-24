@@ -67,10 +67,19 @@ impl RenderContext {
 
         let device_handle = &self.devices[dev_id];
         let capabilities = surface.get_capabilities(&device_handle.adapter);
+        // Prefer Rgba8Unorm as it's the primary target for Vello's compute shaders
         let format = capabilities
             .formats
-            .into_iter()
-            .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
+            .iter()
+            .find(|f| **f == TextureFormat::Rgba8Unorm)
+            .copied()
+            .or_else(|| {
+                capabilities
+                    .formats
+                    .iter()
+                    .find(|f| **f == TextureFormat::Bgra8Unorm)
+                    .copied()
+            })
             .ok_or(CreateSurfaceError::UnsupportedSurfaceFormat)?;
 
         let alpha_mode =
@@ -93,7 +102,8 @@ impl RenderContext {
             view_formats: vec![],
         };
 
-        let (target_texture, target_view) = create_targets(width, height, &device_handle.device);
+        let (target_texture, target_view) =
+            create_targets(width, height, format, &device_handle.device);
 
         let surface =
             RenderSurface { surface, config, dev_id, format, target_texture, target_view };
@@ -103,7 +113,8 @@ impl RenderContext {
 
     /// Resizes the surface to the new dimensions.
     pub fn resize_surface(&self, surface: &mut RenderSurface<'_>, width: u32, height: u32) {
-        let (texture, view) = create_targets(width, height, &self.devices[surface.dev_id].device);
+        let (texture, view) =
+            create_targets(width, height, surface.format, &self.devices[surface.dev_id].device);
         surface.target_texture = texture;
         surface.target_view = view;
         surface.config.width = width;
@@ -146,7 +157,7 @@ impl RenderContext {
                 .ok()?;
         let features = adapter.features();
         let limits = wgpu::Limits::default();
-        let maybe_features = wgpu::Features::CLEAR_TEXTURE;
+        let maybe_features = wgpu::Features::CLEAR_TEXTURE | wgpu::Features::BGRA8UNORM_STORAGE;
 
         let device_request = adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
@@ -168,9 +179,14 @@ impl RenderContext {
     }
 }
 
-fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, TextureView) {
+fn create_targets(
+    width: u32,
+    height: u32,
+    format: TextureFormat,
+    device: &Device,
+) -> (Texture, TextureView) {
     let target_texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: None,
+        label: Some("Intermediate Target Texture"),
         size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
         mip_level_count: 1,
         sample_count: 1,
@@ -178,7 +194,7 @@ fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, Texture
         usage: TextureUsages::STORAGE_BINDING
             | TextureUsages::TEXTURE_BINDING
             | TextureUsages::COPY_SRC,
-        format: TextureFormat::Rgba8Unorm,
+        format,
         view_formats: &[],
     });
     let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
