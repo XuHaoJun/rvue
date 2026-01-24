@@ -52,6 +52,9 @@ fn test_nested_context() {
         
         // This simulates what view! macro does for custom components
         let child_comp = ctx.create_component(ComponentType::Custom("Child".to_string()), ComponentProps::Custom { data: String::new() });
+        child_comp.set_parent(Some(root.clone()));
+        root.add_child(child_comp.clone());
+
         rvue::runtime::with_owner(child_comp.clone(), || {
             let _ = Child(ChildProps {});
         });
@@ -90,10 +93,17 @@ fn test_context_shadowing() {
             justify_content: "start".to_string() 
         });
         
+        // CRITICAL: Set parent so search can traverse up
+        sub_root.set_parent(Some(root.clone()));
+        root.add_child(sub_root.clone());
+        
         rvue::runtime::with_owner(sub_root.clone(), || {
             provide_context(100i32);
             
             let child_comp = ctx.create_component(ComponentType::Custom("ShadowChild".to_string()), ComponentProps::Custom { data: String::new() });
+            child_comp.set_parent(Some(sub_root.clone()));
+            sub_root.add_child(child_comp.clone());
+
             rvue::runtime::with_owner(child_comp.clone(), || {
                 let _ = ShadowChild(ShadowChildProps {});
             });

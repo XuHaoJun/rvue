@@ -257,12 +257,7 @@ fn generate_children_code(
     });
 
     quote! {
-        {
-            let parent = #parent_id.clone();
-            rvue::runtime::with_owner(parent, || {
-                #(#child_vars)*
-            });
-        }
+        #(#child_vars)*
     }
 }
 

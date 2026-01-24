@@ -37,7 +37,7 @@ impl<T: Any> ContextValue for T {
 
 pub struct ContextEntry {
     pub type_id: TypeId,
-    pub value: Box<dyn Any>,
+    pub value: Box<dyn Any>, // Stores Gc<T> erased
 }
 
 /// Component type enumeration
@@ -558,9 +558,10 @@ impl Component {
 
     /// Provide context to this component and its descendants
     pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
+        // We always wrap the value in Gc so it's stable and traceable
         self.contexts.borrow_mut().push(ContextEntry {
             type_id: TypeId::of::<T>(),
-            value: Box::new(value),
+            value: Box::new(Gc::new(value)),
         });
     }
 
@@ -570,6 +571,7 @@ impl Component {
         let contexts = self.contexts.borrow();
         for entry in contexts.iter().rev() {
             if entry.type_id == type_id {
+                // At this point we know the entry value is Box<dyn Any> containing Gc<T>
                 if let Some(gc_val) = entry.value.downcast_ref::<Gc<T>>() {
                     return Some(Gc::clone(gc_val));
                 }
