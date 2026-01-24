@@ -3,7 +3,7 @@
 pub use crate::component::{
     Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType,
 };
-pub use crate::effect::{create_effect, Effect};
+pub use crate::effect::{create_effect, on_cleanup, untracked, Effect};
 pub use crate::signal::{
     create_memo, create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal,
 };

@@ -100,6 +100,7 @@ pub struct Component {
     pub event_handlers: GcCell<EventHandlers>,
     pub vello_cache: GcCell<Option<SceneWrapper>>,
     pub contexts: GcCell<Vec<ContextEntry>>,
+    pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
 unsafe impl Trace for Component {
@@ -119,6 +120,7 @@ unsafe impl Trace for Component {
         // Note: vello::Scene is not GC-managed, but GcCell needs tracing if it could contain GC pointers.
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
+        // Cleanups are not traced since they are closures
         for _entry in self.contexts.borrow().iter() {
             // Manual trace of context values
             // Currently this is a placeholder as polymorphic tracing is complex
@@ -181,6 +183,7 @@ impl Component {
             event_handlers: GcCell::new(EventHandlers::default()),
             vello_cache: GcCell::new(None),
             contexts: GcCell::new(Vec::new()),
+            cleanups: GcCell::new(Vec::new()),
         })
     }
 
@@ -643,6 +646,15 @@ impl ComponentLifecycle for Component {
 
         // Clean up effects
         // Effects are cleaned up by GC when component is dropped
+
+        // Run cleanups
+        let cleanups = {
+            let mut cleanups = self.cleanups.borrow_mut();
+            std::mem::take(&mut *cleanups)
+        };
+        for cleanup in cleanups {
+            cleanup();
+        }
     }
 
     fn update(&self) {

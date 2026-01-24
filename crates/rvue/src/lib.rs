@@ -27,7 +27,7 @@ pub mod widgets;
 
 pub use app::{run_app, AppError};
 pub use component::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
-pub use effect::{create_effect, untracked, Effect};
+pub use effect::{create_effect, on_cleanup, untracked, Effect};
 pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };

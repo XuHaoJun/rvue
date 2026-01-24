@@ -16,6 +16,7 @@ pub struct Effect {
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
+    cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
 // Effect contains a closure which is not Trace, but we can still make Effect Trace
@@ -23,7 +24,7 @@ pub struct Effect {
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Closure is not GC-managed, so we don't trace it
-        // No GC-managed fields to trace for MVP
+        // Cleanups are also not traced since they are closures
         self.owner.trace(visitor);
     }
 }
@@ -49,6 +50,7 @@ impl Effect {
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
+            cleanups: GcCell::new(Vec::new()),
         })
     }
 
@@ -59,6 +61,15 @@ impl Effect {
         if gc_effect.is_running.swap(true, Ordering::SeqCst) {
             // Already running, skip to prevent infinite loop
             return;
+        }
+
+        // Run cleanups from previous run
+        let cleanups = {
+            let mut cleanups = gc_effect.cleanups.borrow_mut();
+            std::mem::take(&mut *cleanups)
+        };
+        for cleanup in cleanups {
+            cleanup();
         }
 
         // Mark as clean before running
@@ -139,4 +150,21 @@ where
         *cell.borrow_mut() = previous;
         result
     })
+}
+
+/// Register a cleanup function for the current reactive scope (Effect or Component)
+pub fn on_cleanup<F>(f: F)
+where
+    F: FnOnce() + 'static,
+{
+    // Try Effect first
+    if let Some(effect) = current_effect() {
+        effect.cleanups.borrow_mut().push(Box::new(f));
+        return;
+    }
+
+    // Try Component
+    if let Some(owner) = crate::runtime::current_owner() {
+        owner.cleanups.borrow_mut().push(Box::new(f));
+    }
 }
