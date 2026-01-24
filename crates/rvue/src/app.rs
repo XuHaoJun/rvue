@@ -72,6 +72,7 @@ pub struct AppState<'a> {
     pub hovered_path: Vec<Gc<Component>>,
     pub focused_path: Vec<Gc<Component>>,
     pub needs_pointer_pass_update: bool,
+    pub last_gc_count: usize,
 }
 
 impl<'a> AppStateLike for AppState<'a> {
@@ -226,6 +227,7 @@ impl<'a> AppState<'a> {
             hovered_path: Vec::new(),
             focused_path: Vec::new(),
             needs_pointer_pass_update: false,
+            last_gc_count: 0,
         }
     }
 }
@@ -373,6 +375,30 @@ impl<'a> AppState<'a> {
 
         // Process component lifecycle updates and effects
         self.root_component().update();
+
+        // Monitor GC performance
+        self.monitor_gc();
+    }
+
+    fn monitor_gc(&mut self) {
+        let metrics = rudo_gc::last_gc_metrics();
+        if metrics.total_collections > self.last_gc_count {
+            self.last_gc_count = metrics.total_collections;
+
+            let duration_ms = metrics.duration.as_millis();
+            println!(
+                "[GC] Collection #{}: {:?} ({}ms), reclaimed {} bytes, surviving {} bytes",
+                metrics.total_collections,
+                metrics.collection_type,
+                duration_ms,
+                metrics.bytes_reclaimed,
+                metrics.bytes_surviving
+            );
+
+            if duration_ms > 16 {
+                eprintln!("WARNING: GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
+            }
+        }
     }
 
     fn request_redraw_if_dirty(&self) {

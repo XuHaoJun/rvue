@@ -20,10 +20,6 @@ pub enum ReactiveValue<T: Trace + Clone + 'static> {
     Static(T),
     /// Value derived from a signal
     Signal(ReadSignal<T>),
-    /// Value derived from a closure (for computed values)
-    /// Note: This variant is not Clone, so cloning ReactiveValue with Derived
-    /// will panic. Use Static or Signal for cloneable reactive values.
-    Derived(Box<dyn Fn() -> T + 'static>),
 }
 
 impl<T: Trace + Clone + 'static> Clone for ReactiveValue<T> {
@@ -31,9 +27,6 @@ impl<T: Trace + Clone + 'static> Clone for ReactiveValue<T> {
         match self {
             ReactiveValue::Static(value) => ReactiveValue::Static(value.clone()),
             ReactiveValue::Signal(signal) => ReactiveValue::Signal(signal.clone()),
-            ReactiveValue::Derived(_) => {
-                panic!("Cannot clone ReactiveValue::Derived - use Static or Signal instead")
-            }
         }
     }
 }
@@ -46,10 +39,6 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ReactiveValue<T> {
             }
             ReactiveValue::Signal(signal) => {
                 signal.trace(visitor);
-            }
-            ReactiveValue::Derived(_) => {
-                // Closures may capture GC pointers, but we can't trace them
-                // This is a limitation - derived values should be used carefully
             }
         }
     }
@@ -64,13 +53,12 @@ impl<T: Trace + Clone + 'static> ReactiveValue<T> {
                 use crate::signal::SignalRead;
                 SignalRead::get(signal)
             }
-            ReactiveValue::Derived(f) => f(),
         }
     }
 
-    /// Check if this value is reactive (signal or derived)
+    /// Check if this value is reactive (signal)
     pub fn is_reactive(&self) -> bool {
-        matches!(self, ReactiveValue::Signal(_) | ReactiveValue::Derived(_))
+        matches!(self, ReactiveValue::Signal(_))
     }
 }
 
@@ -93,11 +81,6 @@ impl<T: Trace + Clone + 'static> IntoReactiveValue<T> for ReadSignal<T> {
 // Helper function for static values (avoids trait conflict)
 pub fn static_value<T: Trace + Clone + 'static>(value: T) -> ReactiveValue<T> {
     ReactiveValue::Static(value)
-}
-
-// Helper function for closures
-pub fn derived_value<T: Trace + Clone + 'static, F: Fn() -> T + 'static>(f: F) -> ReactiveValue<T> {
-    ReactiveValue::Derived(Box::new(f))
 }
 
 // Implement for common primitive types to avoid needing explicit conversion
