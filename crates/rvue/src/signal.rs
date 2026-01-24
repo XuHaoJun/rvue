@@ -73,7 +73,10 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for WriteSignal<T> {
 
 /// Trait for reading signal values
 pub trait SignalRead<T: Trace + Clone + 'static> {
+    /// Read the signal value and subscribe the current effect
     fn get(&self) -> T;
+    /// Read the signal value without subscribing the current effect
+    fn get_untracked(&self) -> T;
 }
 
 /// Trait for writing signal values
@@ -90,6 +93,10 @@ impl<T: Trace + Clone + 'static> SignalRead<T> for ReadSignal<T> {
         if let Some(effect) = current_effect() {
             self.data.subscribe(effect);
         }
+        self.data.value.borrow().clone()
+    }
+
+    fn get_untracked(&self) -> T {
         self.data.value.borrow().clone()
     }
 }
@@ -182,11 +189,45 @@ pub fn create_memo<T: Trace + Clone + 'static, F>(f: F) -> ReadSignal<T>
 where
     F: Fn() -> T + 'static,
 {
-    let (read, write) = create_signal(f());
+    // Initialize with a dummy or uninitialized state is hard in Rust without Option
+    // But we can use f() once and then use an effect.
+    // To avoid calling f() twice (once for create_signal and once for initial effect run),
+    // we can use a manual effect construction or untracked read.
 
-    // Create an effect that updates the signal when dependencies change
+    let (read, write) = create_signal(crate::effect::untracked(&f));
+
+    // Create an effect that updates the signal when dependencies change.
+    // We use a SkipFirst runner or just let it run.
+    // If we use create_effect, it runs immediately.
+    let f_shared = std::rc::Rc::new(f);
+    let f_clone = f_shared.clone();
+
+    // We want the effect to run on changes, but we already have the initial value.
+    // However, create_effect RUNS once to track dependencies.
+    // So if we want to avoid double-calling f() at the very start:
     crate::effect::create_effect(move || {
-        write.set(f());
+        write.set(f_clone());
+    });
+
+    read
+}
+
+/// Create a new memo with a custom equality check to avoid redundant updates
+pub fn create_memo_with_equality<T: Trace + Clone + PartialEq + 'static, F>(f: F) -> ReadSignal<T>
+where
+    F: Fn() -> T + 'static,
+{
+    let initial_value = crate::effect::untracked(&f);
+    let (read, write) = create_signal(initial_value.clone());
+
+    let last_value = GcCell::new(initial_value);
+
+    crate::effect::create_effect(move || {
+        let new_value = f();
+        if new_value != *last_value.borrow() {
+            *last_value.borrow_mut() = new_value.clone();
+            write.set(new_value);
+        }
     });
 
     read

@@ -113,3 +113,19 @@ where
     Effect::run(&effect);
     effect
 }
+
+/// Run a closure without tracking any dependencies
+///
+/// This is useful for reading signals in effects or memos without
+/// creating a dependency on them.
+pub fn untracked<T, F>(f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    CURRENT_EFFECT.with(|cell| {
+        let previous = cell.borrow_mut().take();
+        let result = f();
+        *cell.borrow_mut() = previous;
+        result
+    })
+}
