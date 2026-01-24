@@ -559,10 +559,9 @@ impl Component {
     /// Provide context to this component and its descendants
     pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
         // We always wrap the value in Gc so it's stable and traceable
-        self.contexts.borrow_mut().push(ContextEntry {
-            type_id: TypeId::of::<T>(),
-            value: Box::new(Gc::new(value)),
-        });
+        self.contexts
+            .borrow_mut()
+            .push(ContextEntry { type_id: TypeId::of::<T>(), value: Box::new(Gc::new(value)) });
     }
 
     /// Find context of type T in this component or its ancestors

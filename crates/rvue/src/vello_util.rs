@@ -74,11 +74,7 @@ impl RenderContext {
             .find(|f| **f == TextureFormat::Rgba8Unorm)
             .copied()
             .or_else(|| {
-                capabilities
-                    .formats
-                    .iter()
-                    .find(|f| **f == TextureFormat::Bgra8Unorm)
-                    .copied()
+                capabilities.formats.iter().find(|f| **f == TextureFormat::Bgra8Unorm).copied()
             })
             .ok_or(CreateSurfaceError::UnsupportedSurfaceFormat)?;
 

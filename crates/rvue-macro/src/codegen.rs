@@ -86,7 +86,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                     let props = #props_struct_name {
                         #(#props_init),*
                     };
-                    
+
                     // Create the component object for this custom widget to act as a scope owner
                     let #component_ident = #ctx_ident.create_component(
                         rvue::component::ComponentType::Custom(#name.to_string()),
@@ -95,7 +95,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
 
                     // Run the setup function with this component as the owner
                     let view = rvue::runtime::with_owner(#component_ident.clone(), || #widget_name(props));
-                    
+
                     // Convert view to component and add as child
                     let inner_comp = rvue::prelude::View::into_component(view);
                     #component_ident.add_child(inner_comp);

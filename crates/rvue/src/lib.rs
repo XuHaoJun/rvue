@@ -9,13 +9,13 @@
 
 pub mod app;
 pub mod component;
+pub mod context;
 pub mod effect;
 pub mod error;
 pub mod event;
 pub mod layout;
 pub mod prelude;
 pub mod render;
-pub mod context;
 pub mod runtime;
 pub mod signal;
 pub mod style;
