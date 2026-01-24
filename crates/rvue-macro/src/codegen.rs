@@ -7,7 +7,7 @@ use crate::analysis::{classify_expression, ExpressionKind};
 use crate::ast::{RvueAttribute, RvueElement, RvueNode, RvueText, WidgetType};
 use crate::widgets::generate_event_handlers;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use rstml::node::{Node, NodeAttribute, NodeElement, NodeName};
 use syn::spanned::Spanned;
 use syn::{Block, Expr};
@@ -53,6 +53,7 @@ fn generate_node_code(node: &RvueNode, ctx_ident: &Ident) -> TokenStream {
         RvueNode::Element(el) => generate_element_code(el, ctx_ident),
         RvueNode::Text(text) => generate_text_node_code(text, ctx_ident),
         RvueNode::Fragment(nodes) => generate_fragment_code(nodes.clone(), ctx_ident),
+        RvueNode::Block(expr, span) => generate_block_node_code(expr, *span, ctx_ident),
     }
 }
 
@@ -64,14 +65,19 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
             let widget_name = Ident::new(name, el.span);
             let props_struct_name = Ident::new(&format!("{}Props", name), el.span);
 
-            let props_init =
-                el.attributes.iter().filter(|a| !matches!(a, RvueAttribute::Event { .. })).map(
-                    |attr| {
-                        let name = format_ident!("{}", attr.name());
-                        let PropValue { value, .. } = extract_attr_value(attr);
-                        quote! { #name: #value }
-                    },
-                );
+            let props_init = el
+                .attributes
+                .iter()
+                .filter(|a| !matches!(a, RvueAttribute::Event { .. }))
+                .map(|attr| {
+                    let name = format_ident!("{}", attr.name());
+                    let PropValue { value, is_reactive } = extract_attr_value(attr);
+                    if is_reactive {
+                        quote! { #name: rvue::signal::create_memo(move || #value).into_reactive() }
+                    } else {
+                        quote! { #name: rvue::widget::IntoReactiveValue::into_reactive(#value) }
+                    }
+                });
 
             let events_code = generate_event_handlers_for_element(&component_ident, el);
 
@@ -126,6 +132,45 @@ fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
     }
 }
 
+fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> TokenStream {
+    let kind = classify_expression(expr);
+    let component_ident = format_ident!("component");
+
+    match kind {
+        ExpressionKind::Static => {
+            quote! {
+                {
+                    let widget = rvue::widgets::Text::new((#expr).to_string());
+                    let state = widget.build(&mut #ctx_ident);
+                    state.component().clone()
+                }
+            }
+        }
+        ExpressionKind::Reactive => {
+            quote_spanned! { span =>
+                {
+                    // Initial build with current value
+                    let widget = rvue::widgets::Text::new((#expr).to_string());
+                    let state = widget.build(&mut #ctx_ident);
+                    let #component_ident = state.component().clone();
+
+                    // Register effect for fine-grained updates
+                    {
+                        let comp = #component_ident.clone();
+                        let effect = rvue::prelude::create_effect(move || {
+                            let new_value = (#expr).to_string();
+                            comp.set_text_content(new_value);
+                        });
+                        #component_ident.add_effect(effect);
+                    }
+
+                    #component_ident
+                }
+            }
+        }
+    }
+}
+
 fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStream {
     match nodes.len() {
         0 => generate_empty_component(ctx_ident),
@@ -173,6 +218,15 @@ fn generate_children_code(
             quote! {
                 {
                     let child = #text_code;
+                    #parent_id.add_child(child);
+                }
+            }
+        }
+        RvueNode::Block(expr, span) => {
+            let block_code = generate_block_node_code(expr, *span, ctx_ident);
+            quote! {
+                {
+                    let child = #block_code;
                     #parent_id.add_child(child);
                 }
             }
@@ -582,17 +636,7 @@ pub fn convert_rstml_to_rvue(node: &Node, _parent_type: Option<&WidgetType>) -> 
         Node::Block(block) => {
             let expr = syn::parse2::<Expr>(block.to_token_stream());
             if let Ok(expr) = expr {
-                Some(RvueNode::Element(RvueElement {
-                    tag_name: "block".to_string(),
-                    widget_type: WidgetType::Custom("Block".to_string()),
-                    attributes: vec![RvueAttribute::Dynamic {
-                        name: "value".to_string(),
-                        expr,
-                        span: block.span(),
-                    }],
-                    children: vec![],
-                    span: block.span(),
-                }))
+                Some(RvueNode::Block(expr, block.span()))
             } else {
                 None
             }

@@ -31,6 +31,15 @@ impl<T: Trace + Clone + 'static> Clone for ReactiveValue<T> {
     }
 }
 
+impl<T: Trace + Clone + 'static> std::fmt::Debug for ReactiveValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReactiveValue::Static(_) => f.debug_tuple("Static").field(&"<value>").finish(),
+            ReactiveValue::Signal(sig) => f.debug_tuple("Signal").field(sig).finish(),
+        }
+    }
+}
+
 unsafe impl<T: Trace + Clone + 'static> Trace for ReactiveValue<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         match self {

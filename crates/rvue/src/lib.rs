@@ -30,7 +30,7 @@ pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };
 pub use render::{Scene, VelloFragment};
-pub use signal::{create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
+pub use signal::{create_memo, create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
 pub use style::{
     AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
     Spacing, Style,

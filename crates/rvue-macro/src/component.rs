@@ -20,7 +20,7 @@ pub fn component_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             // Extract identifier from pattern
             if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
-                props_fields.push(quote! { pub #ident: #ty });
+                props_fields.push(quote! { pub #ident: rvue::widget::ReactiveValue<#ty> });
                 fn_args.push(ident);
                 props_init.push(quote! { let #ident = props.#ident; });
             }
@@ -38,6 +38,7 @@ pub fn component_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the modified function
     // It takes `props: ComponentProps` instead of individual args
     let output_fn = quote! {
+        #[allow(non_snake_case)]
         #vis fn #name(props: #props_name) -> impl rvue::prelude::View {
             #(#props_init)*
             #block

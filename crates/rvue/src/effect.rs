@@ -25,6 +25,15 @@ unsafe impl Trace for Effect {
     }
 }
 
+impl std::fmt::Debug for Effect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Effect")
+            .field("is_dirty", &self.is_dirty)
+            .field("is_running", &self.is_running)
+            .finish()
+    }
+}
+
 impl Effect {
     /// Create a new effect with a closure
     pub fn new<F>(closure: F) -> Gc<Self>

@@ -6,9 +6,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Internal signal data structure
 pub struct SignalData<T: Trace + Clone + 'static> {
-    value: GcCell<T>,
-    version: AtomicU64,
-    subscribers: GcCell<Vec<Gc<Effect>>>,
+    pub(crate) value: GcCell<T>,
+    pub(crate) version: AtomicU64,
+    pub(crate) subscribers: GcCell<Vec<Gc<Effect>>>,
+}
+
+impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalData<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SignalData").field("version", &self.version).finish()
+    }
 }
 
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalData<T> {
@@ -20,9 +26,23 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalData<T> {
 }
 
 /// Read handle for a signal
-#[derive(Clone)]
 pub struct ReadSignal<T: Trace + Clone + 'static> {
     data: Gc<SignalData<T>>,
+}
+
+impl<T: Trace + Clone + 'static> Clone for ReadSignal<T> {
+    fn clone(&self) -> Self {
+        Self { data: self.data.clone() }
+    }
+}
+
+impl<T: Trace + Clone + 'static> std::fmt::Debug for ReadSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReadSignal")
+            .field("data_ptr", &Gc::as_ptr(&self.data)) // Avoid requiring T: Debug
+            .field("version", &self.data.version.load(Ordering::Relaxed))
+            .finish()
+    }
 }
 
 unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
@@ -32,9 +52,23 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
 }
 
 /// Write handle for a signal
-#[derive(Clone)]
 pub struct WriteSignal<T: Trace + Clone + 'static> {
     data: Gc<SignalData<T>>,
+}
+
+impl<T: Trace + Clone + 'static> Clone for WriteSignal<T> {
+    fn clone(&self) -> Self {
+        Self { data: self.data.clone() }
+    }
+}
+
+impl<T: Trace + Clone + 'static> std::fmt::Debug for WriteSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WriteSignal")
+            .field("data_ptr", &Gc::as_ptr(&self.data)) // Avoid requiring T: Debug
+            .field("version", &self.data.version.load(Ordering::Relaxed))
+            .finish()
+    }
 }
 
 /// Trait for reading signal values
@@ -137,4 +171,23 @@ pub fn create_signal<T: Trace + Clone + 'static>(
         subscribers: GcCell::new(Vec::new()),
     });
     (ReadSignal { data: Gc::clone(&data) }, WriteSignal { data })
+}
+
+/// Create a new memo that automatically updates when its dependencies change
+///
+/// A memo is a derived signal that only recomputes its value when one of its
+/// reactive dependencies changes. This is useful for caching expensive
+/// computations.
+pub fn create_memo<T: Trace + Clone + 'static, F>(f: F) -> ReadSignal<T>
+where
+    F: Fn() -> T + 'static,
+{
+    let (read, write) = create_signal(f());
+
+    // Create an effect that updates the signal when dependencies change
+    crate::effect::create_effect(move || {
+        write.set(f());
+    });
+
+    read
 }

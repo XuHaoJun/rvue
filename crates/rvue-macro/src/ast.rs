@@ -17,6 +17,8 @@ pub enum RvueNode {
     Text(RvueText),
     /// Fragment (multiple root nodes)
     Fragment(Vec<RvueNode>),
+    /// Block expression (e.g., {count.get()})
+    Block(Expr, Span),
 }
 
 /// Element representing a widget

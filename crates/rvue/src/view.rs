@@ -37,6 +37,13 @@ impl ViewStruct {
     }
 }
 
+/// Implement View for ViewStruct
+impl View for ViewStruct {
+    fn into_component(self) -> Gc<Component> {
+        self.root_component
+    }
+}
+
 /// Implement View for Component (components are views)
 impl View for Gc<Component> {
     fn into_component(self) -> Gc<Component> {
