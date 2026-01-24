@@ -7,3 +7,4 @@ license.workspace = true
 
 [dependencies]
 rvue = { path = "../../rvue" }
+rvue-macro = { path = "../../rvue-macro" }

@@ -1,6 +1,6 @@
 //! Unit tests for Button widget event handling
 
-use rvue::{Component, ComponentType, ComponentProps, ComponentId};
+use rvue::{Component, ComponentType, ComponentProps};
 
 #[test]
 fn test_button_widget_creation() {
@@ -13,7 +13,7 @@ fn test_button_widget_creation() {
     );
     
     assert_eq!(button.component_type, ComponentType::Button);
-    match &button.props {
+    match &*button.props.borrow() {
         ComponentProps::Button { label } => {
             assert_eq!(label, "Click Me");
         }

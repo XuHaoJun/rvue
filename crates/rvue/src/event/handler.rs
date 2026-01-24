@@ -42,6 +42,7 @@ pub struct EventHandlers {
     pub on_focus: Option<EventHandler<FocusEvent>>,
     pub on_blur: Option<EventHandler<FocusEvent>>,
     pub on_input: Option<EventHandler<InputEvent>>,
+    pub on_change: Option<EventHandler<InputEvent>>,
 }
 
 impl EventHandlers {
@@ -79,5 +80,9 @@ impl EventHandlers {
 
     pub fn get_input(&self) -> Option<&EventHandler<InputEvent>> {
         self.on_input.as_ref()
+    }
+
+    pub fn get_change(&self) -> Option<&EventHandler<InputEvent>> {
+        self.on_change.as_ref()
     }
 }

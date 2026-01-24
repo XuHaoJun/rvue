@@ -255,6 +255,175 @@ impl Component {
         }
     }
 
+    // Property-specific setters for fine-grained updates
+
+    /// Set text content (for Text components)
+    pub fn set_text_content(&self, content: String) {
+        let (font_size, color) = {
+            if let ComponentProps::Text { font_size, color, .. } = &*self.props.borrow() {
+                (*font_size, *color)
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color };
+        self.mark_dirty();
+    }
+
+    /// Set text font size (for Text components)
+    pub fn set_text_font_size(&self, font_size: f32) {
+        let (content, color) = {
+            if let ComponentProps::Text { content, color, .. } = &*self.props.borrow() {
+                (content.clone(), *color)
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() =
+            ComponentProps::Text { content, font_size: Some(font_size), color };
+        self.mark_dirty();
+    }
+
+    /// Set text color (for Text components)
+    pub fn set_text_color(&self, color: vello::peniko::Color) {
+        let (content, font_size) = {
+            if let ComponentProps::Text { content, font_size, .. } = &*self.props.borrow() {
+                (content.clone(), *font_size)
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color: Some(color) };
+        self.mark_dirty();
+    }
+
+    /// Set button label (for Button components)
+    pub fn set_button_label(&self, label: String) {
+        if matches!(self.component_type, ComponentType::Button) {
+            *self.props.borrow_mut() = ComponentProps::Button { label };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set flex direction (for Flex components)
+    pub fn set_flex_direction(&self, direction: String) {
+        let (gap, align_items, justify_content) = {
+            if let ComponentProps::Flex { gap, align_items, justify_content, .. } =
+                &*self.props.borrow()
+            {
+                (*gap, align_items.clone(), justify_content.clone())
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.mark_dirty();
+    }
+
+    /// Set flex gap (for Flex components)
+    pub fn set_flex_gap(&self, gap: f32) {
+        let (direction, align_items, justify_content) = {
+            if let ComponentProps::Flex { direction, align_items, justify_content, .. } =
+                &*self.props.borrow()
+            {
+                (direction.clone(), align_items.clone(), justify_content.clone())
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.mark_dirty();
+    }
+
+    /// Set flex align items (for Flex components)
+    pub fn set_flex_align_items(&self, align_items: String) {
+        let (direction, gap, justify_content) = {
+            if let ComponentProps::Flex { direction, gap, justify_content, .. } =
+                &*self.props.borrow()
+            {
+                (direction.clone(), *gap, justify_content.clone())
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.mark_dirty();
+    }
+
+    /// Set flex justify content (for Flex components)
+    pub fn set_flex_justify_content(&self, justify_content: String) {
+        let (direction, gap, align_items) = {
+            if let ComponentProps::Flex { direction, gap, align_items, .. } = &*self.props.borrow()
+            {
+                (direction.clone(), *gap, align_items.clone())
+            } else {
+                return;
+            }
+        };
+        *self.props.borrow_mut() =
+            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.mark_dirty();
+    }
+
+    /// Set checkbox checked state (for Checkbox components)
+    pub fn set_checkbox_checked(&self, checked: bool) {
+        if matches!(self.component_type, ComponentType::Checkbox) {
+            *self.props.borrow_mut() = ComponentProps::Checkbox { checked };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set radio checked state (for Radio components)
+    pub fn set_radio_checked(&self, checked: bool) {
+        if let ComponentProps::Radio { value, .. } = &*self.props.borrow() {
+            *self.props.borrow_mut() = ComponentProps::Radio { value: value.clone(), checked };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set radio value (for Radio components)
+    pub fn set_radio_value(&self, value: String) {
+        if let ComponentProps::Radio { checked, .. } = &*self.props.borrow() {
+            *self.props.borrow_mut() = ComponentProps::Radio { value, checked: *checked };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set text input value (for TextInput components)
+    pub fn set_text_input_value(&self, value: String) {
+        if matches!(self.component_type, ComponentType::TextInput) {
+            *self.props.borrow_mut() = ComponentProps::TextInput { value };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set number input value (for NumberInput components)
+    pub fn set_number_input_value(&self, value: f64) {
+        if matches!(self.component_type, ComponentType::NumberInput) {
+            *self.props.borrow_mut() = ComponentProps::NumberInput { value };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set show condition (for Show components)
+    pub fn set_show_when(&self, when: bool) {
+        if matches!(self.component_type, ComponentType::Show) {
+            *self.props.borrow_mut() = ComponentProps::Show { when };
+            self.mark_dirty();
+        }
+    }
+
+    /// Set for item count (for For components)
+    pub fn set_for_item_count(&self, item_count: usize) {
+        if matches!(self.component_type, ComponentType::For) {
+            *self.props.borrow_mut() = ComponentProps::For { item_count };
+            self.mark_dirty();
+        }
+    }
+
     pub fn on_click<F>(self: &Gc<Self>, handler: F)
     where
         F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
@@ -326,6 +495,24 @@ impl Component {
     {
         let handler = crate::event::handler::EventHandler::new(handler);
         self.event_handlers.borrow_mut().on_blur = Some(handler);
+    }
+
+    pub fn on_input<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_input = Some(handler);
+    }
+
+    pub fn on_change<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().on_change = Some(handler);
     }
 }
 

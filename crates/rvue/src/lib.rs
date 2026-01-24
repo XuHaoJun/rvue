@@ -20,6 +20,7 @@ pub mod style;
 pub mod text;
 pub mod vello_util;
 pub mod view;
+pub mod widget;
 pub mod widgets;
 
 pub use app::{run_app, AppError};
@@ -34,6 +35,10 @@ pub use style::{
     AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
     Spacing, Style,
 };
+pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};
+pub use widget::{
+    BuildContext, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget, WidgetWrapper,
+};
 pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

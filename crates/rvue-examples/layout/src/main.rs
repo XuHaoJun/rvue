@@ -1,9 +1,7 @@
 //! Complex nested flexbox layout example
 
-use rvue::{
-    AlignItems, Component, ComponentProps, ComponentType, Flex, FlexDirection, JustifyContent,
-    ViewStruct,
-};
+use rvue::prelude::*;
+use rvue_macro::view;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create layout view
@@ -16,93 +14,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_layout_view() -> ViewStruct {
-    // Create root component with column layout
-    let root = Flex::new(
-        0,
-        FlexDirection::Column,
-        20.0, // gap
-        AlignItems::Center,
-        JustifyContent::Start,
-    );
+    view! {
+        <Flex direction="column" gap=20.0 align_items="center" justify_content="start">
+            <Flex direction="row" gap=10.0 align_items="center" justify_content="space-between">
+                <Text content="Rvue Layout Example" />
+            </Flex>
 
-    // Create header section
-    let header =
-        Flex::new(1, FlexDirection::Row, 10.0, AlignItems::Center, JustifyContent::SpaceBetween);
+            <Flex direction="row" gap=15.0 align_items="stretch" justify_content="start">
+                <Flex direction="column" gap=5.0 align_items="start" justify_content="start">
+                    <Text content="Sidebar Item 1" />
+                    <Text content="Sidebar Item 2" />
+                    <Text content="Sidebar Item 3" />
+                    <Text content="Sidebar Item 4" />
+                    <Text content="Sidebar Item 5" />
+                </Flex>
 
-    // Create header text
-    let header_text = Component::new(
-        10,
-        ComponentType::Text,
-        ComponentProps::Text {
-            content: "Rvue Layout Example".to_string(),
-            font_size: None,
-            color: None,
-        },
-    );
-    header.add_child(header_text);
+                <Flex direction="column" gap=10.0 align_items="start" justify_content="start">
+                    <Text content="Content Section 1" />
+                    <Text content="Content Section 2" />
+                    <Text content="Content Section 3" />
+                </Flex>
+            </Flex>
 
-    root.add_child(header);
-
-    // Create main content area with nested layouts
-    let main_content =
-        Flex::new(2, FlexDirection::Row, 15.0, AlignItems::Stretch, JustifyContent::Start);
-
-    // Create sidebar
-    let sidebar =
-        Flex::new(3, FlexDirection::Column, 5.0, AlignItems::Start, JustifyContent::Start);
-
-    // Create sidebar items
-    for i in 1..=5 {
-        let sidebar_item = Component::new(
-            30 + i,
-            ComponentType::Text,
-            ComponentProps::Text {
-                content: format!("Sidebar Item {}", i),
-                font_size: None,
-                color: None,
-            },
-        );
-        sidebar.add_child(sidebar_item);
+            <Flex direction="row" gap=5.0 align_items="center" justify_content="center">
+                <Text content="Footer" />
+            </Flex>
+        </Flex>
     }
-
-    main_content.add_child(sidebar);
-
-    // Create content area
-    let content =
-        Flex::new(4, FlexDirection::Column, 10.0, AlignItems::Start, JustifyContent::Start);
-
-    // Create content items
-    for i in 1..=3 {
-        let content_item = Component::new(
-            40 + i,
-            ComponentType::Text,
-            ComponentProps::Text {
-                content: format!("Content Section {}", i),
-                font_size: None,
-                color: None,
-            },
-        );
-        content.add_child(content_item);
-    }
-
-    main_content.add_child(content);
-
-    root.add_child(main_content);
-
-    // Create footer
-    let footer = Flex::new(5, FlexDirection::Row, 5.0, AlignItems::Center, JustifyContent::Center);
-
-    let footer_text = Component::new(
-        50,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Footer".to_string(), font_size: None, color: None },
-    );
-    footer.add_child(footer_text);
-
-    root.add_child(footer);
-
-    // Create view
-    let view = ViewStruct::new(root);
-
-    view
 }

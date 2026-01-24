@@ -1,11 +1,7 @@
 //! Form example demonstrating all input types
 
 use rvue::prelude::*;
-use rvue::{
-    AlignItems, Component, ComponentProps, ComponentType, Flex, FlexDirection, JustifyContent,
-    ViewStruct,
-};
-use rvue::{Checkbox, NumberInput, Radio, TextInput};
+use rvue_macro::view;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create form view
@@ -19,76 +15,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_form_view() -> ViewStruct {
     // Create signals for form fields
-    let (name, _set_name) = create_signal(String::new());
-    let (age, _set_age) = create_signal(0.0);
-    let (email, _set_email) = create_signal(String::new());
-    let (agree_to_terms, _set_agree) = create_signal(false);
-    let (selected_option, _set_option) = create_signal("option1".to_string());
+    let (name, set_name) = create_signal(String::new());
+    let (age, set_age) = create_signal(0.0);
+    let (email, set_email) = create_signal(String::new());
+    let (agree_to_terms, set_agree) = create_signal(false);
+    let (selected_option, set_option) = create_signal("option1".to_string());
 
-    // Create root component with column layout
-    let root = Flex::new(0, FlexDirection::Column, 15.0, AlignItems::Start, JustifyContent::Start);
+    let selected_option1 = selected_option.clone();
+    let selected_option2 = selected_option.clone();
+    let selected_option3 = selected_option.clone();
 
-    // Create form title
-    let _title = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text {
-            content: "User Registration Form".to_string(),
-            font_size: None,
-            color: None,
-        },
-    );
+    let set_name_clone = set_name.clone();
+    let set_age_clone = set_age.clone();
+    let set_email_clone = set_email.clone();
+    let set_agree_clone = set_agree.clone();
+    let set_option_clone1 = set_option.clone();
+    let set_option_clone2 = set_option.clone();
+    let set_option_clone3 = set_option.clone();
 
-    // Create name input
-    let _name_input = TextInput::new(2, name.get());
+    view! {
+        <Flex direction="column" gap=15.0 align_items="start" justify_content="start">
+            <Text content="User Registration Form" />
 
-    // Create age input
-    let _age_input = NumberInput::new(3, age.get());
+            <Flex direction="row" gap=10.0>
+                <Text content="Name:" />
+                <TextInput value=name.get() on_input={move |e: &rvue::event::status::InputEvent| set_name_clone.set(e.value.clone())} />
+            </Flex>
 
-    // Create email input
-    let _email_input = TextInput::new(4, email.get());
+            <Flex direction="row" gap=10.0>
+                <Text content="Age:" />
+                <NumberInput value=age.get() on_input={move |e: &rvue::event::status::InputEvent| set_age_clone.set(e.number_value)} />
+            </Flex>
 
-    // Create checkbox for terms agreement
-    let _terms_checkbox = Checkbox::new(5, agree_to_terms.get());
+            <Flex direction="row" gap=10.0>
+                <Text content="Email:" />
+                <TextInput value=email.get() on_input={move |e: &rvue::event::status::InputEvent| set_email_clone.set(e.value.clone())} />
+            </Flex>
 
-    // Create radio buttons for options
-    let _radio1 = Radio::new(6, "option1".to_string(), selected_option.get() == "option1");
-    let _radio2 = Radio::new(7, "option2".to_string(), selected_option.get() == "option2");
-    let _radio3 = Radio::new(8, "option3".to_string(), selected_option.get() == "option3");
+            <Flex direction="row" gap=10.0>
+                <Checkbox checked=agree_to_terms.get() on_change={move |e: &rvue::event::status::InputEvent| set_agree_clone.set(e.checked)} />
+                <Text content="I agree to the terms" />
+            </Flex>
 
-    // Create submit button
-    let _submit_button = Component::new(
-        9,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Submit".to_string() },
-    );
+            <Flex direction="column" gap=5.0>
+                <Text content="Select Option:" />
+                <Flex direction="row" gap=10.0>
+                    <Radio value="option1" checked=selected_option1.get() == "option1" on_change={move |_e: &rvue::event::status::InputEvent| set_option_clone1.set("option1".to_string())} />
+                    <Text content="Option 1" />
+                </Flex>
+                <Flex direction="row" gap=10.0>
+                    <Radio value="option2" checked=selected_option2.get() == "option2" on_change={move |_e: &rvue::event::status::InputEvent| set_option_clone2.set("option2".to_string())} />
+                    <Text content="Option 2" />
+                </Flex>
+                <Flex direction="row" gap=10.0>
+                    <Radio value="option3" checked=selected_option3.get() == "option3" on_change={move |_e: &rvue::event::status::InputEvent| set_option_clone3.set("option3".to_string())} />
+                    <Text content="Option 3" />
+                </Flex>
+            </Flex>
 
-    // Note: In a full implementation, we would:
-    // 1. Use the view! macro to create components declaratively
-    // 2. Connect event handlers (on_input, on_change) to update signals
-    // 3. Use effects to update input values when signals change
-    // 4. Add components to the root component's children
-    // For MVP, this demonstrates the basic structure
-
-    // Create view
-    let view = ViewStruct::new(root);
-
-    // Add effects to track form field changes
-    let _name_effect = create_effect({
-        let name = name.clone();
-        move || {
-            let _ = name.get();
-            println!("Name changed: {}", name.get());
-        }
-    });
-
-    let _age_effect = create_effect({
-        let age = age.clone();
-        move || {
-            let _ = age.get();
-            println!("Age changed: {}", age.get());
-        }
-    });
-
-    view
+            <Button label="Submit" />
+        </Flex>
+    }
 }
