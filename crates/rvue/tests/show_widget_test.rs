@@ -9,7 +9,7 @@ fn test_show_widget_creation() {
     assert_eq!(show.component_type, ComponentType::Show);
     match &*show.props.borrow() {
         ComponentProps::Show { when } => {
-            assert_eq!(*when, true);
+            assert!(*when);
         }
         _ => panic!("Expected Show props"),
     };
@@ -21,7 +21,7 @@ fn test_show_widget_when_false() {
 
     match &*show.props.borrow() {
         ComponentProps::Show { when } => {
-            assert_eq!(*when, false);
+            assert!(!*when);
         }
         _ => panic!("Expected Show props"),
     };

@@ -2,7 +2,6 @@
 //!
 //! This module generates code for each widget type, handling their
 //! specific attributes and converting them to builder patterns.
-#![allow(dead_code)]
 
 use crate::ast::{RvueAttribute, WidgetType};
 use proc_macro2::{Ident, TokenStream};
@@ -277,7 +276,7 @@ fn extract_prop_value<F>(attrs: &[RvueAttribute], name: &str, default: F) -> Tok
 where
     F: FnOnce() -> TokenStream,
 {
-    attrs.iter().find(|a| a.name() == name).map(|a| extract_attr_value(a)).unwrap_or_else(default)
+    attrs.iter().find(|a| a.name() == name).map(extract_attr_value).unwrap_or_else(default)
 }
 
 fn extract_optional_prop(attrs: &[RvueAttribute], name: &str) -> TokenStream {

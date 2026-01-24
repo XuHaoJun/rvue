@@ -4,8 +4,10 @@ use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerMoveEvent};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+type HandlerFn<E> = Box<dyn Fn(&E, &mut EventContext)>;
+
 pub struct EventHandler<E: 'static> {
-    inner: Rc<RefCell<Option<Box<dyn Fn(&E, &mut EventContext)>>>>,
+    inner: Rc<RefCell<Option<HandlerFn<E>>>>,
 }
 
 impl<E> Clone for EventHandler<E> {

@@ -20,15 +20,15 @@ fn test_show_component_conditional_rendering() {
         Component::new(2, ComponentType::Show, ComponentProps::Show { when: is_visible.get() });
 
     // Initially visible
-    assert_eq!(is_visible.get(), true);
+    assert!(is_visible.get());
 
     // Hide it
     set_visible.set(false);
-    assert_eq!(is_visible.get(), false);
+    assert!(!is_visible.get());
 
     // Show it again
     set_visible.set(true);
-    assert_eq!(is_visible.get(), true);
+    assert!(is_visible.get());
 }
 
 #[test]
@@ -52,11 +52,11 @@ fn test_show_component_with_signal_tracking() {
     // Update visibility - effect should re-run
     set_visible.set(true);
     assert_eq!(call_count.get(), 2);
-    assert_eq!(is_visible.get(), true);
+    assert!(is_visible.get());
 
     set_visible.set(false);
     assert_eq!(call_count.get(), 3);
-    assert_eq!(is_visible.get(), false);
+    assert!(!is_visible.get());
 }
 
 #[test]

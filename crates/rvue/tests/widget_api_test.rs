@@ -96,7 +96,7 @@ fn test_flex_widget_builder() {
             let props = state.component().props.borrow();
             match &*props {
                 ComponentProps::Flex { direction, gap, .. } => {
-                    assert_eq!(direction, "Column");
+                    assert_eq!(direction, "column");
                     assert_eq!(*gap, 10.0);
                 }
                 _ => panic!("Expected Flex props"),
@@ -116,7 +116,7 @@ fn test_checkbox_widget_builder() {
             let props = state.component().props.borrow();
             match &*props {
                 ComponentProps::Checkbox { checked } => {
-                    assert_eq!(*checked, true);
+                    assert!(*checked);
                 }
                 _ => panic!("Expected Checkbox props"),
             }
@@ -154,7 +154,7 @@ fn test_show_widget_builder() {
             let props = state.component().props.borrow();
             match &*props {
                 ComponentProps::Show { when } => {
-                    assert_eq!(*when, true);
+                    assert!(*when);
                 }
                 _ => panic!("Expected Show props"),
             }

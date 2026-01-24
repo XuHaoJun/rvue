@@ -62,7 +62,6 @@ impl std::error::Error for ValidationError {}
 pub type ValidationResult<T> = Result<T, ValidationError>;
 
 /// Input validation functions
-
 /// Validate text input
 pub fn validate_text_input(
     value: &str,

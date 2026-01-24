@@ -12,6 +12,12 @@ pub struct TextContext {
     pub layout_ctx: LayoutContext<BrushIndex>,
 }
 
+impl Default for TextContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextContext {
     pub fn new() -> Self {
         let font_ctx = FontContext {
@@ -40,10 +46,8 @@ pub fn render_text(
             if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
                 let run = glyph_run.run();
 
-                let vello_glyphs: Vec<vello::Glyph> = glyph_run
-                    .glyphs()
-                    .map(|g| vello::Glyph { id: g.id, x: g.x as f32, y: g.y as f32 })
-                    .collect();
+                let vello_glyphs: Vec<vello::Glyph> =
+                    glyph_run.glyphs().map(|g| vello::Glyph { id: g.id, x: g.x, y: g.y }).collect();
 
                 scene
                     .draw_glyphs(run.font())

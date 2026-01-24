@@ -509,7 +509,11 @@ impl<'a> AppState<'a> {
 
         let render_cx = self.render_cx.as_mut().unwrap();
 
-        if self.surface.is_none() {
+        if let Some(surface) = self.surface.as_mut() {
+            if surface.config.width != size.width || surface.config.height != size.height {
+                render_cx.resize_surface(surface, size.width, size.height);
+            }
+        } else {
             let window = match &self.window {
                 Some(w) => w.clone(),
                 None => return Ok(None),
@@ -521,11 +525,6 @@ impl<'a> AppState<'a> {
                 wgpu::PresentMode::AutoVsync,
             ))?;
             self.surface = Some(new_surface);
-        } else {
-            let surface = self.surface.as_mut().unwrap();
-            if surface.config.width != size.width || surface.config.height != size.height {
-                render_cx.resize_surface(surface, size.width, size.height);
-            }
         }
 
         let surface = self.surface.as_mut().unwrap();

@@ -3,7 +3,6 @@
 //! These tests verify that the macro correctly classifies and handles
 //! different types of attributes: static, dynamic, and event handlers.
 
-use rvue::prelude::*;
 use rvue_macro::view;
 
 #[test]
@@ -17,7 +16,7 @@ fn test_static_string_attribute() {
 #[test]
 fn test_static_numeric_attribute() {
     let _view = view! {
-        <NumberInput value={42.0} />
+        <NumberInput value=42.0 />
     };
     let _ = _view;
 }
@@ -25,7 +24,7 @@ fn test_static_numeric_attribute() {
 #[test]
 fn test_static_boolean_attribute() {
     let _view = view! {
-        <Checkbox checked={true} />
+        <Checkbox checked=true />
     };
     let _ = _view;
 }
@@ -34,7 +33,7 @@ fn test_static_boolean_attribute() {
 fn test_dynamic_string_attribute() {
     let value = "dynamic";
     let _view = view! {
-        <Text content={value} />
+        <Text content=value />
     };
     let _ = _view;
 }
@@ -43,7 +42,7 @@ fn test_dynamic_string_attribute() {
 fn test_dynamic_numeric_attribute() {
     let value = 42.0;
     let _view = view! {
-        <NumberInput value={value} />
+        <NumberInput value=value />
     };
     let _ = _view;
 }
@@ -52,7 +51,7 @@ fn test_dynamic_numeric_attribute() {
 fn test_dynamic_boolean_attribute() {
     let checked = true;
     let _view = view! {
-        <Checkbox checked={checked} />
+        <Checkbox checked=checked />
     };
     let _ = _view;
 }
@@ -69,7 +68,7 @@ fn test_complex_expression_attribute() {
 #[test]
 fn test_multiple_static_attributes() {
     let _view = view! {
-        <Radio value="option1" checked={false} />
+        <Radio value="option1" checked=false />
     };
     let _ = _view;
 }
@@ -78,7 +77,7 @@ fn test_multiple_static_attributes() {
 fn test_mixed_static_dynamic_attributes() {
     let checked = true;
     let _view = view! {
-        <Radio value="option1" checked={checked} />
+        <Radio value="option1" checked=checked />
     };
     let _ = _view;
 }

@@ -22,6 +22,12 @@ pub struct DeviceHandle {
     pub queue: wgpu::Queue,
 }
 
+impl Default for RenderContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenderContext {
     pub fn new() -> Self {
         let backends = wgpu::Backends::all();
