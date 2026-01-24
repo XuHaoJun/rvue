@@ -121,15 +121,17 @@ impl LayoutNode {
                 if let ComponentProps::Flex { direction, gap, align_items, justify_content } =
                     &*component.props.borrow()
                 {
-                    let flex_direction = match direction.as_str() {
+                    let flex_direction = match direction.to_lowercase().replace('_', "-").as_str() {
                         "row" => taffy::prelude::FlexDirection::Row,
                         "column" => taffy::prelude::FlexDirection::Column,
-                        "row-reverse" => taffy::prelude::FlexDirection::RowReverse,
-                        "column-reverse" => taffy::prelude::FlexDirection::ColumnReverse,
+                        "row-reverse" | "rowreverse" => taffy::prelude::FlexDirection::RowReverse,
+                        "column-reverse" | "columnreverse" => {
+                            taffy::prelude::FlexDirection::ColumnReverse
+                        }
                         _ => taffy::prelude::FlexDirection::Row,
                     };
 
-                    let align_items_taffy = match align_items.as_str() {
+                    let align_items_taffy = match align_items.to_lowercase().as_str() {
                         "start" => taffy::prelude::AlignItems::Start,
                         "end" => taffy::prelude::AlignItems::End,
                         "center" => taffy::prelude::AlignItems::Center,
@@ -138,15 +140,22 @@ impl LayoutNode {
                         _ => taffy::prelude::AlignItems::Stretch,
                     };
 
-                    let justify_content_taffy = match justify_content.as_str() {
-                        "start" => taffy::prelude::JustifyContent::Start,
-                        "end" => taffy::prelude::JustifyContent::End,
-                        "center" => taffy::prelude::JustifyContent::Center,
-                        "space-between" => taffy::prelude::JustifyContent::SpaceBetween,
-                        "space-around" => taffy::prelude::JustifyContent::SpaceAround,
-                        "space-evenly" => taffy::prelude::JustifyContent::SpaceEvenly,
-                        _ => taffy::prelude::JustifyContent::Start,
-                    };
+                    let justify_content_taffy =
+                        match justify_content.to_lowercase().replace('_', "-").as_str() {
+                            "start" => taffy::prelude::JustifyContent::Start,
+                            "end" => taffy::prelude::JustifyContent::End,
+                            "center" => taffy::prelude::JustifyContent::Center,
+                            "space-between" | "spacebetween" => {
+                                taffy::prelude::JustifyContent::SpaceBetween
+                            }
+                            "space-around" | "spacearound" => {
+                                taffy::prelude::JustifyContent::SpaceAround
+                            }
+                            "space-evenly" | "spaceevenly" => {
+                                taffy::prelude::JustifyContent::SpaceEvenly
+                            }
+                            _ => taffy::prelude::JustifyContent::Start,
+                        };
 
                     Style {
                         display: Display::Flex,

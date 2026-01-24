@@ -83,6 +83,23 @@ pub enum FlexDirection {
     ColumnReverse,
 }
 
+impl FlexDirection {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Row => "row",
+            Self::Column => "column",
+            Self::RowReverse => "row-reverse",
+            Self::ColumnReverse => "column-reverse",
+        }
+    }
+}
+
+impl std::fmt::Display for FlexDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 unsafe impl rudo_gc::Trace for FlexDirection {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // FlexDirection contains no GC pointers
@@ -97,6 +114,24 @@ pub enum AlignItems {
     Center,
     Stretch,
     Baseline,
+}
+
+impl AlignItems {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::End => "end",
+            Self::Center => "center",
+            Self::Stretch => "stretch",
+            Self::Baseline => "baseline",
+        }
+    }
+}
+
+impl std::fmt::Display for AlignItems {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 unsafe impl rudo_gc::Trace for AlignItems {
@@ -114,6 +149,25 @@ pub enum JustifyContent {
     SpaceBetween,
     SpaceAround,
     SpaceEvenly,
+}
+
+impl JustifyContent {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::End => "end",
+            Self::Center => "center",
+            Self::SpaceBetween => "space-between",
+            Self::SpaceAround => "space-around",
+            Self::SpaceEvenly => "space-evenly",
+        }
+    }
+}
+
+impl std::fmt::Display for JustifyContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 unsafe impl rudo_gc::Trace for JustifyContent {

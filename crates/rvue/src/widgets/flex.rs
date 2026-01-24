@@ -135,10 +135,10 @@ impl Widget for Flex {
             id,
             ComponentType::Flex,
             ComponentProps::Flex {
-                direction: format!("{:?}", direction),
+                direction: direction.as_str().to_string(),
                 gap,
-                align_items: format!("{:?}", align_items),
-                justify_content: format!("{:?}", justify_content),
+                align_items: align_items.as_str().to_string(),
+                justify_content: justify_content.as_str().to_string(),
             },
         );
 
@@ -148,7 +148,7 @@ impl Widget for Flex {
             let direction = self.direction.clone();
             let effect = crate::effect::create_effect(move || {
                 let new_direction = direction.get();
-                comp.set_flex_direction(format!("{:?}", new_direction));
+                comp.set_flex_direction(new_direction.as_str().to_string());
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -174,7 +174,7 @@ impl Widget for Flex {
             let align_items = self.align_items.clone();
             let effect = crate::effect::create_effect(move || {
                 let new_align_items = align_items.get();
-                comp.set_flex_align_items(format!("{:?}", new_align_items));
+                comp.set_flex_align_items(new_align_items.as_str().to_string());
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -187,7 +187,7 @@ impl Widget for Flex {
             let justify_content = self.justify_content.clone();
             let effect = crate::effect::create_effect(move || {
                 let new_justify_content = justify_content.get();
-                comp.set_flex_justify_content(format!("{:?}", new_justify_content));
+                comp.set_flex_justify_content(new_justify_content.as_str().to_string());
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -212,14 +212,14 @@ impl Widget for Flex {
                 let direction = self.direction.clone();
                 let effect = crate::effect::create_effect(move || {
                     let new_direction = direction.get();
-                    comp.set_flex_direction(format!("{:?}", new_direction));
+                    comp.set_flex_direction(new_direction.as_str().to_string());
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.direction_effect = Some(effect);
             }
         } else {
             let new_direction = self.direction.get();
-            state.component.set_flex_direction(format!("{:?}", new_direction));
+            state.component.set_flex_direction(new_direction.as_str().to_string());
         }
 
         // Update gap if reactive
@@ -246,14 +246,14 @@ impl Widget for Flex {
                 let align_items = self.align_items.clone();
                 let effect = crate::effect::create_effect(move || {
                     let new_align_items = align_items.get();
-                    comp.set_flex_align_items(format!("{:?}", new_align_items));
+                    comp.set_flex_align_items(new_align_items.as_str().to_string());
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.align_items_effect = Some(effect);
             }
         } else {
             let new_align_items = self.align_items.get();
-            state.component.set_flex_align_items(format!("{:?}", new_align_items));
+            state.component.set_flex_align_items(new_align_items.as_str().to_string());
         }
 
         // Update justify_content if reactive
@@ -263,14 +263,14 @@ impl Widget for Flex {
                 let justify_content = self.justify_content.clone();
                 let effect = crate::effect::create_effect(move || {
                     let new_justify_content = justify_content.get();
-                    comp.set_flex_justify_content(format!("{:?}", new_justify_content));
+                    comp.set_flex_justify_content(new_justify_content.as_str().to_string());
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.justify_content_effect = Some(effect);
             }
         } else {
             let new_justify_content = self.justify_content.get();
-            state.component.set_flex_justify_content(format!("{:?}", new_justify_content));
+            state.component.set_flex_justify_content(new_justify_content.as_str().to_string());
         }
     }
 }
