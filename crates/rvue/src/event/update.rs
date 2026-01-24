@@ -1,4 +1,3 @@
-use crate::component::Component;
 use crate::event::path::get_component_path;
 use crate::event::status::StatusUpdate;
 use rudo_gc::Gc;
@@ -13,7 +12,7 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
     let capture_target = app_state.pointer_capture().clone();
     let is_capture_hovered = capture_target
         .as_ref()
-        .map_or(false, |capture| next_hovered_path.iter().any(|h| Gc::ptr_eq(h, capture)));
+        .is_some_and(|capture| next_hovered_path.iter().any(|h| Gc::ptr_eq(h, capture)));
 
     let next_active_path = if is_capture_hovered {
         get_component_path(&app_state.root_component(), capture_target)
@@ -22,9 +21,9 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
     };
 
     for widget in prev_active_path.iter().chain(next_active_path.iter()) {
-        let widget_ptr = Gc::as_ptr(widget) as *const Component;
+        let widget_ptr = Gc::as_ptr(widget);
         let should_have_active =
-            next_active_path.iter().any(|w| Gc::as_ptr(w) as *const Component == widget_ptr);
+            next_active_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
         let has_active = *widget.is_active.borrow();
 
         if should_have_active != has_active {
@@ -34,8 +33,8 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
         }
     }
 
-    let prev_active_leaf = prev_active_path.first().map(|p| Gc::as_ptr(p) as *const Component);
-    let next_active_leaf = next_active_path.first().map(|p| Gc::as_ptr(p) as *const Component);
+    let prev_active_leaf = prev_active_path.first().map(Gc::as_ptr);
+    let next_active_leaf = next_active_path.first().map(Gc::as_ptr);
 
     if prev_active_leaf != next_active_leaf {
         if let Some(prev) = prev_active_path.first() {
@@ -51,9 +50,9 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
     }
 
     for widget in prev_hovered_path.iter().chain(next_hovered_path.iter()) {
-        let widget_ptr = Gc::as_ptr(widget) as *const Component;
+        let widget_ptr = Gc::as_ptr(widget);
         let should_have_hovered =
-            next_hovered_path.iter().any(|w| Gc::as_ptr(w) as *const Component == widget_ptr);
+            next_hovered_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
         let has_hovered = *widget.is_hovered.borrow();
 
         if should_have_hovered != has_hovered {
@@ -63,8 +62,8 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
         }
     }
 
-    let prev_hovered_leaf = prev_hovered_path.first().map(|p| Gc::as_ptr(p) as *const Component);
-    let next_hovered_leaf = next_hovered_path.first().map(|p| Gc::as_ptr(p) as *const Component);
+    let prev_hovered_leaf = prev_hovered_path.first().map(Gc::as_ptr);
+    let next_hovered_leaf = next_hovered_path.first().map(Gc::as_ptr);
 
     if prev_hovered_leaf != next_hovered_leaf {
         if let Some(prev) = prev_hovered_path.first() {
@@ -105,9 +104,9 @@ pub fn run_update_focus_pass(app_state: &mut impl crate::app::AppStateLike) {
     let prev_focused_path = std::mem::take(app_state.focused_path());
 
     for widget in prev_focused_path.iter().chain(next_focused_path.iter()) {
-        let widget_ptr = Gc::as_ptr(widget) as *const Component;
+        let widget_ptr = Gc::as_ptr(widget);
         let should_have_focus =
-            next_focused_path.iter().any(|w| Gc::as_ptr(w) as *const Component == widget_ptr);
+            next_focused_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
         let has_focus_target = *widget.has_focus_target.borrow();
 
         if should_have_focus != has_focus_target {

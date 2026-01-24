@@ -11,12 +11,9 @@ fn hit_test_recursive(
     point: Point,
     parent_transform: Affine,
 ) -> Option<Gc<Component>> {
-    let layout_result =
-        component.layout_node.borrow().as_ref().and_then(|node| node.layout_result.clone());
+    let layout_result = component.layout_node.borrow().as_ref().and_then(|node| node.layout_result);
 
-    let Some(layout) = layout_result else {
-        return None;
-    };
+    let layout = layout_result?;
 
     let local_origin = Point::new(layout.location.x as f64, layout.location.y as f64);
     let local_size = Size::new(layout.size.width as f64, layout.size.height as f64);

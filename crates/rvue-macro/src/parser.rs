@@ -5,9 +5,8 @@
 
 use proc_macro2::{TokenStream, TokenTree};
 use proc_macro_error2::abort;
-use rstml::node::{Node, NodeBlock};
+use rstml::node::Node;
 use rstml::ParserConfig;
-use syn::{RangeLimits, Stmt};
 
 /// Parse view macro input into rstml nodes
 ///
@@ -71,20 +70,4 @@ pub fn strip_global_class(input: TokenStream, global_class: Option<&TokenTree>) 
     } else {
         input
     }
-}
-
-/// Check if a block is a spread marker {..}
-pub fn is_spread_marker(block: &NodeBlock) -> bool {
-    if let NodeBlock::ValidBlock(block) = block {
-        if let Some(stmt) = block.stmts.first() {
-            if let Stmt::Expr(expr, _) = stmt {
-                if let syn::Expr::Range(range) = expr {
-                    return range.start.is_none()
-                        && matches!(range.limits, RangeLimits::HalfOpen(_))
-                        && range.end.is_none();
-                }
-            }
-        }
-    }
-    false
 }

@@ -41,7 +41,7 @@ fn test_checkbox_creation() {
     assert_eq!(checkbox.component_type, ComponentType::Checkbox);
     match &*checkbox.props.borrow() {
         ComponentProps::Checkbox { checked } => {
-            assert_eq!(*checked, true);
+            assert!(*checked);
         }
         _ => panic!("Expected Checkbox props"),
     };
@@ -59,7 +59,7 @@ fn test_radio_creation() {
     match &*radio.props.borrow() {
         ComponentProps::Radio { value, checked } => {
             assert_eq!(value, "option1");
-            assert_eq!(*checked, true);
+            assert!(*checked);
         }
         _ => panic!("Expected Radio props"),
     };
@@ -88,7 +88,7 @@ fn test_checkbox_unchecked() {
 
     match &*checkbox.props.borrow() {
         ComponentProps::Checkbox { checked } => {
-            assert_eq!(*checked, false);
+            assert!(!*checked);
         }
         _ => panic!("Expected Checkbox props"),
     };
@@ -105,7 +105,7 @@ fn test_radio_unchecked() {
     match &*radio.props.borrow() {
         ComponentProps::Radio { value, checked } => {
             assert_eq!(value, "option2");
-            assert_eq!(*checked, false);
+            assert!(!*checked);
         }
         _ => panic!("Expected Radio props"),
     };

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 // Thread-local storage for tracking the currently running effect
 thread_local! {
-    static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = RefCell::new(None);
+    static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = const { RefCell::new(None) };
 }
 
 /// Effect structure for reactive computations

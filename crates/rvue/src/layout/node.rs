@@ -21,6 +21,12 @@ unsafe impl Trace for LayoutNode {
     }
 }
 
+impl Default for LayoutNode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LayoutNode {
     /// Create a new layout node
     pub fn new() -> Self {

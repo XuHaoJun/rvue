@@ -36,7 +36,7 @@ fn test_show_widget_with_signal() {
     let (visible, _set_visible) = create_signal(true);
 
     let _view = view! {
-        <Show when={visible.get()}>
+        <Show when=visible.get()>
             <Text content="Visible" />
         </Show>
     };
@@ -50,7 +50,7 @@ fn test_complex_nested_structure() {
     let (label, _set_label) = create_signal("Button".to_string());
 
     let _view = view! {
-        <Flex direction="column" gap={10.0}>
+        <Flex direction="column" gap=10.0>
             <Text content={format!("Count: {}", count.get())} />
             <Button label={label.get()} />
             <Flex direction="row">

@@ -101,7 +101,7 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
         // Collect effects to update (clone to avoid borrow conflicts)
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().map(|e| Gc::clone(e)).collect()
+            subscribers.iter().map(Gc::clone).collect()
         };
 
         // Mark all effects as dirty first (no borrow needed)

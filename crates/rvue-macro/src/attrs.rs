@@ -4,7 +4,7 @@
 //! from rstml nodes into rvue-specific attribute representations.
 
 use crate::ast::{RvueAttribute, WidgetType};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::Span;
 use proc_macro_error2::abort;
 use rstml::node::{KeyedAttribute, NodeAttribute};
 use syn::spanned::Spanned;
@@ -135,29 +135,6 @@ enum Value {
 pub enum AttributeError {
     BlockAttribute,
     NoValue,
-    InvalidExpr { span: Span, message: String },
 }
 
-impl AttributeError {
-    /// Convert to compile error
-    pub fn to_compile_error(&self) -> TokenStream {
-        match self {
-            AttributeError::BlockAttribute => {
-                quote::quote! {
-                    compile_error!("Block attributes are not currently supported")
-                }
-            }
-            AttributeError::NoValue => {
-                quote::quote! {
-                    compile_error!("Attribute is missing a value")
-                }
-            }
-            AttributeError::InvalidExpr { span, message } => {
-                let message = message.clone();
-                quote::quote_spanned! { *span =>
-                    compile_error!(#message)
-                }
-            }
-        }
-    }
-}
+impl AttributeError {}

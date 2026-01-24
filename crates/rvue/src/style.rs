@@ -177,7 +177,7 @@ unsafe impl rudo_gc::Trace for JustifyContent {
 }
 
 /// Style structure for component styling
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Style {
     pub color: Option<Color>,
     pub background_color: Option<Color>,
@@ -196,28 +196,4 @@ pub struct Style {
     pub align_items: Option<AlignItems>,
     pub justify_content: Option<JustifyContent>,
     pub gap: Option<f32>,
-}
-
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            color: None,
-            background_color: None,
-            font_size: None,
-            font_weight: None,
-            font_family: None,
-            padding: None,
-            margin: None,
-            border: None,
-            border_radius: None,
-            width: None,
-            height: None,
-            flex_direction: None,
-            flex_grow: None,
-            flex_shrink: None,
-            align_items: None,
-            justify_content: None,
-            gap: None,
-        }
-    }
 }

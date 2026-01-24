@@ -13,8 +13,6 @@ pub enum ExpressionKind {
     Static,
     /// Expression appears to be reactive (reads signals)
     Reactive,
-    /// Expression is used as an event handler
-    EventHandler,
 }
 
 /// Determine whether an expression is likely reactive

@@ -58,7 +58,7 @@ fn test_text_widget_with_special_characters() {
 #[test]
 fn test_text_widget_rendering_properties() {
     // Test that Text widget can be created with different content
-    let texts = vec![
+    let texts = [
         Component::new(
             1,
             ComponentType::Text,

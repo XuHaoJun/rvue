@@ -40,7 +40,7 @@ fn test_button_widget_event_handler() {
 #[test]
 fn test_button_widget_multiple_buttons() {
     // Test creating multiple button widgets
-    let buttons = vec![
+    let buttons = [
         Component::new(
             1,
             ComponentType::Button,
@@ -59,7 +59,7 @@ fn test_button_widget_multiple_buttons() {
     ];
 
     assert_eq!(buttons.len(), 3);
-    let labels = vec!["OK", "Cancel", "Apply"];
+    let labels = ["OK", "Cancel", "Apply"];
     for (i, button) in buttons.iter().enumerate() {
         assert_eq!(button.component_type, ComponentType::Button);
         match &*button.props.borrow() {

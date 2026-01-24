@@ -560,7 +560,7 @@ fn extract_attr_value(attr: &RvueAttribute) -> PropValue {
     }
 }
 
-pub fn convert_rstml_to_rvue(node: &Node, parent_type: Option<&WidgetType>) -> Option<RvueNode> {
+pub fn convert_rstml_to_rvue(node: &Node, _parent_type: Option<&WidgetType>) -> Option<RvueNode> {
     match node {
         Node::Comment(_) => None,
         Node::Doctype(_) => None,
@@ -568,7 +568,7 @@ pub fn convert_rstml_to_rvue(node: &Node, parent_type: Option<&WidgetType>) -> O
             let children: Vec<RvueNode> = frag
                 .children
                 .iter()
-                .filter_map(|n| convert_rstml_to_rvue(n, parent_type))
+                .filter_map(|n| convert_rstml_to_rvue(n, _parent_type))
                 .collect();
 
             if children.is_empty() {
@@ -651,14 +651,10 @@ fn is_spread_element(el: &NodeElement) -> bool {
 }
 
 fn is_block_spread_marker(block: &Block) -> bool {
-    if let Some(stmt) = block.stmts.first() {
-        if let syn::Stmt::Expr(expr, _) = stmt {
-            if let syn::Expr::Range(range) = expr {
-                return range.start.is_none()
-                    && matches!(range.limits, syn::RangeLimits::HalfOpen(_))
-                    && range.end.is_none();
-            }
-        }
+    if let Some(syn::Stmt::Expr(syn::Expr::Range(range), _)) = block.stmts.first() {
+        return range.start.is_none()
+            && matches!(range.limits, syn::RangeLimits::HalfOpen(_))
+            && range.end.is_none();
     }
     false
 }
