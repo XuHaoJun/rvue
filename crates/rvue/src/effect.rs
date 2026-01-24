@@ -19,13 +19,53 @@ pub struct Effect {
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
-// Effect contains a closure which is not Trace, but we can still make Effect Trace
-// by not tracing the closure (it's not GC-managed)
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Closure is not GC-managed, so we don't trace it
-        // Cleanups are also not traced since they are closures
+        // Trace known Gc fields
         self.owner.trace(visitor);
+
+        // Conservatively scan the main closure's captured environment
+        let closure_ptr: *const dyn Fn() = &*self.closure;
+        let (data_ptr, vtable_ptr) =
+            unsafe { std::mem::transmute::<*const dyn Fn(), (*const u8, *const ())>(closure_ptr) };
+        let layout = std::alloc::Layout::for_value(&*self.closure);
+        let size = layout.size();
+
+        // Safety: Only scan if it looks like a valid heap pointer and size is reasonable
+        if !data_ptr.is_null()
+            && (data_ptr as usize).is_multiple_of(8)
+            && (data_ptr as usize) >= 0x10000
+            && !vtable_ptr.is_null()
+            && size > 0
+            && size < 1024 * 1024
+        {
+            unsafe {
+                visitor.visit_region(data_ptr, size);
+            }
+        }
+
+        // Also scan cleanup closures if any
+        let cleanups_borrow = self.cleanups.borrow();
+        for cleanup in cleanups_borrow.iter() {
+            let func_ptr: *const dyn FnOnce() = &**cleanup;
+            let (data_ptr, vtable_ptr) = unsafe {
+                std::mem::transmute::<*const dyn FnOnce(), (*const u8, *const ())>(func_ptr)
+            };
+            let layout = std::alloc::Layout::for_value(&**cleanup);
+            let size = layout.size();
+
+            if !data_ptr.is_null()
+                && (data_ptr as usize).is_multiple_of(8)
+                && (data_ptr as usize) >= 0x10000
+                && !vtable_ptr.is_null()
+                && size > 0
+                && size < 1024 * 1024
+            {
+                unsafe {
+                    visitor.visit_region(data_ptr, size);
+                }
+            }
+        }
     }
 }
 

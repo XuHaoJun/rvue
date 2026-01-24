@@ -2221,9 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90fc3afbc901c930f24219276a99a4b5db09f5ffc72202ac075680b9d63d06ad"
+checksum = "9288ef7c683efc05d0605245a1ef8f6f7cdb5bc50b388e1621e045f21079f1fd"
 dependencies = [
  "libc",
  "rudo-gc-derive",
@@ -2233,9 +2233,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc-derive"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adbfb483e4435f53e32b36300709876fc741dd36d63e02dc5650b06bbfdd2fa9"
+checksum = "fa03392d203756d955bfed040ef75502957dd5ff9253da06bf9f6a7642bdcc5d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2586,9 +2586,9 @@ dependencies = [
 
 [[package]]
 name = "sys_alloc"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac8367d776cbb132ec7d5e8d03d28d00fa65df0642809bb9de1de81cedaa6cae"
+checksum = "b9fca66ff242d99765aeab590fdf07d2f9f1ce393fb35285e8edaf6ef240f660"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
