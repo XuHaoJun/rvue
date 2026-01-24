@@ -1,6 +1,7 @@
 //! Reactive effect implementation for automatic dependency tracking
 
-use rudo_gc::{Gc, Trace};
+use crate::component::Component;
+use rudo_gc::{Gc, GcCell, Trace};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -14,14 +15,16 @@ pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
+    owner: GcCell<Option<Gc<Component>>>,
 }
 
 // Effect contains a closure which is not Trace, but we can still make Effect Trace
 // by not tracing the closure (it's not GC-managed)
 unsafe impl Trace for Effect {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Closure is not GC-managed, so we don't trace it
         // No GC-managed fields to trace for MVP
+        self.owner.trace(visitor);
     }
 }
 
@@ -40,10 +43,12 @@ impl Effect {
     where
         F: Fn() + 'static,
     {
+        let owner = crate::runtime::current_owner();
         Gc::new(Self {
             closure: Box::new(closure),
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
+            owner: GcCell::new(owner),
         })
     }
 
@@ -66,7 +71,13 @@ impl Effect {
 
             // Execute the closure (this may trigger signal.get() calls which will
             // automatically register this effect as a subscriber)
-            (gc_effect.closure)();
+            if let Some(owner) = gc_effect.owner.borrow().as_ref() {
+                crate::runtime::with_owner(Gc::clone(owner), || {
+                    (gc_effect.closure)();
+                });
+            } else {
+                (gc_effect.closure)();
+            }
 
             // Restore previous effect (if any)
             *cell.borrow_mut() = previous;

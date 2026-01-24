@@ -6,6 +6,7 @@ use crate::event::status::{ComponentFlags, StatusUpdate};
 use crate::layout::LayoutNode;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
+use std::any::{Any, TypeId};
 use std::sync::atomic::{AtomicBool, Ordering};
 use taffy::TaffyTree;
 use vello::Scene;
@@ -21,6 +22,22 @@ unsafe impl Trace for SceneWrapper {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // vello::Scene does not contain any GC pointers
     }
+}
+
+/// Trait for values that can be stored in context
+pub trait ContextValue: Any {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Any> ContextValue for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub struct ContextEntry {
+    pub type_id: TypeId,
+    pub value: Box<dyn Any>,
 }
 
 /// Component type enumeration
@@ -82,6 +99,7 @@ pub struct Component {
     pub has_focus_target: GcCell<bool>,
     pub event_handlers: GcCell<EventHandlers>,
     pub vello_cache: GcCell<Option<SceneWrapper>>,
+    pub contexts: GcCell<Vec<ContextEntry>>,
 }
 
 unsafe impl Trace for Component {
@@ -101,6 +119,10 @@ unsafe impl Trace for Component {
         // Note: vello::Scene is not GC-managed, but GcCell needs tracing if it could contain GC pointers.
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
+        for _entry in self.contexts.borrow().iter() {
+            // Manual trace of context values
+            // Currently this is a placeholder as polymorphic tracing is complex
+        }
     }
 }
 
@@ -158,6 +180,7 @@ impl Component {
             has_focus_target: GcCell::new(false),
             event_handlers: GcCell::new(EventHandlers::default()),
             vello_cache: GcCell::new(None),
+            contexts: GcCell::new(Vec::new()),
         })
     }
 
@@ -531,6 +554,33 @@ impl Component {
     {
         let handler = crate::event::handler::EventHandler::new(handler);
         self.event_handlers.borrow_mut().on_change = Some(handler);
+    }
+
+    /// Provide context to this component and its descendants
+    pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
+        self.contexts.borrow_mut().push(ContextEntry {
+            type_id: TypeId::of::<T>(),
+            value: Box::new(value),
+        });
+    }
+
+    /// Find context of type T in this component or its ancestors
+    pub fn find_context<T: Any + Trace>(&self) -> Option<Gc<T>> {
+        let type_id = TypeId::of::<T>();
+        let contexts = self.contexts.borrow();
+        for entry in contexts.iter().rev() {
+            if entry.type_id == type_id {
+                if let Some(gc_val) = entry.value.downcast_ref::<Gc<T>>() {
+                    return Some(Gc::clone(gc_val));
+                }
+            }
+        }
+
+        if let Some(parent) = self.parent.borrow().as_ref() {
+            return parent.find_context::<T>();
+        }
+
+        None
     }
 }
 

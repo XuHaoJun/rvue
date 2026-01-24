@@ -86,8 +86,19 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                     let props = #props_struct_name {
                         #(#props_init),*
                     };
-                    let view = #widget_name(props);
-                    let #component_ident = rvue::prelude::View::into_component(view);
+                    
+                    // Create the component object for this custom widget to act as a scope owner
+                    let #component_ident = #ctx_ident.create_component(
+                        rvue::component::ComponentType::Custom(#name.to_string()),
+                        rvue::component::ComponentProps::Custom { data: String::new() }
+                    );
+
+                    // Run the setup function with this component as the owner
+                    let view = rvue::runtime::with_owner(#component_ident.clone(), || #widget_name(props));
+                    
+                    // Convert view to component and add as child
+                    let inner_comp = rvue::prelude::View::into_component(view);
+                    #component_ident.add_child(inner_comp);
 
                     #events_code
 
@@ -246,7 +257,12 @@ fn generate_children_code(
     });
 
     quote! {
-        #(#child_vars)*
+        {
+            let parent = #parent_id.clone();
+            rvue::runtime::with_owner(parent, || {
+                #(#child_vars)*
+            });
+        }
     }
 }
 

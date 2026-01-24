@@ -167,6 +167,16 @@ impl<'a> BuildContext<'a> {
         *self.id_counter += 1;
         id
     }
+
+    /// Create a new component with a unique ID
+    pub fn create_component(
+        &mut self,
+        component_type: crate::component::ComponentType,
+        props: crate::component::ComponentProps,
+    ) -> Gc<Component> {
+        let id = self.next_id();
+        Component::new(id, component_type, props)
+    }
 }
 
 /// Core widget trait for building and updating UI
