@@ -172,6 +172,7 @@ where
                         });
                     child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                     child_component.mount(None);
+                    keyed_state.marker.add_child(child_component.clone());
                 }
             }
 
@@ -244,6 +245,7 @@ where
 
             child_component.set_parent(Some(Gc::clone(&component)));
             child_component.mount(None);
+            component.add_child(child_component.clone());
         }
 
         let keyed_state_gc = GcCell::new(keyed_state);

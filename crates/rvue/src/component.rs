@@ -148,8 +148,8 @@ impl Component {
         // Pre-allocate children vector with small capacity for common case
         // This reduces reallocations during component tree construction
         let initial_children_capacity = match component_type {
-            ComponentType::Flex | ComponentType::For => 8, // Containers typically have multiple children
-            _ => 0, // Leaf components typically have no children
+            ComponentType::Flex => 8, // Only real containers have multiple children
+            _ => 0,                   // Leaf components typically have no children
         };
 
         let mut flags = ComponentFlags::empty();
@@ -589,6 +589,32 @@ impl Component {
     }
 }
 
+/// Collect Taffy node IDs from child layouts, including grandchildren for control-flow components
+fn collect_child_node_ids(
+    component: &Gc<Component>,
+    child_layouts: &[LayoutNode],
+) -> Vec<taffy::NodeId> {
+    let mut node_ids = Vec::new();
+
+    for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+        if let Some(node_id) = child_layout.taffy_node() {
+            // Direct child has a layout node - include it
+            node_ids.push(node_id);
+        } else if matches!(child.component_type, ComponentType::For | ComponentType::Show) {
+            // Control-flow component - include its children's nodes
+            for grandchild in child.children.borrow().iter() {
+                if let Some(grandchild_layout) = grandchild.layout_node() {
+                    if let Some(node_id) = grandchild_layout.taffy_node() {
+                        node_ids.push(node_id);
+                    }
+                }
+            }
+        }
+    }
+
+    node_ids
+}
+
 /// Build layout tree recursively in a shared TaffyTree and return the root layout node
 pub fn build_layout_tree(
     component: &Gc<Component>,
@@ -603,9 +629,23 @@ pub fn build_layout_tree(
         .map(|child| build_layout_tree(child, taffy, text_context))
         .collect();
 
-    // Get Taffy node IDs from child layouts
-    let child_node_ids: Vec<taffy::NodeId> =
-        child_layouts.iter().filter_map(|ln| ln.taffy_node()).collect();
+    // Control-flow components (For, Show) are transparent - their children's
+    // Taffy nodes should be passed through to the parent, not wrapped
+    let is_control_flow =
+        matches!(component.component_type, ComponentType::For | ComponentType::Show);
+
+    // Get Taffy node IDs from child layouts, including grandchildren for control-flow
+    let child_node_ids = collect_child_node_ids(component, &child_layouts);
+
+    // For control-flow components, return a transparent node
+    if is_control_flow {
+        for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+            child.set_layout_node(child_layout.clone());
+            child.set_parent(Some(Gc::clone(component)));
+        }
+
+        return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
+    }
 
     // Build this node with children in the shared tree
     let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context);
