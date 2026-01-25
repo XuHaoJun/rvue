@@ -85,7 +85,10 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         } else {
             Affine::IDENTITY
         };
+        // Clear child cache and mark dirty when parent is being re-rendered
+        // This ensures children are re-evaluated when parent state changes (e.g., Show when)
         *child.vello_cache.borrow_mut() = None;
+        child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
         render_component(child, scene, transform * child_transform);
     }
 }

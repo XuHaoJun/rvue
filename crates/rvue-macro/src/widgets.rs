@@ -235,14 +235,11 @@ fn generate_radio_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     }
 }
 
-fn generate_show_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_show_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let when = extract_prop_value(attrs, "when", || quote! { false });
 
     quote! {
-        rvue::widgets::Show::new(
-            #id,
-            #when
-        )
+        rvue::widgets::Show::new(#when)
     }
 }
 

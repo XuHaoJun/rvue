@@ -48,10 +48,6 @@ impl Scene {
 
     /// Update the scene by regenerating dirty fragments
     pub fn update(&mut self) {
-        // We always update layout if any component is dirty.
-        // For rendering, we reset the main scene and recompose it.
-
-        // Check if anything is dirty in the entire tree
         let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
 
         if !self.is_dirty && !any_dirty {
@@ -60,13 +56,16 @@ impl Scene {
 
         self.ensure_initialized();
 
-        // Always reset the main scene when recomposing
-        if let Some(ref mut scene) = self.vello_scene {
-            scene.reset();
+        // Only reset scene if structural changes (new/removed components)
+        // Per-component dirty state only requires re-appending cached fragments
+        if self.is_dirty {
+            if let Some(ref mut scene) = self.vello_scene {
+                scene.reset();
+            }
         }
 
         for component in &self.root_components {
-            // 1. Layout Pass (shared tree)
+            // 1. Layout Pass (shared tree) - needed for positioning of all components
             let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
             component.set_layout_node(layout.clone());
             if let Some(node_id) = layout.taffy_node() {
@@ -78,9 +77,17 @@ impl Scene {
             // Propagate results back
             crate::component::propagate_layout_results(component, &self.taffy);
 
-            // 2. Render Pass (recomposes fragments)
-            if let Some(ref mut scene) = self.vello_scene {
-                render_component(component, scene, Affine::IDENTITY);
+            // 2. Render Pass - only re-render dirty components
+            if component.is_dirty() {
+                *component.vello_cache.borrow_mut() = None;
+                if let Some(ref mut scene) = self.vello_scene {
+                    render_component(component, scene, Affine::IDENTITY);
+                }
+            } else if let Some(ref cached) = *component.vello_cache.borrow() {
+                // Append cached fragment - children are already encoded inside
+                if let Some(ref mut scene) = self.vello_scene {
+                    scene.append(&cached.0, Some(Affine::IDENTITY));
+                }
             }
         }
 
