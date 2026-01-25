@@ -2221,9 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4aeaf1af1d6745ce27e805d80429389c3fc7e9bd17ec454128982c9020ac028"
+checksum = "c3e2cccea09284b5384a792fe0d06ca5e84fe8dd9f6c1264a06cbb87058d5493"
 dependencies = [
  "libc",
  "rudo-gc-derive",
