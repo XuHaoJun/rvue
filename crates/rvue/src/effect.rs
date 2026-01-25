@@ -1,7 +1,8 @@
 //! Reactive effect implementation for automatic dependency tracking
 
 use crate::component::Component;
-use rudo_gc::{Gc, GcCell, Trace};
+use crate::signal::SignalData;
+use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -18,12 +19,14 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
+    subscriptions: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_ref)
 }
 
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Trace known Gc fields
         self.owner.trace(visitor);
+        // subscriptions contains raw pointers, not traced
 
         // Conservatively scan the main closure's captured environment.
         // We utilize the fact that Box<T> allocates memory corresponding to the layout of T.
@@ -80,7 +83,20 @@ impl Effect {
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
             cleanups: GcCell::new(Vec::new()),
+            subscriptions: GcCell::new(Vec::new()),
         })
+    }
+
+    /// Register a signal that this effect is subscribed to
+    pub fn add_subscription(&self, signal_ptr: *const (), weak_effect: &Weak<Effect>) {
+        let mut subscriptions = self.subscriptions.borrow_mut();
+        let pair = (signal_ptr, weak_effect.clone());
+        if !subscriptions
+            .iter()
+            .any(|(ptr, weak)| *ptr == signal_ptr && Weak::ptr_eq(weak, weak_effect))
+        {
+            subscriptions.push(pair);
+        }
     }
 
     /// Run the effect closure with automatic dependency tracking
@@ -142,6 +158,20 @@ impl Effect {
         if gc_effect.is_dirty() {
             Self::run(gc_effect);
         }
+    }
+
+    /// Unsubscribe from all signals this effect is subscribed to
+    fn unsubscribe_all(&self) {
+        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut());
+        for (signal_ptr, weak_effect) in subscriptions {
+            SignalData::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
+        }
+    }
+}
+
+impl Drop for Effect {
+    fn drop(&mut self) {
+        self.unsubscribe_all();
     }
 }
 

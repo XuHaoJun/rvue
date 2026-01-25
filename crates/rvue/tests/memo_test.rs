@@ -48,7 +48,8 @@ fn test_memo_equality() {
     let effect_count = Rc::new(Cell::new(0));
     let effect_count_clone = effect_count.clone();
     let memo_clone = memo.clone();
-    rvue::create_effect(move || {
+    // Store the effect to prevent it from being dropped
+    let _effect = rvue::create_effect(move || {
         memo_clone.get();
         effect_count_clone.set(effect_count_clone.get() + 1);
     });

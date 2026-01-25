@@ -7,7 +7,9 @@ fn test_effect_cleanup() {
     let cleanup_called = Arc::new(Mutex::new(0));
 
     let cleanup_clone = Arc::clone(&cleanup_called);
-    create_effect(move || {
+
+    // Store the effect to prevent it from being dropped
+    let _effect = create_effect(move || {
         let _value = count.get();
         let cleanup_inner = Arc::clone(&cleanup_clone);
         on_cleanup(move || {
