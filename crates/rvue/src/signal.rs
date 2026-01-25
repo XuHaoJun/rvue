@@ -222,9 +222,15 @@ where
     let (read, write) = create_signal(initial_value.clone());
 
     let last_value = GcCell::new(initial_value);
+    let f_shared = std::rc::Rc::new(f);
+    let f_clone = f_shared.clone();
 
+    let is_first = std::cell::Cell::new(true);
     crate::effect::create_effect(move || {
-        let new_value = f();
+        if is_first.replace(false) {
+            return;
+        }
+        let new_value = f_clone();
         if new_value != *last_value.borrow() {
             *last_value.borrow_mut() = new_value.clone();
             write.set(new_value);
