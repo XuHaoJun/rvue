@@ -104,16 +104,28 @@ where
     // Stable-key 核心：保持順序的 O(1) 查找
     hashed_items: IndexSet<K, BuildHasherDefault<FxHasher>>,
     
-    // 渲染狀態：index → (set_index_fn, component)
+    // 渲染狀態：index → (children_fn, component)
     rendered_items: Vec<Option<ItemEntry<K, T, VFS>>>,
 }
 
 pub struct ItemEntry<K, T, VFS> {
     key: K,
     item: T,
-    view_fn: VFS,
+    children_fn: VFS,
     component: Gc<Component>,
     mounted: bool,
+    effect_handles: Vec<Gc<dyn std::any::Any>>,
+}
+
+impl<K, T, VFS> ItemEntry<K, T, VFS> {
+    fn unmount(&mut self) {
+        self.component.unmount();
+        self.effect_handles.clear();
+    }
+
+    fn prepare_for_move(&mut self) {}
+
+    fn finalize_move(&mut self) {}
 }
 ```
 
@@ -188,10 +200,19 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
     let mut moved = Vec::new();
     let mut added = Vec::new();
 
-    for (pos, old_key) in old_keys.iter().enumerate() {
-        if !new_keys.contains(old_key) {
-            removed.push(DiffOpRemove { at: pos });
-        }
+    // Collect remove positions first, then sort descending to avoid cascading issues
+    // Example: [A, B, C, D] removing A, B, C → positions [0, 1, 2]
+    // Sorted descending: [2, 1, 0] → removing in this order keeps indices valid
+    let mut remove_positions: Vec<usize> = old_keys.iter()
+        .enumerate()
+        .filter(|(pos, old_key)| !new_keys.contains(old_key))
+        .map(|(pos, _)| pos)
+        .collect();
+
+    remove_positions.sort_unstable_by(|a, b| b.cmp(a));  // Descending order
+
+    for pos in remove_positions {
+        removed.push(DiffOpRemove { at: pos });
     }
 
     for (pos, new_key) in new_keys.iter().enumerate() {
@@ -223,9 +244,9 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
                 let move_in_dom = moves_forward_by != net_offset;
 
                 moved.push(DiffOpMove {
-                    from: new_index,
+                    from: pos,       // FIXED: original position in old_keys
                     len: 1,
-                    to: new_index,
+                    to: actual,      // FIXED: calculated position in new_keys
                     move_in_dom,
                     key: old_key.clone(),
                 });
@@ -302,17 +323,17 @@ fn apply_diff<K, T, VFS, V>(
     marker: &Gc<Component>,
     diff: KeyedDiff<K>,
     children: &mut Vec<Option<ItemEntry<K, T, VFS>>>,
-    view_fn: impl Fn(usize, T) -> (VFS, V),
+    children_fn: impl Fn(usize, T) -> (VFS, V),
     mut items: Vec<Option<T>>,
 ) where K: Eq + Hash + Clone, V: Widget {
     // 執行順序：
     // 1. Clear      - 清空所有
-    // 2. Removals   - 卸載並移除節點
-    // 3. Move out   - 從 Vec 中取出待移動節點
+    // 2. Removals   - 卸載並移除節點 (調用 unmount 清理 effect)
+    // 3. Move out   - 從 Vec 中取出待移動節點 (調用 prepare_for_move)
     // 4. Resize     - 擴展 Vec 以容納新增
-    // 5. Move in    - 移動並插入正確位置
+    // 5. Move in    - 移動並插入正確位置 (調用 finalize_move)
     // 6. Additions  - 創建並插入新節點
-    // 7. Remove holes - 清理 Vec 中的 None
+    // 7. Remove holes - 清理 Vec 中的 None 並壓縮 Vec
 }
 ```
 
@@ -331,7 +352,7 @@ use std::hash::Hash;
 pub struct For<T, I, K, KF, VF> {
     items: ReactiveValue<I>,
     key_fn: KF,
-    view_fn: VF,
+    children_fn: VF,
     _marker: std::marker::PhantomData<(T, K)>,
 }
 
@@ -346,13 +367,39 @@ where
     pub fn new(
         items: impl IntoReactiveValue<I>,
         key_fn: KF,
-        view_fn: VF,
+        children_fn: VF,
     ) -> Self {
+        let items_reactive = items.into_reactive();
+
+        // Validate keys on initial creation
+        if let Some(iter) = items_reactive.peek() {
+            validate_no_duplicate_keys(&iter, &key_fn);
+        }
+
         Self {
-            items: items.into_reactive(),
+            items: items_reactive,
             key_fn,
-            view_fn,
+            children_fn,
             _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+/// Validates that all keys are unique, warning on duplicates.
+/// Duplicate keys cause undefined behavior where only one item will render.
+fn validate_no_duplicate_keys<T, I, K, KF>(items: &I, key_fn: &KF)
+where
+    KF: Fn(&T) -> K,
+    K: Hash,
+{
+    use std::collections::HashSet;
+    let mut seen = HashSet::new();
+    for item in items {
+        if !seen.insert(key_fn(item)) {
+            tracing::warn!(
+                "Duplicate key detected in For component. \
+                 This may cause undefined behavior (only one item will render)."
+            );
         }
     }
 }
@@ -380,7 +427,7 @@ fn create_item_list_view() -> ViewStruct {
             <For
                 each={items}
                 key={|item| item.id}
-                view={|item| 
+                children={|item|
                     view! { <Text content={item.name.clone()} /> }
                 }
             />
@@ -474,7 +521,7 @@ crates/rvue/src/
 
 | 任務 | 描述 | 文件 |
 |-----|------|------|
-| 重構 `For` | 支持泛型 items + key_fn + view_fn | `widgets/for_loop.rs` |
+| 重構 `For` | 支持泛型 items + key_fn + children_fn | `widgets/for_loop.rs` |
 | 更新 `ComponentType` | 添加 `Keyed` 變體 | `component.rs` |
 | 更新渲染 | 支持 key_order 順序渲染 | `render/widget.rs` |
 

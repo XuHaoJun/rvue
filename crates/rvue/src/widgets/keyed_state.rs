@@ -1,4 +1,4 @@
-use crate::component::Component;
+use crate::component::{Component, ComponentLifecycle};
 use indexmap::IndexSet;
 use rudo_gc::{Gc, Trace};
 use rustc_hash::FxHasher;
@@ -34,6 +34,16 @@ pub struct ItemEntry<K, T> {
     pub item: T,
     pub component: Gc<Component>,
     pub mounted: bool,
+}
+
+impl<K, T> ItemEntry<K, T> {
+    pub fn unmount(&mut self) {
+        ComponentLifecycle::unmount(&*self.component);
+    }
+
+    pub fn prepare_for_move(&mut self) {}
+
+    pub fn finalize_move(&mut self) {}
 }
 
 unsafe impl<K, T> Trace for ItemEntry<K, T>
@@ -140,15 +150,11 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
             let actual = new_index;
 
             if expected != actual {
-                let moves_forward_by = (actual as i32) - (expected as i32);
-                let net_offset = (added_before as i32) - (removed_before as i32);
-                let move_in_dom = moves_forward_by != net_offset;
-
                 moved.push(DiffOpMove {
-                    from: new_index,
+                    from: pos,
                     len: 1,
-                    to: new_index,
-                    move_in_dom,
+                    to: actual,
+                    move_in_dom: true,
                     key: old_key.clone(),
                 });
             }
@@ -190,13 +196,22 @@ pub fn apply_diff<K, T>(
     K: Eq + Hash + Clone,
 {
     if diff.clear {
+        // Clean up all items before clearing
+        for item in rendered_items.iter_mut() {
+            if let Some(entry) = item {
+                entry.unmount();
+            }
+        }
         rendered_items.clear();
         return;
     }
 
+    // Step 2: Removals - unmount and remove nodes
     for op in &diff.removed {
         if op.at < rendered_items.len() {
-            rendered_items[op.at].take();
+            if let Some(mut entry) = rendered_items[op.at].take() {
+                entry.unmount();
+            }
         }
     }
 
@@ -205,17 +220,23 @@ pub fn apply_diff<K, T>(
         rendered_items.resize_with(needed_size, || None);
     }
 
+    // Step 5: Move in - handle moves (for moves that don't require DOM operations)
     for op in &diff.moved {
         if op.move_in_dom {
             for i in 0..op.len {
                 let from_idx = op.from + i;
                 let to_idx = op.to + i;
                 if from_idx < rendered_items.len() && to_idx < rendered_items.len() {
+                    rendered_items[from_idx].as_mut().map(|e| e.prepare_for_move());
                     rendered_items.swap(from_idx, to_idx);
+                    rendered_items[to_idx].as_mut().map(|e| e.finalize_move());
                 }
             }
         }
     }
+
+    // Step 7: Remove holes - compact Vec by removing None entries
+    rendered_items.retain(|entry| entry.is_some());
 }
 
 fn new_items_needed<K>(added: &[DiffOpAdd<K>]) -> usize {
