@@ -14,36 +14,36 @@ Rvue is a high-performance, GPU-accelerated Rust GUI framework inspired by Vue's
 
 ```bash
 cargo build
+cargo build --release
+cargo build -p rvue
+cargo build -p rvue-macro
 cargo run --bin counter
 cargo run --bin list
 cargo run --bin layout
 cargo run --bin form
-cargo build --release
-cargo build -p rvue
-cargo build -p rvue-macro
 ```
 
 ## Lint and Format
 
 ```bash
-cargo clippy
-cargo clippy --fix
 cargo fmt
 cargo fmt --check
+cargo clippy
+cargo clippy --fix
 ```
 
 ## Testing
 
 ```bash
-cargo test
-cargo test -p rvue
-cargo test -p rvue-macro
-cargo test --test signal_test
+cargo test                          # Run all tests
+cargo test -p rvue                  # Tests for rvue crate
+cargo test -p rvue-macro            # Tests for rvue-macro crate
+cargo test --test signal_test       # Run specific test file
 cargo test --test effect_test
 cargo test --test component_test
-cargo test test_create_signal
+cargo test test_create_signal       # Run single test by name
 cargo test test_signal_set
-cargo test -- --nocapture
+cargo test -- --nocapture           # Show output for debugging
 ```
 
 ## Code Style Guidelines
@@ -140,6 +140,13 @@ fn some_function() -> Result<T, AppError> {
     Ok(result)
 }
 ```
+
+## Cursor Rules Integration
+
+Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key points:
+- Active technology: Rust (latest stable, minimum 1.75+)
+- Code style: Follow standard Rust conventions
+- Primary commands: `cargo test`, `cargo clippy`
 
 ## Notes
 

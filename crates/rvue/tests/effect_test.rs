@@ -18,6 +18,8 @@ fn test_create_effect_runs_immediately() {
     // Effect should have run once on creation
     assert_eq!(call_count.get(), 1);
     assert!(!effect.is_dirty());
+
+    rudo_gc::collect_full();
 }
 
 #[test]

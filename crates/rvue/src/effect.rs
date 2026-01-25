@@ -13,19 +13,45 @@ thread_local! {
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
+    closure_layout: std::alloc::Layout,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
-// Effect contains a closure which is not Trace, but we can still make Effect Trace
-// by not tracing the closure (it's not GC-managed)
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Closure is not GC-managed, so we don't trace it
-        // Cleanups are also not traced since they are closures
+        // Trace known Gc fields
         self.owner.trace(visitor);
+
+        // Conservatively scan the main closure's captured environment.
+        // We utilize the fact that Box<T> allocates memory corresponding to the layout of T.
+        // We cast the fat pointer to a thin data pointer.
+        let data_ptr = (&*self.closure) as *const dyn Fn() as *const u8;
+        let layout = self.closure_layout;
+
+        // Only scan if the closure has data and is sufficiently aligned to potentially contain pointers.
+        if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
+            unsafe {
+                visitor.visit_region(data_ptr, layout.size());
+            }
+        }
+
+        // Also scan cleanup closures if any
+        let cleanups_borrow = self.cleanups.borrow();
+        for cleanup in cleanups_borrow.iter() {
+            let func_ptr: *const dyn FnOnce() = &**cleanup;
+            // Cast fat pointer -> thin data pointer
+            let data_ptr = func_ptr as *const u8;
+            let layout = std::alloc::Layout::for_value(&**cleanup);
+
+            if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
+                unsafe {
+                    visitor.visit_region(data_ptr, layout.size());
+                }
+            }
+        }
     }
 }
 
@@ -45,8 +71,11 @@ impl Effect {
         F: Fn() + 'static,
     {
         let owner = crate::runtime::current_owner();
+        let boxed = Box::new(closure);
+        let closure_layout = std::alloc::Layout::for_value(&*boxed);
         Gc::new(Self {
-            closure: Box::new(closure),
+            closure: boxed,
+            closure_layout,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
