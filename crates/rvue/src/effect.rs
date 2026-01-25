@@ -13,6 +13,7 @@ thread_local! {
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
+    closure_layout: std::alloc::Layout,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
@@ -28,8 +29,12 @@ unsafe impl Trace for Effect {
         let closure_ptr: *const dyn Fn() = &*self.closure;
         let (data_ptr, vtable_ptr) =
             unsafe { std::mem::transmute::<*const dyn Fn(), (*const u8, *const ())>(closure_ptr) };
-        let layout = std::alloc::Layout::for_value(&*self.closure);
-        let size = layout.size();
+
+        // Use a minimum scan size to ensure we capture any Gc pointers.
+        // The actual closure capture might be optimized to ZST by the compiler,
+        // but the fat pointer itself (data + vtable) is always at least 16 bytes.
+        let min_scan_size = std::mem::size_of::<usize>() * 2;
+        let size = std::cmp::max(self.closure_layout.size(), min_scan_size);
 
         // Safety: Only scan if it looks like a valid heap pointer and size is reasonable
         if !data_ptr.is_null()
@@ -52,7 +57,7 @@ unsafe impl Trace for Effect {
                 std::mem::transmute::<*const dyn FnOnce(), (*const u8, *const ())>(func_ptr)
             };
             let layout = std::alloc::Layout::for_value(&**cleanup);
-            let size = layout.size();
+            let size = std::cmp::max(layout.size(), min_scan_size);
 
             if !data_ptr.is_null()
                 && (data_ptr as usize).is_multiple_of(8)
@@ -85,8 +90,11 @@ impl Effect {
         F: Fn() + 'static,
     {
         let owner = crate::runtime::current_owner();
+        let boxed = Box::new(closure);
+        let closure_layout = std::alloc::Layout::for_value(&*boxed);
         Gc::new(Self {
-            closure: Box::new(closure),
+            closure: boxed,
+            closure_layout,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
