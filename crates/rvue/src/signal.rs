@@ -202,10 +202,11 @@ where
     let f_shared = std::rc::Rc::new(f);
     let f_clone = f_shared.clone();
 
-    // We want the effect to run on changes, but we already have the initial value.
-    // However, create_effect RUNS once to track dependencies.
-    // So if we want to avoid double-calling f() at the very start:
+    let is_first = std::cell::Cell::new(true);
     crate::effect::create_effect(move || {
+        if is_first.replace(false) {
+            return;
+        }
         write.set(f_clone());
     });
 
