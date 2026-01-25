@@ -187,52 +187,52 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
     let mut removed = Vec::new();
     let mut moved = Vec::new();
     let mut added = Vec::new();
-    let max_len = std::cmp::max(old_keys.len(), new_keys.len());
 
-    for index in 0..max_len {
-        let old_item = old_keys.get_index(index);
-        let new_item = new_keys.get_index(index);
+    for (pos, old_key) in old_keys.iter().enumerate() {
+        if !new_keys.contains(old_key) {
+            removed.push(DiffOpRemove { at: pos });
+        }
+    }
 
-        if old_item != new_item {
-            // 只在 old，不在 new → 刪除
-            if let Some(old) = old_item {
-                if !new_keys.contains(old) {
-                    removed.push(DiffOpRemove { at: index });
-                }
-            }
-            
-            // 只在 new，不在 old → 新增
-            if let Some(new) = new_item {
-                if !old_keys.contains(new) {
-                    added.push(DiffOpAdd {
-                        at: index,
-                        key: new.clone(),
-                        mode: DiffOpAddMode::Normal,
-                    });
-                }
-            }
-            
-            // 兩邊都有 → 檢查是否需要移動
-            if let Some(old) = old_item {
-                if let Some((new_index, _)) = new_keys.get_full(old) {
-                    // 核心優化邏輯
-                    let moves_forward_by = (new_index as i32) - (index as i32);
-                    let net_offset = (added.len() as i32) - (removed.len() as i32);
-                    let move_in_dom = moves_forward_by != net_offset;
-                    
-                    moved.push(DiffOpMove {
-                        from: index,
-                        len: 1,
-                        to: new_index,
-                        move_in_dom,
-                        key: old.clone(),
-                    });
-                }
+    for (pos, new_key) in new_keys.iter().enumerate() {
+        if !old_keys.contains(new_key) {
+            added.push(DiffOpAdd {
+                at: pos,
+                key: new_key.clone(),
+                mode: DiffOpAddMode::Normal,
+            });
+        }
+    }
+
+    let old_keys_vec: Vec<_> = old_keys.iter().cloned().collect();
+    for (pos, old_key) in old_keys_vec.iter().enumerate() {
+        if !new_keys.contains(old_key) {
+            continue;
+        }
+
+        if let Some((new_index, _)) = new_keys.get_full(old_key) {
+            let removed_before = removed.iter().filter(|r| r.at < pos).count();
+            let expected_without_additions = pos.saturating_sub(removed_before);
+            let added_before = added.iter().filter(|a| a.at <= expected_without_additions).count();
+            let expected = expected_without_additions + added_before;
+            let actual = new_index;
+
+            if expected != actual {
+                let moves_forward_by = (actual as i32) - (expected as i32);
+                let net_offset = (added_before as i32) - (removed_before as i32);
+                let move_in_dom = moves_forward_by != net_offset;
+
+                moved.push(DiffOpMove {
+                    from: new_index,
+                    len: 1,
+                    to: new_index,
+                    move_in_dom,
+                    key: old_key.clone(),
+                });
             }
         }
     }
 
-    // 相鄰移動合併優化
     let moved = group_adjacent_moves(moved);
 
     KeyedDiff { removed, moved, added, clear: false }
@@ -241,15 +241,25 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
 
 #### 3.2.2 `move_in_dom` 優化邏輯
 
-關鍵洞察：如果元素因為其他元素的插入/刪除而「被動移動」，則不需要實際操作。
+關鍵洞察：如果元素因為其他元素的插入/刪除而「被動移動」，則不需要實際 DOM 操作。
+
+演算法核心：
+- `expected` = 該元素在考慮「之前所有移除」後應該在的位置
+- `actual` = 該元素在新列表中的實際位置
+- 如果 `expected == actual`，表示位移是「被動」的（被插入/刪除推動），`move_in_dom = false`
+- 如果 `expected != actual`，表示是「主動」移動，`move_in_dom = true`
 
 ```
 舊: [A, B, C, D]
 新: [X, A, B, C, D]  (在前面插入 X)
 
-A: moves_forward_by = 1 (從 index 0 → 1)
-added.len() - removed.len() = 1 (淨插入 1 個)
-move_in_dom = false (1 == 1)
+對於 A:
+- pos = 0, removed_before = 0
+- expected_without_additions = 0 - 0 = 0
+- added_before = 1 (X at index 0, and 0 <= 0)
+- expected = 0 + 1 = 1
+- actual = 1 (A's new position)
+- expected == actual → move_in_dom = false
 
 結論：A 的位置變化是由 X 的插入「推動」的，不需要額外 DOM 操作
 ```
@@ -257,17 +267,18 @@ move_in_dom = false (1 == 1)
 #### 3.2.3 `group_adjacent_moves()` 合併優化
 
 ```rust
-/// 將 [2,3,5,6] → [1,2,3,4,5,6] 的移動合併為兩個區塊：(2,3) 和 (5,6)
+/// 將連續的移動操作合併為單一區塊
+/// 例如：移動 [2,3,5,6] → [1,2,3,4,5,6] 會產生兩個區塊：(2,3) 和 (5,6)
 fn group_adjacent_moves<K: Clone>(moves: Vec<DiffOpMove<K>>) -> Vec<DiffOpMove<K>> {
     if moves.is_empty() {
         return moves;
     }
-    
+
     let mut result = Vec::with_capacity(moves.len());
     let mut current = moves[0].clone();
-    
+
     for m in moves.into_iter().skip(1) {
-        // 檢查是否可合併：來源和目標都連續
+        // 檢查是否可合併：預期位置和實際位置都連續
         if m.from == current.from + current.len && m.to == current.to + current.len {
             current.len += 1;
         } else {
@@ -275,7 +286,7 @@ fn group_adjacent_moves<K: Clone>(moves: Vec<DiffOpMove<K>>) -> Vec<DiffOpMove<K
             current = m;
         }
     }
-    
+
     result.push(current);
     result
 }
@@ -524,14 +535,15 @@ mod keyed_diff_tests {
 
     #[test]
     fn test_swap_items() {
-        // [A, B, C] → [C, B, A]
         let old = indexset!["A", "B", "C"];
         let new = indexset!["C", "B", "A"];
         let diff = diff_keys(&old, &new);
-        
+
         assert!(diff.added.is_empty());
         assert!(diff.removed.is_empty());
-        assert!(!diff.moved.is_empty());
+        assert_eq!(diff.moved.len(), 2, "A and C should be moved (B stays)");
+        assert!(diff.moved.iter().any(|m| m.key == "A"));
+        assert!(diff.moved.iter().any(|m| m.key == "C"));
     }
 
     #[test]
@@ -540,8 +552,66 @@ mod keyed_diff_tests {
         let old = indexset!["A", "B", "C"];
         let new = IndexSet::default();
         let diff = diff_keys(&old, &new);
-        
+
         assert!(diff.clear);
+    }
+
+    #[test]
+    fn test_shrink_from_beginning() {
+        // [A, B, C, D] → [C, D]
+        // C and D should NOT be marked as moved - their position changes
+        // are due to A and B being removed, not actual DOM moves
+        let old = indexset!["A", "B", "C", "D"];
+        let new = indexset!["C", "D"];
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.added.len(), 0);
+        assert_eq!(diff.removed.len(), 2);
+        assert_eq!(diff.removed[0].at, 0);
+        assert_eq!(diff.removed[1].at, 1);
+        assert!(diff.moved.is_empty(), "C and D should not be moved since their position change is due to removals");
+    }
+
+    #[test]
+    fn test_shrink_from_beginning_single_remaining() {
+        // [A, B, C] → [C]
+        let old = indexset!["A", "B", "C"];
+        let new = indexset!["C"];
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.removed.len(), 2);
+        assert_eq!(diff.removed[0].at, 0);
+        assert_eq!(diff.removed[1].at, 1);
+        assert!(diff.moved.is_empty(), "C should not be marked as moved");
+    }
+
+    #[test]
+    fn test_shrink_from_middle_then_grow() {
+        // [A, B, C, D, E] → [A, E]
+        // A stays, E moves forward, B/C/D removed
+        let old = indexset!["A", "B", "C", "D", "E"];
+        let new = indexset!["A", "E"];
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.removed.len(), 3);
+        assert_eq!(diff.removed[0].at, 1);
+        assert_eq!(diff.removed[1].at, 2);
+        assert_eq!(diff.removed[2].at, 3);
+        assert!(diff.moved.is_empty(), "A stays, E's shift is due to removals");
+    }
+
+    #[test]
+    fn test_actual_move_after_shrink() {
+        // [A, B, C, D] → [D, A, B, C]
+        // D actually moves (not just shifted by removals)
+        let old = indexset!["A", "B", "C", "D"];
+        let new = indexset!["D", "A", "B", "C"];
+        let diff = diff_keys(&old, &new);
+
+        assert!(diff.added.is_empty());
+        assert!(diff.removed.is_empty());
+        assert!(!diff.moved.is_empty(), "Should have at least D's move");
+        assert!(diff.moved.iter().any(|m| m.key == "D"), "D should be in moved");
     }
 }
 ```

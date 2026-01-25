@@ -113,43 +113,44 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
     let mut removed = Vec::new();
     let mut moved = Vec::new();
     let mut added = Vec::new();
-    let max_len = std::cmp::max(old_keys.len(), new_keys.len());
 
-    for index in 0..max_len {
-        let old_item = old_keys.get_index(index);
-        let new_item = new_keys.get_index(index);
+    for (pos, old_key) in old_keys.iter().enumerate() {
+        if !new_keys.contains(old_key) {
+            removed.push(DiffOpRemove { at: pos });
+        }
+    }
 
-        if old_item != new_item {
-            if let Some(old) = old_item {
-                if !new_keys.contains(old) {
-                    removed.push(DiffOpRemove { at: index });
-                }
-            }
+    for (pos, new_key) in new_keys.iter().enumerate() {
+        if !old_keys.contains(new_key) {
+            added.push(DiffOpAdd { at: pos, key: new_key.clone(), mode: DiffOpAddMode::Normal });
+        }
+    }
 
-            if let Some(new) = new_item {
-                if !old_keys.contains(new) {
-                    added.push(DiffOpAdd {
-                        at: index,
-                        key: new.clone(),
-                        mode: DiffOpAddMode::Normal,
-                    });
-                }
-            }
+    let old_keys_vec: Vec<_> = old_keys.iter().cloned().collect();
+    for (pos, old_key) in old_keys_vec.iter().enumerate() {
+        if !new_keys.contains(old_key) {
+            continue;
+        }
 
-            if let Some(old) = old_item {
-                if let Some((new_index, _)) = new_keys.get_full(old) {
-                    let moves_forward_by = (new_index as i32) - (index as i32);
-                    let net_offset = (added.len() as i32) - (removed.len() as i32);
-                    let move_in_dom = moves_forward_by != net_offset;
+        if let Some((new_index, _)) = new_keys.get_full(old_key) {
+            let removed_before = removed.iter().filter(|r| r.at < pos).count();
+            let expected_without_additions = pos.saturating_sub(removed_before);
+            let added_before = added.iter().filter(|a| a.at <= expected_without_additions).count();
+            let expected = expected_without_additions + added_before;
+            let actual = new_index;
 
-                    moved.push(DiffOpMove {
-                        from: index,
-                        len: 1,
-                        to: new_index,
-                        move_in_dom,
-                        key: old.clone(),
-                    });
-                }
+            if expected != actual {
+                let moves_forward_by = (actual as i32) - (expected as i32);
+                let net_offset = (added_before as i32) - (removed_before as i32);
+                let move_in_dom = moves_forward_by != net_offset;
+
+                moved.push(DiffOpMove {
+                    from: new_index,
+                    len: 1,
+                    to: new_index,
+                    move_in_dom,
+                    key: old_key.clone(),
+                });
             }
         }
     }
@@ -281,7 +282,9 @@ mod keyed_diff_tests {
 
         assert!(diff.added.is_empty());
         assert!(diff.removed.is_empty());
-        assert!(!diff.moved.is_empty());
+        assert_eq!(diff.moved.len(), 2, "A and C should be moved (B stays)");
+        assert!(diff.moved.iter().any(|m| m.key == "A"));
+        assert!(diff.moved.iter().any(|m| m.key == "C"));
     }
 
     #[test]
@@ -292,6 +295,62 @@ mod keyed_diff_tests {
         let diff = diff_keys(&old, &new);
 
         assert!(diff.clear);
+    }
+
+    #[test]
+    fn test_shrink_from_beginning() {
+        let old = make_set(&["A", "B", "C", "D"]);
+        let new = make_set(&["C", "D"]);
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.added.len(), 0);
+        assert_eq!(diff.removed.len(), 2);
+        assert_eq!(diff.removed[0].at, 0);
+        assert_eq!(diff.removed[1].at, 1);
+        assert!(
+            diff.moved.is_empty(),
+            "C and D should not be moved since their position change is due to removals"
+        );
+    }
+
+    #[test]
+    fn test_shrink_from_beginning_single_remaining() {
+        let old = make_set(&["A", "B", "C"]);
+        let new = make_set(&["C"]);
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.removed.len(), 2);
+        assert_eq!(diff.removed[0].at, 0);
+        assert_eq!(diff.removed[1].at, 1);
+        assert!(diff.moved.is_empty(), "C should not be marked as moved");
+    }
+
+    #[test]
+    fn test_shrink_from_middle_then_grow() {
+        let old = make_set(&["A", "B", "C", "D", "E"]);
+        let new = make_set(&["A", "E"]);
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.removed.len(), 3);
+        assert_eq!(diff.removed[0].at, 1);
+        assert_eq!(diff.removed[1].at, 2);
+        assert_eq!(diff.removed[2].at, 3);
+        assert!(diff.moved.is_empty(), "A stays, E's shift is due to removals");
+    }
+
+    #[test]
+    fn test_actual_move_after_shrink() {
+        let old = make_set(&["A", "B", "C", "D"]);
+        let new = make_set(&["D", "A", "B", "C"]);
+        let diff = diff_keys(&old, &new);
+
+        assert!(diff.added.is_empty());
+        assert!(diff.removed.is_empty());
+        // D moves from index 3 to 0
+        // A, B, C are "pushed" but don't need DOM moves (move_in_dom = false)
+        // However, group_adjacent_moves might merge them with D's move
+        assert!(!diff.moved.is_empty(), "Should have at least D's move");
+        assert!(diff.moved.iter().any(|m| m.key == "D"), "D should be in moved");
     }
 
     #[test]

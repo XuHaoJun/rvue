@@ -35,15 +35,15 @@ cargo clippy --fix
 ## Testing
 
 ```bash
-cargo test                          # Run all tests
-cargo test -p rvue                  # Tests for rvue crate
-cargo test -p rvue-macro            # Tests for rvue-macro crate
-cargo test --test signal_test       # Run specific test file
-cargo test --test effect_test
-cargo test --test component_test
-cargo test test_create_signal       # Run single test by name
-cargo test test_signal_set
-cargo test -- --nocapture           # Show output for debugging
+cargo test --test-threads=1                          # Run all tests
+cargo test -p rvue --test-threads=1                  # Tests for rvue crate
+cargo test -p rvue-macro --test-threads=1            # Tests for rvue-macro crate
+cargo test --test signal_test --test-threads=1       # Run specific test file
+cargo test --test effect_test --test-threads=1
+cargo test --test component_test --test-threads=1
+cargo test test_create_signal --test-threads=1       # Run single test by name
+cargo test test_signal_set --test-threads=1
+cargo test -- --nocapture --test-threads=1           # Show output for debugging
 ```
 
 ## Code Style Guidelines
