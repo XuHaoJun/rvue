@@ -136,6 +136,7 @@ where
                 if op.at < keyed_state.rendered_items.len() {
                     if let Some(entry) = keyed_state.rendered_items[op.at].take() {
                         entry.component.unmount();
+                        keyed_state.marker.remove_child(&entry.component);
                     }
                 }
             }
@@ -173,6 +174,20 @@ where
                     child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                     child_component.mount(None);
                     keyed_state.marker.add_child(child_component.clone());
+                }
+            }
+
+            for op in &diff.moved {
+                if op.move_in_dom {
+                    for i in 0..op.len {
+                        let from_idx = op.from + i;
+                        let to_idx = op.to + i;
+                        if from_idx < keyed_state.rendered_items.len()
+                            && to_idx < keyed_state.rendered_items.len()
+                        {
+                            keyed_state.rendered_items.swap(from_idx, to_idx);
+                        }
+                    }
                 }
             }
 

@@ -224,6 +224,12 @@ impl Component {
         self.children.borrow_mut().push(Gc::clone(&child));
     }
 
+    /// Remove a child component
+    pub fn remove_child(&self, child: &Gc<Component>) {
+        let mut children = self.children.borrow_mut();
+        children.retain(|c| !Gc::ptr_eq(c, child));
+    }
+
     /// Set layout node
     pub fn set_layout_node(&self, layout_node: LayoutNode) {
         *self.layout_node.borrow_mut() = Some(layout_node);
