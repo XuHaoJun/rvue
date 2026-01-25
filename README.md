@@ -5,7 +5,7 @@ A high-performance, GPU-accelerated Rust GUI framework inspired by **Vue**'s dev
 ## 🚀 Vision
 
 Rvue aims to be the "Holy Grail" of Rust GUI development:
-- **Write like TypeScript/Solid**: No lifetime headaches, thanks to a planned hybrid GC ([rudo-gc](https://github.com/XuHaoJun/rudo)).
+- **Write like TypeScript/Solid**: No lifetime headaches, thanks to a hybrid GC ([rudo-gc](https://github.com/XuHaoJun/rudo)).
 - **Run like C++**: No Virtual DOM. Direct GPU-accelerated rendering via **Vello**.
 - **Layout like CSS**: Flexible and powerful layouts powered by **Taffy**.
 
@@ -19,10 +19,47 @@ For more details on the vision and technical roadmap, see the [Vision Document](
 - **Component-Based**: Familiar component architecture for building reusable UI building blocks.
 - **Native Performance**: Built from the ground up in Rust for maximum performance and efficiency.
 
+## 🛠️ Basic Usage (Experimental)
+
+```rust
+use rvue::prelude::*;
+use rvue_macro::{view, component};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rvue::run_app(|| App())?;
+    Ok(())
+}
+
+fn App() -> ViewStruct {
+    view! {
+        <Flex direction="column" gap=20.0 align_items="center">
+            <Text content="My First Rvue App" />
+            <Counter />
+        </Flex>
+    }
+}
+
+#[component]
+fn Counter() -> ViewStruct {
+    let (count, set_count) = create_signal(0);
+    let set_count_inc = set_count.clone();
+
+    view! {
+        <Flex direction="row" gap=10.0 align_items="center">
+            <Text content={format!("Count: {}", count.get())} />
+            <Button label="Increment" 
+                on_click={move || set_count_inc.update(|x| *x += 1)} 
+            />
+        </Flex>
+    }
+}
+```
+
+
 ## 📦 Project Structure
 
 - `crates/rvue`: The core framework library.
-- `crates/rvue-macro`: Procedural macros for declarative syntax (future direction).
+- `crates/rvue-macro`: Procedural macros for the declarative `view!` syntax.
 - `crates/rvue-examples`: A collection of example applications demonstrating various features.
     - `counter`: Basic counter with reactive state.
     - `list`: Dynamic list rendering.
@@ -48,30 +85,7 @@ cargo run --bin layout
 cargo run --bin form
 ```
 
-## 🛠️ Basic Usage (Experimental)
 
-```rust
-use rvue::prelude::*;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create reactive signals
-    let (count, set_count) = create_signal(0);
-    
-    // Define the view structure
-    let root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            ..Default::default()
-        },
-    );
-    
-    // Run the application
-    rvue::run_app(|| ViewStruct::new(root))?;
-    Ok(())
-}
-```
 
 ## 📄 License
 
