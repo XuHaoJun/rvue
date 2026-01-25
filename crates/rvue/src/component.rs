@@ -14,6 +14,11 @@ use vello::Scene;
 /// Unique identifier for a component
 pub type ComponentId = u64;
 
+pub struct ContextEntry {
+    pub type_id: TypeId,
+    pub value: Box<dyn Any>,
+}
+
 /// Wrapper for vello::Scene to implement Trace
 #[derive(Default)]
 pub struct SceneWrapper(pub Scene);
@@ -33,11 +38,6 @@ impl<T: Any> ContextValue for T {
     fn as_any(&self) -> &dyn Any {
         self
     }
-}
-
-pub struct ContextEntry {
-    pub type_id: TypeId,
-    pub value: Box<dyn Any>, // Stores Gc<T> erased
 }
 
 /// Component type enumeration
@@ -101,6 +101,7 @@ pub struct Component {
     pub event_handlers: GcCell<EventHandlers>,
     pub vello_cache: GcCell<Option<SceneWrapper>>,
     pub contexts: GcCell<Vec<ContextEntry>>,
+    pub context_gc_ptrs: GcCell<Vec<*const u8>>,
     pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
@@ -122,9 +123,14 @@ unsafe impl Trace for Component {
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
-        for _entry in self.contexts.borrow().iter() {
-            // Manual trace of context values
-            // Currently this is a placeholder as polymorphic tracing is complex
+        // Conservatively scan context GC pointers for proper GC
+        for ptr in self.context_gc_ptrs.borrow().iter() {
+            if !ptr.is_null() {
+                // SAFETY: We're scanning a known valid pointer location
+                unsafe {
+                    visitor.visit_region(*ptr, std::mem::size_of::<*const u8>());
+                }
+            }
         }
     }
 }
@@ -184,6 +190,7 @@ impl Component {
             event_handlers: GcCell::new(EventHandlers::default()),
             vello_cache: GcCell::new(None),
             contexts: GcCell::new(Vec::new()),
+            context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
         })
     }
@@ -568,10 +575,14 @@ impl Component {
 
     /// Provide context to this component and its descendants
     pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
-        // We always wrap the value in Gc so it's stable and traceable
+        let gc_value: Gc<T> = Gc::new(value);
+        let gc_ptr = Gc::internal_ptr(&gc_value);
         self.contexts
             .borrow_mut()
-            .push(ContextEntry { type_id: TypeId::of::<T>(), value: Box::new(Gc::new(value)) });
+            .push(ContextEntry { type_id: TypeId::of::<T>(), value: Box::new(gc_value) });
+        // Store the GC pointer's internal representation for conservative scanning
+        // Gc<T> is a thin pointer, we scan its memory location to find it during GC
+        self.context_gc_ptrs.borrow_mut().push(gc_ptr);
     }
 
     /// Find context of type T in this component or its ancestors
