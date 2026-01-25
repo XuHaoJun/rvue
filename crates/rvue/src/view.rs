@@ -11,6 +11,7 @@ pub trait View {
 }
 
 /// View structure representing a declarative UI tree
+#[derive(Clone)]
 pub struct ViewStruct {
     pub root_component: Gc<Component>,
     pub effects: Vec<Gc<Effect>>,

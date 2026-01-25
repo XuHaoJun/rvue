@@ -388,11 +388,15 @@ fn generate_widget_builder_code(
             }
         }
         WidgetType::For => {
-            let PropValue { value: item_count_value, .. } =
-                props.value("item_count", || quote! { 0 });
+            let PropValue { value: items_value, .. } = props.value("each", || quote! { vec![] });
+            let PropValue { value: key_fn, .. } = props.value("key", || quote! { |item| item });
+            let PropValue { value: view_fn, .. } = props.value(
+                "view",
+                || quote! { |item| view! { <Text content={format!("{:?}", item)} />} },
+            );
             let widget_ident = Ident::new("For", span);
             quote! {
-                rvue::widgets::#widget_ident::new(#item_count_value)
+                rvue::widgets::#widget_ident::new(#items_value, #key_fn, #view_fn)
             }
         }
         WidgetType::Custom(name) => {
@@ -531,16 +535,7 @@ fn generate_reactive_effects(
                 ));
             }
         }
-        WidgetType::For => {
-            let item_count = props.value("item_count", || quote! { 0 });
-            if item_count.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_for_item_count },
-                    &item_count.value,
-                ));
-            }
-        }
+        WidgetType::For => {}
         WidgetType::Custom(_) => {}
     }
 

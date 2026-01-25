@@ -1,52 +1,237 @@
-//! For widget for list rendering
+//! For widget with stable-key based node pool management
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 use crate::effect::create_effect;
-use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
-use rudo_gc::{Gc, Trace};
+use crate::view::View;
+use crate::widget::{BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget};
+use crate::widgets::keyed_state::{diff_keys, KeyedState};
+use indexmap::IndexSet;
+use log::warn;
+use rudo_gc::{Gc, GcCell, Trace};
+use rustc_hash::FxHasher;
+use std::hash::{BuildHasherDefault, Hash};
 
-/// For widget builder for rendering lists of items
-#[derive(Clone)]
-pub struct For {
-    item_count: ReactiveValue<usize>,
+pub struct For<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
+    pub items: ReactiveValue<Vec<T>>,
+    pub key_fn: KF,
+    pub view_fn: VF,
 }
 
-unsafe impl Trace for For {
+impl<T, K, KF, VF> Clone for For<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            key_fn: self.key_fn.clone(),
+            view_fn: self.view_fn.clone(),
+        }
+    }
+}
+
+unsafe impl<T, K, KF, VF> Trace for For<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        self.item_count.trace(visitor);
+        self.items.trace(visitor);
     }
 }
 
-impl For {
-    /// Create a new For widget with item count
-    pub fn new(item_count: impl crate::widget::IntoReactiveValue<usize>) -> Self {
-        Self { item_count: item_count.into_reactive() }
+impl<T, K, KF, VF> For<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
+    pub fn new(items: impl IntoReactiveValue<Vec<T>>, key_fn: KF, view_fn: VF) -> Self {
+        Self { items: items.into_reactive(), key_fn, view_fn }
     }
 }
 
-/// State for a mounted For widget
-pub struct ForState {
+pub struct ForState<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
     component: Gc<Component>,
+    keyed_state: GcCell<KeyedState<K, T>>,
     item_count_effect: Option<Gc<crate::effect::Effect>>,
+    _phantom: std::marker::PhantomData<(KF, VF)>,
 }
 
-impl ForState {
-    /// Get the underlying component
-    pub fn component(&self) -> &Gc<Component> {
-        &self.component
-    }
-}
-
-unsafe impl Trace for ForState {
+unsafe impl<T, K, KF, VF> Trace for ForState<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.component.trace(visitor);
+        self.keyed_state.trace(visitor);
         if let Some(effect) = &self.item_count_effect {
             effect.trace(visitor);
         }
     }
 }
 
-impl Mountable for ForState {
+impl<T, K, KF, VF> ForState<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
+    pub fn component(&self) -> &Gc<Component> {
+        &self.component
+    }
+
+    fn get_current_keys(&self) -> IndexSet<K, BuildHasherDefault<FxHasher>> {
+        self.keyed_state.borrow().hashed_items.clone()
+    }
+
+    fn update_keyed_items(
+        &self,
+        new_items: Vec<T>,
+        key_fn: &KF,
+        view_fn: &VF,
+    ) -> IndexSet<K, BuildHasherDefault<FxHasher>> {
+        let mut new_keys: IndexSet<K, BuildHasherDefault<FxHasher>> =
+            IndexSet::with_hasher(Default::default());
+
+        let mut seen_keys = std::collections::HashSet::new();
+        for item in &new_items {
+            let key = key_fn(item);
+            if !seen_keys.insert(key.clone()) {
+                warn!("Duplicate key found in For component - using first occurrence");
+                continue;
+            }
+            new_keys.insert(key);
+        }
+
+        let old_keys = self.get_current_keys();
+        let diff = diff_keys(&old_keys, &new_keys);
+
+        {
+            let mut keyed_state = self.keyed_state.borrow_mut();
+
+            for op in &diff.removed {
+                if op.at < keyed_state.rendered_items.len() {
+                    if let Some(entry) = keyed_state.rendered_items[op.at].take() {
+                        entry.component.unmount();
+                        keyed_state.marker.remove_child(&entry.component);
+                    }
+                }
+            }
+
+            if diff.clear {
+                keyed_state.rendered_items.clear();
+                keyed_state.hashed_items.clear();
+            }
+
+            if keyed_state.rendered_items.len() < new_keys.len() {
+                keyed_state.rendered_items.resize_with(new_keys.len(), || None);
+            }
+        }
+
+        {
+            let mut keyed_state = self.keyed_state.borrow_mut();
+
+            for op in &diff.added {
+                if let Some(item) = new_items.get(op.at) {
+                    let key = key_fn(item);
+                    let view = (view_fn)(item.clone());
+                    let child_component = view.into_component();
+
+                    while keyed_state.rendered_items.len() <= op.at {
+                        keyed_state.rendered_items.push(None);
+                    }
+
+                    keyed_state.rendered_items[op.at] =
+                        Some(crate::widgets::keyed_state::ItemEntry {
+                            key: key.clone(),
+                            item: item.clone(),
+                            component: child_component.clone(),
+                            mounted: false,
+                        });
+                    child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
+                    child_component.mount(None);
+                    keyed_state.marker.add_child(child_component.clone());
+                }
+            }
+
+            for op in &diff.moved {
+                for i in 0..op.len {
+                    let from_idx = op.from + i;
+                    let to_idx = op.to + i;
+                    if from_idx < keyed_state.rendered_items.len()
+                        && to_idx < keyed_state.rendered_items.len()
+                    {
+                        let (adjusted_from_idx, adjusted_to_idx) = if op.move_in_dom {
+                            (from_idx, to_idx)
+                        } else {
+                            let removed_before_from =
+                                diff.removed.iter().filter(|r| r.at < from_idx).count();
+                            let adjusted_from_idx = from_idx - removed_before_from;
+                            let removed_before_to =
+                                diff.removed.iter().filter(|r| r.at < to_idx).count();
+                            let adjusted_to_idx = to_idx - removed_before_to;
+                            (adjusted_from_idx, adjusted_to_idx)
+                        };
+
+                        if adjusted_from_idx < keyed_state.rendered_items.len()
+                            && adjusted_to_idx < keyed_state.rendered_items.len()
+                        {
+                            keyed_state.rendered_items.swap(adjusted_from_idx, adjusted_to_idx);
+                        }
+                    }
+                }
+            }
+
+            reorder_children(&keyed_state.marker, &keyed_state.rendered_items);
+
+            keyed_state.hashed_items = new_keys.clone();
+        }
+
+        new_keys
+    }
+}
+
+fn reorder_children<K, T>(
+    parent: &Gc<Component>,
+    rendered_items: &[Option<crate::widgets::keyed_state::ItemEntry<K, T>>],
+) {
+    let mut children = parent.children.borrow_mut();
+    children.clear();
+    for item in rendered_items.iter().flatten() {
+        children.push(Gc::clone(&item.component));
+    }
+}
+
+impl<T, K, KF, VF> Mountable for ForState<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
     fn mount(&self, parent: Option<Gc<Component>>) {
         self.component.set_parent(parent.clone());
         if let Some(parent) = parent {
@@ -59,26 +244,75 @@ impl Mountable for ForState {
     }
 }
 
-impl Widget for For {
-    type State = ForState;
+impl<T, K, KF, VF> Widget for For<T, K, KF, VF>
+where
+    T: Clone + Trace + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
+{
+    type State = ForState<T, K, KF, VF>;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
         let id = ctx.next_id();
-        let initial_item_count = self.item_count.get();
+        let initial_items = self.items.get();
+        let initial_count = initial_items.len();
 
         let component = Component::new(
             id,
             ComponentType::For,
-            ComponentProps::For { item_count: initial_item_count },
+            ComponentProps::KeyedFor { item_count: initial_count },
         );
 
-        // Setup reactive update if item_count is reactive
-        let item_count_effect = if self.item_count.is_reactive() {
-            let comp = Gc::clone(&component);
-            let item_count = self.item_count.clone();
+        let mut keyed_state = KeyedState {
+            parent: None,
+            marker: Gc::clone(&component),
+            hashed_items: IndexSet::with_hasher(Default::default()),
+            rendered_items: Vec::with_capacity(initial_items.len()),
+        };
+
+        for item in initial_items.iter() {
+            let key = (self.key_fn)(item);
+            keyed_state.hashed_items.insert(key.clone());
+
+            let view = (self.view_fn)(item.clone());
+            let child_component = view.into_component();
+
+            keyed_state.rendered_items.push(Some(crate::widgets::keyed_state::ItemEntry {
+                key: key.clone(),
+                item: item.clone(),
+                component: child_component.clone(),
+                mounted: false,
+            }));
+
+            child_component.set_parent(Some(Gc::clone(&component)));
+            child_component.mount(None);
+            component.add_child(child_component.clone());
+        }
+
+        let keyed_state_gc = GcCell::new(keyed_state);
+        let comp_clone = Gc::clone(&component);
+        let key_fn_clone = self.key_fn;
+        let view_fn_clone = self.view_fn;
+        let items_reactive = self.items.clone();
+        let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
+
+        let item_count_effect = if self.items.is_reactive() {
             let effect = create_effect(move || {
-                let new_item_count = item_count.get();
-                comp.set_for_item_count(new_item_count);
+                let new_items = items_reactive.get();
+                let new_count = new_items.len();
+                {
+                    let state = ForState {
+                        component: Gc::clone(&comp_clone),
+                        keyed_state: GcCell::clone(&keyed_state_for_effect),
+                        item_count_effect: None,
+                        _phantom: std::marker::PhantomData,
+                    };
+                    let _new_keys =
+                        state.update_keyed_items(new_items, &key_fn_clone, &view_fn_clone);
+                }
+                *comp_clone.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp_clone.mark_dirty();
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -86,27 +320,47 @@ impl Widget for For {
             None
         };
 
-        ForState { component, item_count_effect }
+        ForState {
+            component,
+            keyed_state: keyed_state_gc,
+            item_count_effect,
+            _phantom: std::marker::PhantomData,
+        }
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update item_count if it changed
-        if self.item_count.is_reactive() {
-            // Item count is reactive, effect will handle updates
-            if state.item_count_effect.is_none() {
-                let comp = Gc::clone(&state.component);
-                let item_count = self.item_count.clone();
-                let effect = create_effect(move || {
-                    let new_item_count = item_count.get();
-                    comp.set_for_item_count(new_item_count);
-                });
-                state.component.add_effect(Gc::clone(&effect));
-                state.item_count_effect = Some(effect);
-            }
+        if self.items.is_reactive() {
+            let comp = Gc::clone(&state.component);
+            let key_fn = self.key_fn;
+            let view_fn = self.view_fn;
+            let items = self.items.clone();
+            let keyed_state_gc = GcCell::clone(&state.keyed_state);
+            let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
+
+            let effect = create_effect(move || {
+                let new_items = items.get();
+                let new_count = new_items.len();
+                {
+                    let state = ForState {
+                        component: Gc::clone(&comp),
+                        keyed_state: GcCell::clone(&keyed_state_for_effect),
+                        item_count_effect: None,
+                        _phantom: std::marker::PhantomData,
+                    };
+                    let _new_keys = state.update_keyed_items(new_items, &key_fn, &view_fn);
+                }
+                *comp.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp.mark_dirty();
+            });
+            state.component.add_effect(Gc::clone(&effect));
+            state.item_count_effect = Some(effect);
         } else {
-            // Static item count - update directly
-            let new_item_count = self.item_count.get();
-            state.component.set_for_item_count(new_item_count);
+            let new_items = self.items.get();
+            let new_count = new_items.len();
+            let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn);
+            *state.component.props.borrow_mut() =
+                ComponentProps::KeyedFor { item_count: new_count };
+            state.component.mark_dirty();
         }
     }
 }

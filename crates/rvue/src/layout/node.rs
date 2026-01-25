@@ -41,6 +41,12 @@ impl LayoutNode {
         child_nodes: &[NodeId],
         text_context: &mut TextContext,
     ) -> Self {
+        // Control-flow components (For, Show) have no layout of their own
+        // They are transparent to the layout system
+        if matches!(component.component_type, ComponentType::For | ComponentType::Show) {
+            return Self { taffy_node: None, is_dirty: true, layout_result: None };
+        }
+
         let style = Self::component_to_taffy_style(component);
 
         // Handle text measurement
@@ -192,6 +198,9 @@ impl LayoutNode {
                 size: Size { width: length(20.0), height: length(20.0) },
                 ..Default::default()
             },
+            // For is a control-flow component, not a visual component
+            // It has no layout of its own - children are managed by parent container
+            ComponentType::For | ComponentType::Show => Style::default(),
             _ => Style::default(),
         }
     }
