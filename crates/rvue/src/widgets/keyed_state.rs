@@ -152,10 +152,10 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
             let actual = new_index;
 
             if expected != actual {
-                let moves_forward_by = (actual as i32) - (expected as i32);
-                let net_offset =
-                    (added_before as i32) - ((removed_before + removals_at_pos) as i32);
-                let move_in_dom = moves_forward_by != net_offset;
+                let removals_before_pos = removed_before + removals_at_pos;
+                let insertions_before_expected = added.iter().filter(|a| a.at < expected).count();
+                let move_in_dom =
+                    (removals_before_pos as i32) != (insertions_before_expected as i32);
 
                 let removed_before_at_pos = removed
                     .iter()
