@@ -65,8 +65,10 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
             let widget_name = Ident::new(name, el.span);
             let props_struct_name = Ident::new(&format!("{}Props", name), el.span);
 
-            let props_init = el
-                .attributes
+            let (slot_attrs, normal_attrs): (Vec<_>, _) =
+                el.attributes.iter().partition(|a| a.is_slot());
+
+            let props_init = normal_attrs
                 .iter()
                 .filter(|a| !matches!(a, RvueAttribute::Event { .. }))
                 .map(|attr| {
@@ -81,24 +83,29 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
 
             let events_code = generate_event_handlers_for_element(&component_ident, el);
 
+            let slot_code = if !slot_attrs.is_empty() {
+                generate_slot_injection(&slot_attrs, &component_ident)
+            } else {
+                quote! {}
+            };
+
             quote! {
                 {
                     let props = #props_struct_name {
                         #(#props_init),*
                     };
 
-                    // Create the component object for this custom widget to act as a scope owner
                     let #component_ident = #ctx_ident.create_component(
                         rvue::component::ComponentType::Custom(#name.to_string()),
                         rvue::component::ComponentProps::Custom { data: String::new() }
                     );
 
-                    // Run the setup function with this component as the owner
                     let view = rvue::runtime::with_owner(#component_ident.clone(), || #widget_name(props));
 
-                    // Convert view to component and add as child
                     let inner_comp = rvue::prelude::View::into_component(view);
                     #component_ident.add_child(inner_comp);
+
+                    #slot_code
 
                     #events_code
 
@@ -129,6 +136,59 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
             }
         }
     }
+}
+
+/// Generate code to inject slot content into a parent component
+fn generate_slot_injection(slot_attrs: &[&RvueAttribute], component_ident: &Ident) -> TokenStream {
+    let slot_injections: Vec<TokenStream> = slot_attrs
+        .iter()
+        .filter_map(|attr| attr.as_slot())
+        .map(|(slot_name, content)| {
+            let slot_var = if let Some(name) = slot_name {
+                let slot_ident =
+                    Ident::new(&convert_to_snake_case(name), proc_macro2::Span::call_site());
+                quote! { #slot_ident }
+            } else {
+                let slot_ident = Ident::new("children", proc_macro2::Span::call_site());
+                quote! { #slot_ident }
+            };
+
+            quote! {
+                {
+                    let #slot_var = rvue::slot::ToChildren::to_children(move || {
+                        #content
+                    });
+                    let slot_view = rvue::slot::Slot::new(#slot_var);
+                    let slot_comp = (slot_view.children)();
+                    let inner_comp = rvue::prelude::View::into_component(slot_comp);
+                    #component_ident.add_child(inner_comp);
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        #(#slot_injections)*
+    }
+}
+
+/// Convert a string to snake_case
+fn convert_to_snake_case(name: &str) -> String {
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c.is_uppercase() {
+            if !result.is_empty() {
+                result.push('_');
+            }
+            result.push(c.to_lowercase().next().unwrap());
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
 }
 
 fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
@@ -615,6 +675,10 @@ fn extract_attr_value(attr: &RvueAttribute) -> PropValue {
         }
         RvueAttribute::Event { .. } => PropValue {
             value: quote! { compile_error!("Unexpected event attribute in property position") },
+            is_reactive: false,
+        },
+        RvueAttribute::Slot { .. } => PropValue {
+            value: quote! { compile_error!("Unexpected slot attribute in property position") },
             is_reactive: false,
         },
     }

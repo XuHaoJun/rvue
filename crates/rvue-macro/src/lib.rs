@@ -9,12 +9,14 @@ mod parser;
 mod widgets;
 
 mod component;
+mod slot;
 
 use codegen::{convert_rstml_to_rvue, generate_view_code};
 use component::component_impl;
 use parser::{parse_global_class, parse_view, strip_global_class};
 use proc_macro::TokenStream;
 use proc_macro_error2::proc_macro_error;
+use slot::slot_impl;
 
 /// The `view!` macro provides HTML-like syntax for creating UI components
 ///
@@ -127,4 +129,52 @@ pub fn view(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     component_impl(attr.into(), item.into()).into()
+}
+
+/// The `#[slot]` macro marks a struct as a slot type
+///
+/// Slots allow components to accept content from their parents. A slot struct
+/// can have a `children` field of type `ChildrenFn` (callable multiple times)
+/// or `Children` (callable once), plus any additional props.
+///
+/// # Basic Usage
+///
+/// ```ignore
+/// use rvue::prelude::*;
+/// use rvue_macro::slot;
+///
+/// #[slot]
+/// struct MySlot {
+///     /// The slot content
+///     children: ChildrenFn,
+///     /// Optional prop
+///     variant: Option<String>,
+/// }
+///
+/// #[component]
+/// fn MyComponent(slot: MySlot) -> impl View {
+///     view! {
+///         <Flex direction="column">
+///             { (slot.children)() }
+///         </Flex>
+///     }
+/// }
+///
+/// #[component]
+/// fn App() -> impl View {
+///     view! {
+///         <MyComponent slot:variant="primary">
+///             <Text content="Slot content" />
+///         </MyComponent>
+///     }
+/// }
+/// ```
+///
+/// # Slot Naming
+///
+/// - `<Slot slot>` uses the default slot name (snake_case of struct name)
+/// - `<Slot slot:name>` uses a named slot "name"
+#[proc_macro_attribute]
+pub fn slot(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    slot_impl(_attr.into(), item.into()).into()
 }

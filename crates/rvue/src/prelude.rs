@@ -7,6 +7,7 @@ pub use crate::effect::{create_effect, on_cleanup, untracked, Effect};
 pub use crate::signal::{
     create_memo, create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal,
 };
+pub use crate::slot::{Children, ChildrenFn, Slot, ToChildren};
 pub use crate::style::{
     AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
     Spacing, Style,

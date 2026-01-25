@@ -301,6 +301,9 @@ fn extract_attr_value(attr: &RvueAttribute) -> TokenStream {
         RvueAttribute::Event { .. } => {
             quote! { compile_error!("Unexpected event attribute in property position") }
         }
+        RvueAttribute::Slot { .. } => {
+            quote! { compile_error!("Unexpected slot attribute in property position") }
+        }
     }
 }
 
