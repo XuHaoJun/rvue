@@ -7,10 +7,14 @@ use rudo_gc::Gc;
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
-/// Render a component and its children into a target scene
-pub fn render_component(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
-    // 1. Ensure local cache is up to date
-    if component.vello_cache.borrow().is_none() {
+pub fn render_component(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+) -> bool {
+    let cache_was_none = component.vello_cache.borrow().is_none();
+
+    if cache_was_none {
         let mut local_scene = vello::Scene::new();
 
         match &component.component_type {
@@ -42,32 +46,32 @@ pub fn render_component(component: &Gc<Component>, scene: &mut vello::Scene, tra
         component.clear_dirty();
     }
 
-    // 2. Append local cache to main scene
     if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
         scene.append(local_scene, Some(transform));
     }
 
-    // 3. Recursively render children
-    match &component.component_type {
-        ComponentType::Show => {
-            if let ComponentProps::Show { when } = &*component.props.borrow() {
-                if *when {
-                    render_children(component, scene, transform);
+    if cache_was_none {
+        match &component.component_type {
+            ComponentType::Show => {
+                if let ComponentProps::Show { when } = &*component.props.borrow() {
+                    if *when {
+                        render_children(component, scene, transform);
+                    }
                 }
             }
-        }
-        ComponentType::For => {
-            render_children(component, scene, transform);
-        }
-        ComponentType::Flex => {
-            render_children(component, scene, transform);
-        }
-        _ => {
-            // Most other components don't have children in their specialized renderers,
-            // but we should still render them if they exist.
-            render_children(component, scene, transform);
+            ComponentType::For => {
+                render_children(component, scene, transform);
+            }
+            ComponentType::Flex => {
+                render_children(component, scene, transform);
+            }
+            _ => {
+                render_children(component, scene, transform);
+            }
         }
     }
+
+    cache_was_none
 }
 
 fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
@@ -81,6 +85,7 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         } else {
             Affine::IDENTITY
         };
+        *child.vello_cache.borrow_mut() = None;
         render_component(child, scene, transform * child_transform);
     }
 }
@@ -94,8 +99,6 @@ fn render_text(component: &Component, scene: &mut vello::Scene, transform: Affin
         if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
             let brush = color.unwrap_or(Color::BLACK);
             if layout.lines().next().is_none() {
-                // Layout has no lines (likely font matching failed)
-                // Draw an orange box
                 let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
                 let bg_color = Color::from_rgb8(255, 165, 0);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
@@ -103,12 +106,10 @@ fn render_text(component: &Component, scene: &mut vello::Scene, transform: Affin
                 render_text_layout(layout, scene, transform, brush);
             }
         } else if user_data.is_some() {
-            // If we have user_data but couldn't downcast, draw a red box to indicate error
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
             let bg_color = Color::from_rgb8(255, 0, 0);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
         } else {
-            // No layout yet
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
             let bg_color = Color::from_rgba8(200, 200, 200, 255);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
