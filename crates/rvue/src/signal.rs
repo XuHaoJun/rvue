@@ -1,14 +1,19 @@
 //! Reactive signal implementation for fine-grained reactivity
 
 use crate::effect::{current_effect, Effect};
-use rudo_gc::{Gc, GcCell, Trace};
+use rudo_gc::{Gc, GcCell, Trace, Weak};
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+thread_local! {
+    static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+}
 
 /// Internal signal data structure
 pub struct SignalData<T: Trace + Clone + 'static> {
     pub(crate) value: GcCell<T>,
     pub(crate) version: AtomicU64,
-    pub(crate) subscribers: GcCell<Vec<Gc<Effect>>>,
+    pub(crate) subscribers: GcCell<Vec<Weak<Effect>>>,
 }
 
 impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalData<T> {
@@ -20,7 +25,8 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalData<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalData<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
-        self.subscribers.trace(visitor);
+        // Note: subscribers uses Weak<Effect>, which doesn't need tracing
+        // Weak references don't keep objects alive, so GC handles them automatically
         // AtomicU64 is not GC-managed, so we don't trace it
     }
 }
@@ -121,28 +127,39 @@ impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
 impl<T: Trace + Clone + 'static> SignalData<T> {
     /// Register an effect as a subscriber to this signal
     pub(crate) fn subscribe(&self, effect: Gc<Effect>) {
+        let weak_effect = Gc::downgrade(&effect);
+        let effect_ptr = Gc::as_ptr(&effect) as *const ();
+        let signal_ptr = self as *const _ as *const ();
+
         // Check if already subscribed first (using immutable borrow to avoid deadlock)
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().any(|sub| Gc::ptr_eq(sub, &effect))
+            subscribers.iter().any(|sub| {
+                sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
+            })
         };
 
         // Only add if not already subscribed
         if !already_subscribed {
             let mut subscribers = self.subscribers.borrow_mut();
             // Double-check after acquiring mutable borrow (in case it was added between checks)
-            if !subscribers.iter().any(|sub| Gc::ptr_eq(sub, &effect)) {
-                subscribers.push(effect);
+            if !subscribers.iter().any(|sub| {
+                sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
+            }) {
+                subscribers.push(weak_effect.clone());
+
+                // Also register this subscription in the effect using raw pointer
+                effect.add_subscription(signal_ptr, &weak_effect);
             }
         }
     }
 
     /// Notify all subscriber effects that this signal has changed
     pub(crate) fn notify_subscribers(&self) {
-        // Collect effects to update (clone to avoid borrow conflicts)
+        // Collect effects to update (upgrade Weak refs and filter dead ones)
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().map(Gc::clone).collect()
+            subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
         };
 
         // Mark all effects as dirty first (no borrow needed)
@@ -164,6 +181,19 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
             if effect.is_dirty() {
                 Effect::update_if_dirty(effect);
             }
+        }
+    }
+
+    /// Remove an effect from the subscribers list using a raw pointer
+    #[allow(dead_code)]
+    pub(crate) fn unsubscribe_by_ptr(effect_ptr: *const (), weak_effect: &Weak<Effect>) {
+        // Find the signal by pointer and remove the specific weak reference
+        // This is called during effect cleanup
+        unsafe {
+            // The signal_ptr points to the SignalData, cast it back
+            let signal = &*effect_ptr.cast::<SignalData<()>>();
+            let mut subscribers = signal.subscribers.borrow_mut();
+            subscribers.retain(|weak| !Weak::ptr_eq(weak, weak_effect));
         }
     }
 }
@@ -189,25 +219,28 @@ pub fn create_memo<T: Trace + Clone + 'static, F>(f: F) -> ReadSignal<T>
 where
     F: Fn() -> T + 'static,
 {
-    // Initialize with a dummy or uninitialized state is hard in Rust without Option
-    // But we can use f() once and then use an effect.
-    // To avoid calling f() twice (once for create_signal and once for initial effect run),
-    // we can use a manual effect construction or untracked read.
+    let initial_value = crate::effect::untracked(&f);
+    let (read, write) = create_signal(initial_value.clone());
 
-    let (read, write) = create_signal(crate::effect::untracked(&f));
-
-    // Create an effect that updates the signal when dependencies change.
-    // We use a SkipFirst runner or just let it run.
-    // If we use create_effect, it runs immediately.
     let f_shared = std::rc::Rc::new(f);
     let f_clone = f_shared.clone();
 
     let is_first = std::cell::Cell::new(true);
-    crate::effect::create_effect(move || {
+    let effect = crate::effect::create_effect(move || {
+        let value = f_clone();
         if is_first.replace(false) {
-            return;
+            // First run: just set the initial value (already done by create_signal)
+            // But we need to run f_clone() to track dependencies
+        } else {
+            // Subsequent runs: update the value
+            write.set(value);
         }
-        write.set(f_clone());
+    });
+
+    // Store the effect in thread-local storage to keep it alive.
+    LEAKED_EFFECTS.with(|cell| {
+        let mut leaked = cell.borrow_mut();
+        leaked.push(effect);
     });
 
     read
@@ -226,15 +259,20 @@ where
     let f_clone = f_shared.clone();
 
     let is_first = std::cell::Cell::new(true);
-    crate::effect::create_effect(move || {
-        if is_first.replace(false) {
-            return;
-        }
+    let effect = crate::effect::create_effect(move || {
         let new_value = f_clone();
-        if new_value != *last_value.borrow() {
+        if is_first.replace(false) {
+            // First run: just track dependencies
+        } else if new_value != *last_value.borrow() {
             *last_value.borrow_mut() = new_value.clone();
             write.set(new_value);
         }
+    });
+
+    // Store the effect in thread-local storage to keep it alive.
+    LEAKED_EFFECTS.with(|cell| {
+        let mut leaked = cell.borrow_mut();
+        leaked.push(effect);
     });
 
     read
