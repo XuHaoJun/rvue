@@ -25,27 +25,16 @@ unsafe impl Trace for Effect {
         // Trace known Gc fields
         self.owner.trace(visitor);
 
-        // Conservatively scan the main closure's captured environment
-        let closure_ptr: *const dyn Fn() = &*self.closure;
-        let (data_ptr, vtable_ptr) =
-            unsafe { std::mem::transmute::<*const dyn Fn(), (*const u8, *const ())>(closure_ptr) };
+        // Conservatively scan the main closure's captured environment.
+        // We utilize the fact that Box<T> allocates memory corresponding to the layout of T.
+        // We cast the fat pointer to a thin data pointer.
+        let data_ptr = (&*self.closure) as *const dyn Fn() as *const u8;
+        let layout = self.closure_layout;
 
-        // Use a minimum scan size to ensure we capture any Gc pointers.
-        // The actual closure capture might be optimized to ZST by the compiler,
-        // but the fat pointer itself (data + vtable) is always at least 16 bytes.
-        let min_scan_size = std::mem::size_of::<usize>() * 2;
-        let size = std::cmp::max(self.closure_layout.size(), min_scan_size);
-
-        // Safety: Only scan if it looks like a valid heap pointer and size is reasonable
-        if !data_ptr.is_null()
-            && (data_ptr as usize).is_multiple_of(8)
-            && (data_ptr as usize) >= 0x10000
-            && !vtable_ptr.is_null()
-            && size > 0
-            && size < 1024 * 1024
-        {
+        // Only scan if the closure has data and is sufficiently aligned to potentially contain pointers.
+        if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
             unsafe {
-                visitor.visit_region(data_ptr, size);
+                visitor.visit_region(data_ptr, layout.size());
             }
         }
 
@@ -53,21 +42,13 @@ unsafe impl Trace for Effect {
         let cleanups_borrow = self.cleanups.borrow();
         for cleanup in cleanups_borrow.iter() {
             let func_ptr: *const dyn FnOnce() = &**cleanup;
-            let (data_ptr, vtable_ptr) = unsafe {
-                std::mem::transmute::<*const dyn FnOnce(), (*const u8, *const ())>(func_ptr)
-            };
+            // Cast fat pointer -> thin data pointer
+            let data_ptr = func_ptr as *const u8;
             let layout = std::alloc::Layout::for_value(&**cleanup);
-            let size = std::cmp::max(layout.size(), min_scan_size);
 
-            if !data_ptr.is_null()
-                && (data_ptr as usize).is_multiple_of(8)
-                && (data_ptr as usize) >= 0x10000
-                && !vtable_ptr.is_null()
-                && size > 0
-                && size < 1024 * 1024
-            {
+            if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
                 unsafe {
-                    visitor.visit_region(data_ptr, size);
+                    visitor.visit_region(data_ptr, layout.size());
                 }
             }
         }
