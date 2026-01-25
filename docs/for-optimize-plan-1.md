@@ -1,8 +1,8 @@
 # Rvue Stable-key Based Node Pool Management 技術規格書
 
-**版本**: 1.0  
+**版本**: 1.1  
 **日期**: 2026-01-25  
-**狀態**: 設計完成，待實施  
+**狀態**: 設計完成，待實施 (已修復 Review 問題)  
 
 ---
 
@@ -91,6 +91,10 @@ use rustc_hash::FxHasher;
 use std::hash::{BuildHasherDefault, Hash};
 use rudo_gc::{Gc, Trace};
 
+pub trait Effect: Trace + 'static {
+    fn unsubscribe(&self);
+}
+
 pub struct KeyedState<K, T, VFS> 
 where
     K: Eq + Hash + Clone + 'static,
@@ -113,14 +117,16 @@ pub struct ItemEntry<K, T, VFS> {
     item: T,
     children_fn: VFS,
     component: Gc<Component>,
-    mounted: bool,
-    effect_handles: Vec<Gc<dyn std::any::Any>>,
+    effect_handles: Vec<Gc<dyn Effect>>,
 }
 
 impl<K, T, VFS> ItemEntry<K, T, VFS> {
     fn unmount(&mut self) {
-        self.component.unmount();
+        for handle in &self.effect_handles {
+            handle.unsubscribe();
+        }
         self.effect_handles.clear();
+        self.component.unmount();
     }
 
     fn prepare_for_move(&mut self) {}
@@ -270,6 +276,10 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
 - 如果 `expected == actual`，表示位移是「被動」的（被插入/刪除推動），`move_in_dom = false`
 - 如果 `expected != actual`，表示是「主動」移動，`move_in_dom = true`
 
+**Vello 兼容性注意**：Vello 使用 retained mode scene graph。`move_in_dom = true` 仍需要更新 scene graph 結構。
+對於 GPU 渲染上下文，可考慮 `move_in_dom = true` 作為所有 move 操作的保守估計，
+或驗證 Vello 是否支持廉價的節點重新定位。DOM 渲染器可直接跳過 `move_in_dom = false` 的操作。
+
 ```
 舊: [A, B, C, D]
 新: [X, A, B, C, D]  (在前面插入 X)
@@ -290,16 +300,19 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
 ```rust
 /// 將連續的移動操作合併為單一區塊
 /// 例如：移動 [2,3,5,6] → [1,2,3,4,5,6] 會產生兩個區塊：(2,3) 和 (5,6)
-fn group_adjacent_moves<K: Clone>(moves: Vec<DiffOpMove<K>>) -> Vec<DiffOpMove<K>> {
+fn group_adjacent_moves<K: Clone>(mut moves: Vec<DiffOpMove<K>>) -> Vec<DiffOpMove<K>> {
     if moves.is_empty() {
         return moves;
     }
+
+    moves.sort_unstable_by(|a, b| {
+        a.from.cmp(&b.from)
+    });
 
     let mut result = Vec::with_capacity(moves.len());
     let mut current = moves[0].clone();
 
     for m in moves.into_iter().skip(1) {
-        // 檢查是否可合併：預期位置和實際位置都連續
         if m.from == current.from + current.len && m.to == current.to + current.len {
             current.len += 1;
         } else {
@@ -326,16 +339,54 @@ fn apply_diff<K, T, VFS, V>(
     children_fn: impl Fn(usize, T) -> (VFS, V),
     mut items: Vec<Option<T>>,
 ) where K: Eq + Hash + Clone, V: Widget {
-    // 執行順序：
-    // 1. Clear      - 清空所有
-    // 2. Removals   - 卸載並移除節點 (調用 unmount 清理 effect)
-    // 3. Move out   - 從 Vec 中取出待移動節點 (調用 prepare_for_move)
-    // 4. Resize     - 擴展 Vec 以容納新增
-    // 5. Move in    - 移動並插入正確位置 (調用 finalize_move)
-    // 6. Additions  - 創建並插入新節點
-    // 7. Remove holes - 清理 Vec 中的 None 並壓縮 Vec
+    if diff.clear {
+        for child in children.iter_mut() {
+            if let Some(entry) = child.take() {
+                entry.unmount();
+            }
+        }
+        children.clear();
+        return;
+    }
+
+    let mut move_entries: Vec<(usize, ItemEntry<K, T, VFS>)> = Vec::new();
+
+    for op in &diff.moved {
+        if let Some(entry) = children[op.from].take() {
+            move_entries.push((op.from, entry));
+        }
+    }
+
+    for op in diff.removed.into_iter().rev() {
+        if let Some(entry) = children[op.at].take() {
+            entry.unmount();
+        }
+        children.remove(op.at);
+    }
+
+    for op in move_entries.into_iter() {
+        children.insert(op.0, Some(op.1));
+    }
+
+    for op in diff.added {
+        let item = items.get(op.at).and_then(|i| i.clone()).unwrap_or_default();
+        let (vfs, _) = children_fn(op.at, item);
+        let component = Gc::new(Component::new());
+        children.insert(op.at, Some(ItemEntry {
+            key: op.key,
+            item,
+            children_fn: vfs,
+            component,
+            effect_handles: Vec::new(),
+        }));
+    }
 }
 ```
+
+**關鍵設計**：在計算 diff 時使用 `from` 索引（舊位置），但在執行時：
+1. 先按 `from` 順序收集所有待移動的 entries
+2. 先處理 removals（按降序避免索引偏移）
+3. 再按新位置插入 move entries
 
 ---
 
@@ -371,7 +422,6 @@ where
     ) -> Self {
         let items_reactive = items.into_reactive();
 
-        // Validate keys on initial creation
         if let Some(iter) = items_reactive.peek() {
             validate_no_duplicate_keys(&iter, &key_fn);
         }
@@ -381,6 +431,12 @@ where
             key_fn,
             children_fn,
             _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn validate_keys(&self) {
+        if let Some(iter) = self.items.peek() {
+            validate_no_duplicate_keys(&iter, &self.key_fn);
         }
     }
 }
@@ -692,7 +748,7 @@ fn test_gc_pressure() {
 |-----|---------|---------|
 | `indexmap` 性能開銷 | 低 | 使用 `FxHasher` 減少哈希計算 |
 | Vello append-only 限制 | 中 | 通過 Taffy 佈局順序控制渲染，不改變 Scene |
-| Key 衝突導致 panic | 高 | 添加重複 key 檢測並打印警告 |
+| Key 衝突導致 visual bugs | 中 | 添加重複 key 檢測（初始化 + `validate_keys()`）|
 | 與現有代碼衝突 | 低 | 保持原有 API 兼容，新增泛型版本 |
 
 ---
