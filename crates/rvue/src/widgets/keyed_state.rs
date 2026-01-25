@@ -129,6 +129,7 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
             removed.push(DiffOpRemove { at: pos });
         }
     }
+    removed.sort_by(|a, b| b.at.cmp(&a.at));
 
     for (pos, new_key) in new_keys.iter().enumerate() {
         if !old_keys.contains(new_key) {
@@ -354,8 +355,9 @@ mod keyed_diff_tests {
 
         assert_eq!(diff.added.len(), 0);
         assert_eq!(diff.removed.len(), 2);
-        assert_eq!(diff.removed[0].at, 0);
-        assert_eq!(diff.removed[1].at, 1);
+        // Removals are sorted in descending order
+        assert_eq!(diff.removed[0].at, 1);
+        assert_eq!(diff.removed[1].at, 0);
         assert!(
             diff.moved.is_empty(),
             "C and D should not be moved since their position change is due to removals"
@@ -369,8 +371,9 @@ mod keyed_diff_tests {
         let diff = diff_keys(&old, &new);
 
         assert_eq!(diff.removed.len(), 2);
-        assert_eq!(diff.removed[0].at, 0);
-        assert_eq!(diff.removed[1].at, 1);
+        // Removals are sorted in descending order
+        assert_eq!(diff.removed[0].at, 1);
+        assert_eq!(diff.removed[1].at, 0);
         assert!(diff.moved.is_empty(), "C should not be marked as moved");
     }
 
@@ -381,9 +384,10 @@ mod keyed_diff_tests {
         let diff = diff_keys(&old, &new);
 
         assert_eq!(diff.removed.len(), 3);
-        assert_eq!(diff.removed[0].at, 1);
+        // Removals are sorted in descending order
+        assert_eq!(diff.removed[0].at, 3);
         assert_eq!(diff.removed[1].at, 2);
-        assert_eq!(diff.removed[2].at, 3);
+        assert_eq!(diff.removed[2].at, 1);
         assert!(diff.moved.is_empty(), "A stays, E's shift is due to removals");
     }
 
@@ -400,6 +404,42 @@ mod keyed_diff_tests {
         // However, group_adjacent_moves might merge them with D's move
         assert!(!diff.moved.is_empty(), "Should have at least D's move");
         assert!(diff.moved.iter().any(|m| m.key == "D"), "D should be in moved");
+    }
+
+    #[test]
+    fn test_move_index_adjusted_after_remove() {
+        let old = make_set(&["A", "B", "C", "D"]);
+        let new = make_set(&["A", "C", "D", "B"]);
+        let diff = diff_keys(&old, &new);
+
+        // B was at index 1, now at index 3
+        // A stays at 0
+        // C and D shift down by 1 due to B's removal (but don't move in DOM)
+        assert!(diff.added.is_empty());
+        // B is not removed - it's still in the list, just at a different position
+        assert!(diff.removed.is_empty(), "B should not be removed - it moved");
+
+        // B should be marked as moved
+        let b_move = diff.moved.iter().find(|m| m.key == "B");
+        assert!(b_move.is_some(), "B should be in moved list");
+        if let Some(m) = b_move {
+            // B moves from original index 1 to index 3
+            // Since there's only one item before B (A at 0), and no removals before it
+            // from should be 1
+            assert_eq!(m.from, 1, "B's from should be its original index 1");
+            assert_eq!(m.to, 3, "B's to position should be 3");
+        }
+    }
+
+    #[test]
+    fn test_removed_sorted_descending() {
+        let old = make_set(&["A", "B", "C", "D", "E"]);
+        let new = make_set(&["A", "E"]);
+        let diff = diff_keys(&old, &new);
+
+        assert_eq!(diff.removed.len(), 3);
+        // Removals should be sorted in descending order
+        assert!(diff.removed.windows(2).all(|w| w[0].at >= w[1].at));
     }
 
     #[test]

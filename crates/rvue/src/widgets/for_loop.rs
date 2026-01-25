@@ -184,12 +184,17 @@ where
                     if from_idx < keyed_state.rendered_items.len()
                         && to_idx < keyed_state.rendered_items.len()
                     {
-                        let removed_before_from =
-                            diff.removed.iter().filter(|r| r.at < from_idx).count();
-                        let adjusted_from_idx = from_idx - removed_before_from;
-                        let removed_before_to =
-                            diff.removed.iter().filter(|r| r.at < to_idx).count();
-                        let adjusted_to_idx = to_idx - removed_before_to;
+                        let (adjusted_from_idx, adjusted_to_idx) = if op.move_in_dom {
+                            (from_idx, to_idx)
+                        } else {
+                            let removed_before_from =
+                                diff.removed.iter().filter(|r| r.at < from_idx).count();
+                            let adjusted_from_idx = from_idx - removed_before_from;
+                            let removed_before_to =
+                                diff.removed.iter().filter(|r| r.at < to_idx).count();
+                            let adjusted_to_idx = to_idx - removed_before_to;
+                            (adjusted_from_idx, adjusted_to_idx)
+                        };
 
                         if adjusted_from_idx < keyed_state.rendered_items.len()
                             && adjusted_to_idx < keyed_state.rendered_items.len()
