@@ -144,18 +144,27 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
 
         if let Some((new_index, _)) = new_keys.get_full(old_key) {
             let removed_before = removed.iter().filter(|r| r.at < pos).count();
-            let expected_without_additions = pos.saturating_sub(removed_before);
+            let removals_at_pos = removed.iter().filter(|r| r.at == pos).count();
+            let expected_without_additions = pos.saturating_sub(removed_before + removals_at_pos);
             let added_before = added.iter().filter(|a| a.at <= expected_without_additions).count();
             let expected = expected_without_additions + added_before;
             let actual = new_index;
 
             if expected != actual {
                 let moves_forward_by = (actual as i32) - (expected as i32);
-                let net_offset = (added_before as i32) - (removed_before as i32);
+                let net_offset =
+                    (added_before as i32) - ((removed_before + removals_at_pos) as i32);
                 let move_in_dom = moves_forward_by != net_offset;
 
+                let removed_before_at_pos = removed
+                    .iter()
+                    .filter(|r| r.at < pos || (r.at == pos && removals_at_pos > 0))
+                    .count();
+                let adjusted_from =
+                    if removed_before_at_pos > 0 { pos - removed_before_at_pos } else { pos };
+
                 moved.push(DiffOpMove {
-                    from: pos,
+                    from: adjusted_from,
                     len: 1,
                     to: actual,
                     move_in_dom,
@@ -201,10 +210,8 @@ pub fn apply_diff<K, T>(
 {
     if diff.clear {
         // Clean up all items before clearing
-        for item in rendered_items.iter_mut() {
-            if let Some(entry) = item {
-                entry.unmount();
-            }
+        for entry in rendered_items.iter_mut().flatten() {
+            entry.unmount();
         }
         rendered_items.clear();
         return;
@@ -219,7 +226,7 @@ pub fn apply_diff<K, T>(
         }
     }
 
-    let needed_size = new_items_needed(&diff.added) + rendered_items.len() - diff.removed.len();
+    let needed_size = rendered_items.len() - diff.removed.len() + diff.added.len();
     if needed_size > rendered_items.len() {
         rendered_items.resize_with(needed_size, || None);
     }
@@ -231,9 +238,36 @@ pub fn apply_diff<K, T>(
                 let from_idx = op.from + i;
                 let to_idx = op.to + i;
                 if from_idx < rendered_items.len() && to_idx < rendered_items.len() {
-                    rendered_items[from_idx].as_mut().map(|e| e.prepare_for_move());
+                    if let Some(e) = rendered_items[from_idx].as_mut() {
+                        e.prepare_for_move();
+                    }
                     rendered_items.swap(from_idx, to_idx);
-                    rendered_items[to_idx].as_mut().map(|e| e.finalize_move());
+                    if let Some(e) = rendered_items[to_idx].as_mut() {
+                        e.finalize_move();
+                    }
+                }
+            }
+        } else {
+            for i in 0..op.len {
+                let from_idx = op.from + i;
+                let to_idx = op.to + i;
+                if from_idx < rendered_items.len() && to_idx < rendered_items.len() {
+                    let removed_before_from =
+                        diff.removed.iter().filter(|r| r.at < from_idx).count();
+                    let adjusted_from_idx = from_idx - removed_before_from;
+                    let removed_before_to = diff.removed.iter().filter(|r| r.at < to_idx).count();
+                    let adjusted_to_idx = to_idx - removed_before_to;
+                    if adjusted_from_idx < rendered_items.len()
+                        && adjusted_to_idx < rendered_items.len()
+                    {
+                        if let Some(e) = rendered_items[adjusted_from_idx].as_mut() {
+                            e.prepare_for_move();
+                        }
+                        rendered_items.swap(adjusted_from_idx, adjusted_to_idx);
+                        if let Some(e) = rendered_items[adjusted_to_idx].as_mut() {
+                            e.finalize_move();
+                        }
+                    }
                 }
             }
         }
@@ -241,16 +275,6 @@ pub fn apply_diff<K, T>(
 
     // Step 7: Remove holes - compact Vec by removing None entries
     rendered_items.retain(|entry| entry.is_some());
-}
-
-fn new_items_needed<K>(added: &[DiffOpAdd<K>]) -> usize {
-    let mut max_at = 0;
-    for op in added {
-        if op.mode == DiffOpAddMode::Normal && op.at > max_at {
-            max_at = op.at;
-        }
-    }
-    max_at + 1
 }
 
 #[cfg(test)]

@@ -191,10 +191,23 @@ where
                 }
             }
 
+            reorder_children(&keyed_state.marker, &keyed_state.rendered_items);
+
             keyed_state.hashed_items = new_keys.clone();
         }
 
         new_keys
+    }
+}
+
+fn reorder_children<K, T>(
+    parent: &Gc<Component>,
+    rendered_items: &[Option<crate::widgets::keyed_state::ItemEntry<K, T>>],
+) {
+    let mut children = parent.children.borrow_mut();
+    children.clear();
+    for item in rendered_items.iter().flatten() {
+        children.push(Gc::clone(&item.component));
     }
 }
 
