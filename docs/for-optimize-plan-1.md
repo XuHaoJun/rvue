@@ -1,0 +1,619 @@
+# Rvue Stable-key Based Node Pool Management 技術規格書
+
+**版本**: 1.0  
+**日期**: 2026-01-25  
+**狀態**: 設計完成，待實施  
+
+---
+
+## 1. 執行摘要
+
+### 1.1 問題描述
+
+Rvue 目前的 `For` 組件依賴組件級別的增刪操作，當列表變更時會觸發全量重建。這違反了核心設計文檔中確立的「Setup Once」模式和細粒度更新哲學。
+
+### 1.2 解決方案概述
+
+借鑑 Leptos 的 `Keyed` 實現，引入 **Stable-key Based Node Pool Management**：
+- 使用 `IndexSet` 維護 key → 節點映射
+- 實現高效的 diff 算法計算最小操作集
+- 利用 `move_in_dom` 優化避免不必要的渲染操作
+
+### 1.3 核心決策
+
+| 選項 | 決定 |
+|-----|-----|
+| API 風格 | **Leptos 風格** (`For::new(each, key, children)`) |
+| 實現策略 | **簡化版本** (IndexSet diff + 精確節點增刪，暫無 Fragment Pool) |
+| 測試策略 | **針對性測試** (只測新優化功能) |
+| Key 約束 | `K: Eq + Hash + Clone + 'static` |
+| 回收機制 | 直接 drop，由 rudo-gc 處理 |
+
+---
+
+## 2. 技術背景
+
+### 2.1 核心設計哲學回顧
+
+根據 `docs/2026-01-17_17-30-40_Gemini_Google_Gemini.md` 確立的設計原則：
+
+> **Widget 定義是靜態的，狀態更新是動態的**
+> - 使用宏定義靜態結構，在 setup 時轉換為 Taffy 佈局節點
+> - 如果是 Signal，宏會生成細粒度的 Listener，直接修改 Vello Scene
+> - 不採用 Flutter 的「重建樹」模式，而是「Retained Mode Widget Graph with Fine-Grained Updates」
+
+### 2.2 現有問題分析
+
+**當前 `For` 實現 (`widgets/for_loop.rs`)**：
+
+```rust
+pub struct For {
+    item_count: ReactiveValue<usize>,  // ❌ 只支持 item_count，無 keys
+}
+```
+
+**問題**：
+1. 無法追蹤哪些具體 item 新增/刪除/移動
+2. `render_children` 遍歷所有 children 重建
+3. 違反「Setup Once」原則
+
+### 2.3 Leptos 參考實現
+
+**核心數據結構** (`tachys/src/view/keyed.rs`):
+
+```rust
+pub struct KeyedState<K, VFS, V> {
+    parent: Option<Element>,
+    marker: Placeholder,
+    hashed_items: IndexSet<K, BuildHasherDefault<FxHasher>>,  // key → index
+    rendered_items: Vec<Option<(VFS, V::State)>>,             // 渲染狀態
+}
+```
+
+**Diff 算法特點**：
+- O(n) 複雜度，使用 IndexSet 實現 O(1) 鍵查找
+- `move_in_dom` 標誌智能判斷是否需要實際 DOM 操作
+- `group_adjacent_moves()` 合併相鄰移動操作
+
+---
+
+## 3. 系統設計
+
+### 3.1 核心數據結構
+
+#### 3.1.1 `KeyedState` 結構
+
+```rust
+// crates/rvue/src/widgets/keyed_state.rs
+
+use indexmap::IndexSet;
+use rustc_hash::FxHasher;
+use std::hash::{BuildHasherDefault, Hash};
+use rudo_gc::{Gc, Trace};
+
+pub struct KeyedState<K, T, VFS> 
+where
+    K: Eq + Hash + Clone + 'static,
+{
+    // 父組件引用
+    parent: Option<Gc<Component>>,
+    
+    // 標記節點（用於定位插入點）
+    marker: Gc<Component>,
+    
+    // Stable-key 核心：保持順序的 O(1) 查找
+    hashed_items: IndexSet<K, BuildHasherDefault<FxHasher>>,
+    
+    // 渲染狀態：index → (set_index_fn, component)
+    rendered_items: Vec<Option<ItemEntry<K, T, VFS>>>,
+}
+
+pub struct ItemEntry<K, T, VFS> {
+    key: K,
+    item: T,
+    view_fn: VFS,
+    component: Gc<Component>,
+    mounted: bool,
+}
+```
+
+#### 3.1.2 Diff 操作結構
+
+```rust
+#[derive(Debug, Default)]
+pub struct KeyedDiff<K> {
+    removed: Vec<DiffOpRemove>,
+    moved: Vec<DiffOpMove<K>>,
+    added: Vec<DiffOpAdd<K>>,
+    clear: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct DiffOpMove<K> {
+    from: usize,
+    len: usize,
+    to: usize,
+    move_in_dom: bool,  // 關鍵優化標誌
+    key: K,
+}
+
+#[derive(Debug)]
+pub struct DiffOpRemove {
+    at: usize,
+}
+
+#[derive(Debug)]
+pub struct DiffOpAdd<K> {
+    at: usize,
+    key: K,
+    mode: DiffOpAddMode,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum DiffOpAddMode {
+    #[default]
+    Normal,
+    Append,
+}
+```
+
+### 3.2 Diff 算法
+
+#### 3.2.1 核心 `diff_keys()` 函數
+
+```rust
+/// 計算從 old_keys 到 new_keys 所需的操作
+pub fn diff_keys<K: Eq + Hash + Clone>(
+    old_keys: &IndexSet<K, BuildHasherDefault<FxHasher>>,
+    new_keys: &IndexSet<K, BuildHasherDefault<FxHasher>>,
+) -> KeyedDiff<K> {
+    // 快速路徑
+    if old_keys.is_empty() && new_keys.is_empty() {
+        return KeyedDiff::default();
+    }
+    if new_keys.is_empty() {
+        return KeyedDiff { clear: true, ..Default::default() };
+    }
+    if old_keys.is_empty() {
+        return KeyedDiff {
+            added: new_keys.iter()
+                .enumerate()
+                .map(|(at, k)| DiffOpAdd { at, key: k.clone(), mode: DiffOpAddMode::Append })
+                .collect(),
+            ..Default::default()
+        };
+    }
+
+    let mut removed = Vec::new();
+    let mut moved = Vec::new();
+    let mut added = Vec::new();
+    let max_len = std::cmp::max(old_keys.len(), new_keys.len());
+
+    for index in 0..max_len {
+        let old_item = old_keys.get_index(index);
+        let new_item = new_keys.get_index(index);
+
+        if old_item != new_item {
+            // 只在 old，不在 new → 刪除
+            if let Some(old) = old_item {
+                if !new_keys.contains(old) {
+                    removed.push(DiffOpRemove { at: index });
+                }
+            }
+            
+            // 只在 new，不在 old → 新增
+            if let Some(new) = new_item {
+                if !old_keys.contains(new) {
+                    added.push(DiffOpAdd {
+                        at: index,
+                        key: new.clone(),
+                        mode: DiffOpAddMode::Normal,
+                    });
+                }
+            }
+            
+            // 兩邊都有 → 檢查是否需要移動
+            if let Some(old) = old_item {
+                if let Some((new_index, _)) = new_keys.get_full(old) {
+                    // 核心優化邏輯
+                    let moves_forward_by = (new_index as i32) - (index as i32);
+                    let net_offset = (added.len() as i32) - (removed.len() as i32);
+                    let move_in_dom = moves_forward_by != net_offset;
+                    
+                    moved.push(DiffOpMove {
+                        from: index,
+                        len: 1,
+                        to: new_index,
+                        move_in_dom,
+                        key: old.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 相鄰移動合併優化
+    let moved = group_adjacent_moves(moved);
+
+    KeyedDiff { removed, moved, added, clear: false }
+}
+```
+
+#### 3.2.2 `move_in_dom` 優化邏輯
+
+關鍵洞察：如果元素因為其他元素的插入/刪除而「被動移動」，則不需要實際操作。
+
+```
+舊: [A, B, C, D]
+新: [X, A, B, C, D]  (在前面插入 X)
+
+A: moves_forward_by = 1 (從 index 0 → 1)
+added.len() - removed.len() = 1 (淨插入 1 個)
+move_in_dom = false (1 == 1)
+
+結論：A 的位置變化是由 X 的插入「推動」的，不需要額外 DOM 操作
+```
+
+#### 3.2.3 `group_adjacent_moves()` 合併優化
+
+```rust
+/// 將 [2,3,5,6] → [1,2,3,4,5,6] 的移動合併為兩個區塊：(2,3) 和 (5,6)
+fn group_adjacent_moves<K: Clone>(moves: Vec<DiffOpMove<K>>) -> Vec<DiffOpMove<K>> {
+    if moves.is_empty() {
+        return moves;
+    }
+    
+    let mut result = Vec::with_capacity(moves.len());
+    let mut current = moves[0].clone();
+    
+    for m in moves.into_iter().skip(1) {
+        // 檢查是否可合併：來源和目標都連續
+        if m.from == current.from + current.len && m.to == current.to + current.len {
+            current.len += 1;
+        } else {
+            result.push(current);
+            current = m;
+        }
+    }
+    
+    result.push(current);
+    result
+}
+```
+
+### 3.3 Apply Diff 執行順序
+
+執行順序經過精心設計，避免操作衝突：
+
+```rust
+fn apply_diff<K, T, VFS, V>(
+    parent: Option<&Gc<Component>>,
+    marker: &Gc<Component>,
+    diff: KeyedDiff<K>,
+    children: &mut Vec<Option<ItemEntry<K, T, VFS>>>,
+    view_fn: impl Fn(usize, T) -> (VFS, V),
+    mut items: Vec<Option<T>>,
+) where K: Eq + Hash + Clone, V: Widget {
+    // 執行順序：
+    // 1. Clear      - 清空所有
+    // 2. Removals   - 卸載並移除節點
+    // 3. Move out   - 從 Vec 中取出待移動節點
+    // 4. Resize     - 擴展 Vec 以容納新增
+    // 5. Move in    - 移動並插入正確位置
+    // 6. Additions  - 創建並插入新節點
+    // 7. Remove holes - 清理 Vec 中的 None
+}
+```
+
+---
+
+## 4. API 設計
+
+### 4.1 新的 `For` 組件 API
+
+```rust
+// crates/rvue/src/widgets/for_loop.rs
+
+use crate::prelude::*;
+use std::hash::Hash;
+
+pub struct For<T, I, K, KF, VF> {
+    items: ReactiveValue<I>,
+    key_fn: KF,
+    view_fn: VF,
+    _marker: std::marker::PhantomData<(T, K)>,
+}
+
+impl<T, I, K, KF, VF> For<T, I, K, KF, VF>
+where
+    T: Clone + 'static,
+    I: IntoIterator<Item = T> + Clone + 'static,
+    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Clone + 'static,
+    VF: Fn(T) -> ViewStruct + Clone + 'static,
+{
+    pub fn new(
+        items: impl IntoReactiveValue<I>,
+        key_fn: KF,
+        view_fn: VF,
+    ) -> Self {
+        Self {
+            items: items.into_reactive(),
+            key_fn,
+            view_fn,
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+```
+
+### 4.2 使用示例
+
+```rust
+#[derive(Clone)]
+struct Item {
+    id: i32,
+    name: String,
+}
+
+fn create_item_list_view() -> ViewStruct {
+    let items = create_signal(vec![
+        Item { id: 1, name: "Alice".to_string() },
+        Item { id: 2, name: "Bob".to_string() },
+        Item { id: 3, name: "Charlie".to_string() },
+    ]);
+
+    view! {
+        <Flex direction="column" gap=10.0>
+            <Text content="Item List:" />
+            <For
+                each={items}
+                key={|item| item.id}
+                view={|item| 
+                    view! { <Text content={item.name.clone()} /> }
+                }
+            />
+        </Flex>
+    }
+}
+```
+
+### 4.3 與現有系統整合
+
+#### 4.3.1 擴展 `ComponentType`
+
+```rust
+// crates/rvue/src/component.rs
+
+#[derive(Clone, PartialEq)]
+pub enum ComponentType {
+    // ... 現有類型 ...
+    Keyed,  // 新增
+}
+```
+
+#### 4.3.2 擴展 `ComponentProps`
+
+```rust
+#[derive(Clone)]
+pub enum ComponentProps {
+    // ... 現有類型 ...
+    Keyed {
+        item_count: usize,
+    },
+}
+```
+
+---
+
+## 5. 依賴與配置
+
+### 5.1 新增依賴
+
+```toml
+# crates/rvue/Cargo.toml
+
+[dependencies]
+# 新增
+indexmap = { version = "2", features = ["std"] }
+rustc-hash = "2"
+
+# 現有保持不變
+taffy = "0.6"
+vello = "0.5"
+rudo-gc = { path = "../../learn-projects/rudo/crates/rudo-gc" }
+```
+
+### 5.2 文件結構
+
+```
+crates/rvue/src/
+├── widgets/
+│   ├── mod.rs              # 添加 keyed_state 導出
+│   ├── for_loop.rs         # 重構支持 stable-key
+│   ├── keyed_state.rs      # 新建：KeyedState + diff 算法
+│   └── ...
+├── component.rs            # 添加 Keyed 類型
+└── render/
+    └── widget.rs           # 支持 key_order 排序渲染
+```
+
+---
+
+## 6. 實施計劃
+
+### Phase 1: 基礎設施 (預估 2 小時)
+
+| 任務 | 描述 | 文件 |
+|-----|------|------|
+| 添加依賴 | `indexmap = "2"`, `rustc-hash = "2"` | `crates/rvue/Cargo.toml` |
+| 創建模塊 | 新建 keyed_state 模塊 | `widgets/keyed_state.rs` |
+| 定義類型 | `KeyedState`, `KeyedDiff`, 操作結構 | `keyed_state.rs` |
+
+### Phase 2: Diff 算法 (預估 3 小時)
+
+| 任務 | 描述 | 文件 |
+|-----|------|------|
+| `diff_keys()` | 實現 IndexSet 差異計算 | `keyed_state.rs` |
+| `apply_diff()` | 7 步執行順序邏輯 | `keyed_state.rs` |
+| `group_adjacent_moves()` | 相鄰移動合併優化 | `keyed_state.rs` |
+| 單元測試 | 核心場景測試 | `keyed_state.rs` (tests) |
+
+### Phase 3: For 組件重構 (預估 3 小時)
+
+| 任務 | 描述 | 文件 |
+|-----|------|------|
+| 重構 `For` | 支持泛型 items + key_fn + view_fn | `widgets/for_loop.rs` |
+| 更新 `ComponentType` | 添加 `Keyed` 變體 | `component.rs` |
+| 更新渲染 | 支持 key_order 順序渲染 | `render/widget.rs` |
+
+### Phase 4: 整合測試 (預估 2 小時)
+
+| 任務 | 描述 | 文件 |
+|-----|------|------|
+| 示例更新 | 更新 list example 為 keyed list demo | `examples/list/src/main.rs` |
+| 基本測試 | 列表增刪移動測試 | `tests/` |
+
+---
+
+## 7. 測試策略
+
+### 7.1 必須覆蓋的場景
+
+```rust
+#[cfg(test)]
+mod keyed_diff_tests {
+    use super::*;
+
+    #[test]
+    fn test_insert_at_beginning() {
+        // [A, B, C] → [X, A, B, C]
+        let old = indexset!["A", "B", "C"];
+        let new = indexset!["X", "A", "B", "C"];
+        let diff = diff_keys(&old, &new);
+        
+        assert_eq!(diff.added.len(), 1);
+        assert_eq!(diff.removed.len(), 0);
+        // A, B, C 應該 move_in_dom = false
+        for m in &diff.moved {
+            assert!(!m.move_in_dom);
+        }
+    }
+
+    #[test]
+    fn test_insert_at_end() {
+        // [A, B, C] → [A, B, C, D]
+        let old = indexset!["A", "B", "C"];
+        let new = indexset!["A", "B", "C", "D"];
+        let diff = diff_keys(&old, &new);
+        
+        assert_eq!(diff.added.len(), 1);
+        assert!(diff.moved.is_empty()); // 無移動
+    }
+
+    #[test]
+    fn test_remove_from_middle() {
+        // [A, B, C, D] → [A, C, D]
+        let old = indexset!["A", "B", "C", "D"];
+        let new = indexset!["A", "C", "D"];
+        let diff = diff_keys(&old, &new);
+        
+        assert_eq!(diff.removed.len(), 1);
+        assert_eq!(diff.removed[0].at, 1);
+    }
+
+    #[test]
+    fn test_swap_items() {
+        // [A, B, C] → [C, B, A]
+        let old = indexset!["A", "B", "C"];
+        let new = indexset!["C", "B", "A"];
+        let diff = diff_keys(&old, &new);
+        
+        assert!(diff.added.is_empty());
+        assert!(diff.removed.is_empty());
+        assert!(!diff.moved.is_empty());
+    }
+
+    #[test]
+    fn test_clear_list() {
+        // [A, B, C] → []
+        let old = indexset!["A", "B", "C"];
+        let new = IndexSet::default();
+        let diff = diff_keys(&old, &new);
+        
+        assert!(diff.clear);
+    }
+}
+```
+
+### 7.2 GC 壓力測試 (可選)
+
+```rust
+#[test]
+fn test_gc_pressure() {
+    // 連續快速增刪 10000 個 items
+    let items = create_signal(Vec::<i32>::new());
+    
+    for i in 0..10000 {
+        items.update(|v| v.push(i));
+    }
+    
+    for i in (0..10000).rev() {
+        items.update(|v| v.remove(i));
+    }
+    
+    // 驗證 GC 正常回收
+    rudo_gc::force_gc();
+}
+```
+
+---
+
+## 8. 風險與緩解措施
+
+| 風險 | 嚴重程度 | 緩解措施 |
+|-----|---------|---------|
+| `indexmap` 性能開銷 | 低 | 使用 `FxHasher` 減少哈希計算 |
+| Vello append-only 限制 | 中 | 通過 Taffy 佈局順序控制渲染，不改變 Scene |
+| Key 衝突導致 panic | 高 | 添加重複 key 檢測並打印警告 |
+| 與現有代碼衝突 | 低 | 保持原有 API 兼容，新增泛型版本 |
+
+---
+
+## 9. 參考資料
+
+### 9.1 Leptos 相關文件
+
+- `/home/noah/Desktop/rvue/learn-projects/leptos/tachys/src/view/keyed.rs` - 核心 diff 算法
+- `/home/noah/Desktop/rvue/learn-projects/leptos/leptos/src/for_loop.rs` - For 組件 API
+- `/home/noah/Desktop/rvue/learn-projects/leptos/leptos_hot_reload/src/diff.rs` - hot reload diff
+
+### 9.2 設計文檔
+
+- `/home/noah/Desktop/rvue/docs/2026-01-17_17-30-40_Gemini_Google_Gemini.md` - 核心設計哲學
+- `/home/noah/Desktop/rvue/docs/mvp-review-3.md` - MVP 評審，提出優化需求
+
+---
+
+## 10. 附錄：專家共識
+
+基於 Alex Crichton, Leptos Team, 尤雨溪, Ryan Carniato 的「平行世界協作」討論：
+
+### Key 的 `'static` 約束 (Alex Crichton)
+
+> 「在 GC 環境下，Key 必須滿足 `Eq + Hash + Clone + 'static`。如果不是 'static，閉包的生命週期會傳染，導致整個 For 組件無法 Send/Sync。這是 Rust + GC 混合系統的安全邊界，不能妥協。」
+
+### 回收機制 (Leptos Team)
+
+> 「簡化版本直接 drop 就好，rudo-gc 會在下一次 GC 時回收內存。不要自己維護回收池，GC 就是乾這個的。Fragment Pool 是當 create_fragment 的成本很高時才需要考慮的。」
+
+### 實現策略 (Ryan Carniato)
+
+> 「關鍵的漸進式目標：
+> 1. 先證明 stable key 能減少 Effect 數量——這是『編譯時靜態檢查』的核心價值
+> 2. 再證明 diff 算法比全量重建快——用 Vello 的 render timing 說話
+> 3. 最後再考慮 DOM/Vello 操作的合併優化——這是 Cherry on top。」
+
+---
+
+**文檔結束**

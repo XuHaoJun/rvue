@@ -68,6 +68,7 @@ pub enum ComponentProps {
     Radio { value: String, checked: bool },
     Show { when: bool },
     For { item_count: usize },
+    KeyedFor { item_count: usize },
     Flex { direction: String, gap: f32, align_items: String, justify_content: String },
     Custom { data: String },
 }

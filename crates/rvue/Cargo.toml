@@ -28,6 +28,9 @@ cursor-icon = "1.2.0"
 smallvec = "1.15.1"
 bitflags = "2.10.0"
 wgpu-profiler = { version = "0.25", optional = true, default-features = false }
+indexmap = "2"
+rustc-hash = "2"
+log = "0.4"
 
 [features]
 tracy = ["wgpu-profiler"]
