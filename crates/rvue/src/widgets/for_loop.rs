@@ -178,14 +178,23 @@ where
             }
 
             for op in &diff.moved {
-                if op.move_in_dom {
-                    for i in 0..op.len {
-                        let from_idx = op.from + i;
-                        let to_idx = op.to + i;
-                        if from_idx < keyed_state.rendered_items.len()
-                            && to_idx < keyed_state.rendered_items.len()
+                for i in 0..op.len {
+                    let from_idx = op.from + i;
+                    let to_idx = op.to + i;
+                    if from_idx < keyed_state.rendered_items.len()
+                        && to_idx < keyed_state.rendered_items.len()
+                    {
+                        let removed_before_from =
+                            diff.removed.iter().filter(|r| r.at < from_idx).count();
+                        let adjusted_from_idx = from_idx - removed_before_from;
+                        let removed_before_to =
+                            diff.removed.iter().filter(|r| r.at < to_idx).count();
+                        let adjusted_to_idx = to_idx - removed_before_to;
+
+                        if adjusted_from_idx < keyed_state.rendered_items.len()
+                            && adjusted_to_idx < keyed_state.rendered_items.len()
                         {
-                            keyed_state.rendered_items.swap(from_idx, to_idx);
+                            keyed_state.rendered_items.swap(adjusted_from_idx, adjusted_to_idx);
                         }
                     }
                 }
