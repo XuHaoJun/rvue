@@ -86,8 +86,12 @@ fn test_show_widget() {
 
 #[test]
 fn test_for_widget() {
+    use rvue::prelude::*;
+    let (items, _set_items) = create_signal(vec!["Item 1", "Item 2"]);
     let _view = view! {
-        <For item_count=5 />
+        <For each=items key=|s| s.to_string() view={|s| view! {
+            <Text content={s.to_string()} />
+        }}/>
     };
 }
 

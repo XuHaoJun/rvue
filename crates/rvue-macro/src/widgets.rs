@@ -246,13 +246,20 @@ fn generate_show_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     }
 }
 
-fn generate_for_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
-    let item_count = extract_prop_value(attrs, "item_count", || quote! { 0 });
+fn generate_for_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+    let items = extract_prop_value(attrs, "each", || quote! { vec![] });
+    let key_fn = extract_prop_value(attrs, "key", || quote! { |item| item });
+    let view_fn = extract_prop_value(
+        attrs,
+        "view",
+        || quote! { |item| view! { <Text content={format!("{:?}", item)} />} },
+    );
 
     quote! {
         rvue::widgets::For::new(
-            #id,
-            #item_count
+            #items,
+            #key_fn,
+            #view_fn
         )
     }
 }

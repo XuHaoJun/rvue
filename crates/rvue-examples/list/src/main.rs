@@ -25,9 +25,9 @@ fn create_todo_list_view() -> ViewStruct {
     view! {
         <Flex direction="column" gap=10.0 align_items="start" justify_content="start">
             <Text content="Todo List:" />
-            <For item_count=todos.get().len()>
-                <Text content="• Item" />
-            </For>
+            <For each=todos.clone() key=|item: &String| item.clone() view={|item| view! {
+                <Text content=format!("• {}", item) />
+            }}/>
         </Flex>
     }
 }

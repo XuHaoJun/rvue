@@ -99,6 +99,10 @@ where
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
 {
+    pub fn component(&self) -> &Gc<Component> {
+        &self.component
+    }
+
     fn get_current_keys(&self) -> IndexSet<K, BuildHasherDefault<FxHasher>> {
         self.keyed_state.borrow().hashed_items.clone()
     }
