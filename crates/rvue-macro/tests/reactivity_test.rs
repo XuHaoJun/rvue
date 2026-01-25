@@ -18,7 +18,7 @@ where
 #[component]
 fn ChildComp(value: String) -> impl View {
     view! {
-        <Text content={format!("Child: {}", value.get())} />
+        <Text content={format!("Child: {}", value)} />
     }
 }
 

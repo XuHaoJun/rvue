@@ -50,20 +50,22 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
-                fn trace(&self, visitor: &mut ::rudo_gc::Visitor) {
-                    self.children.trace(visitor);
+                fn trace(&self, _visitor: &mut impl ::rudo_gc::Visitor) {
+                    // children is Arc<dyn Fn()>, which doesn't contain GC pointers
+                    // The actual ViewStruct returned by the closure will be traced when called
                 }
             }
         }
     } else {
         let trace_fields = other_fields.iter().map(|(fname, _, _)| {
-            quote! { self.#fname.trace(visitor); }
+            quote! { self.#fname.trace(_visitor); }
         });
         quote! {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
-                fn trace(&self, visitor: &mut ::rudo_gc::Visitor) {
-                    self.children.trace(visitor);
+                fn trace(&self, _visitor: &mut impl ::rudo_gc::Visitor) {
+                    // children is Arc<dyn Fn()>, which doesn't contain GC pointers
+                    // The actual ViewStruct returned by the closure will be traced when called
                     #(#trace_fields)*
                 }
             }
@@ -84,6 +86,19 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         impl From<#name> for Vec<#name> {
             fn from(value: #name) -> Self {
                 vec![value]
+            }
+        }
+
+        impl rvue::widget::IntoReactiveValue<#name> for #name {
+            fn into_reactive(self) -> rvue::widget::ReactiveValue<#name> {
+                rvue::widget::ReactiveValue::Static(self)
+            }
+        }
+
+        impl #name {
+            /// Create a new slot with the given children function
+            pub fn new(children: #children_ty) -> Self {
+                Self { children }
             }
         }
     };

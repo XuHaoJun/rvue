@@ -49,7 +49,7 @@ impl From<ChildrenFn> for Slot {
 
 unsafe impl Trace for Slot {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // ChildrenFn is an Arc<dyn Fn()>, which doesn't contain GC pointers
+        // ChildrenFn is Arc<dyn Fn()>, which doesn't contain GC pointers
         // The actual ViewStruct returned by the closure will be traced when called
     }
 }

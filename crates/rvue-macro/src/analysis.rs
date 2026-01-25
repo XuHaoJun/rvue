@@ -13,10 +13,17 @@ pub enum ExpressionKind {
     Static,
     /// Expression appears to be reactive (reads signals)
     Reactive,
+    /// Expression returns a ViewStruct
+    ViewStruct,
 }
 
 /// Determine whether an expression is likely reactive
 pub fn classify_expression(expr: &Expr) -> ExpressionKind {
+    // First check if it's a ViewStruct type
+    if is_view_struct_type(expr) {
+        return ExpressionKind::ViewStruct;
+    }
+
     let mut detector = ReactiveDetector { is_reactive: false };
     detector.visit_expr(expr);
     if detector.is_reactive {
@@ -24,6 +31,38 @@ pub fn classify_expression(expr: &Expr) -> ExpressionKind {
     } else {
         ExpressionKind::Static
     }
+}
+
+/// Check if an expression is a ViewStruct by looking at its type path
+fn is_view_struct_type(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(path) => {
+            if let Some(segment) = path.path.segments.last() {
+                let name = segment.ident.to_string();
+                // Check for ViewStruct or ViewStruct::new()
+                if name == "ViewStruct" {
+                    return true;
+                }
+                // Also check for lowercase 'view_struct' which might be a variable
+                // In this case, we can't know for sure, so we treat it as ViewStruct
+                // if it looks like it could be one (single identifier that's not a signal get)
+                if name == "view_struct" {
+                    return true;
+                }
+            }
+        }
+        Expr::Macro(expr_macro) => {
+            // Check for macros like `view! { ... }` which might return ViewStruct
+            let path = &expr_macro.mac.path;
+            if let Some(segment) = path.get_ident() {
+                if segment == "view" {
+                    return true;
+                }
+            }
+        }
+        _ => {}
+    }
+    false
 }
 
 struct ReactiveDetector {

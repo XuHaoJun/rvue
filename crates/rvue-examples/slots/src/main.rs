@@ -2,9 +2,9 @@
 //!
 //! This example shows how to define slots and use them in components.
 
+use rudo_gc::Gc;
 use rvue::prelude::*;
 use rvue_macro::{component, slot, view};
-use std::sync::Arc;
 
 #[slot]
 struct CardBody {
@@ -14,19 +14,57 @@ struct CardBody {
 #[component]
 fn Card(body: CardBody) -> impl View {
     let body_view = (body.children)();
-    view! {
-        <Flex direction="column" gap=10.0>
-            <Text content="Card Header" />
-            { body_view }
-            <Text content="Card Footer" />
-        </Flex>
+    CardInner { view: body_view }
+}
+
+struct CardInner {
+    view: ViewStruct,
+}
+
+impl View for CardInner {
+    fn into_component(self) -> Gc<Component> {
+        let root = Component::new(
+            0,
+            ComponentType::Flex,
+            ComponentProps::Flex {
+                direction: "column".to_string(),
+                gap: 10.0,
+                align_items: "stretch".to_string(),
+                justify_content: "start".to_string(),
+            },
+        );
+
+        let header = Component::new(
+            0,
+            ComponentType::Text,
+            ComponentProps::Text {
+                content: "Card Header".to_string(),
+                font_size: None,
+                color: None,
+            },
+        );
+        let footer = Component::new(
+            0,
+            ComponentType::Text,
+            ComponentProps::Text {
+                content: "Card Footer".to_string(),
+                font_size: None,
+                color: None,
+            },
+        );
+
+        root.add_child(header);
+        root.add_child(self.view.root_component.clone());
+        root.add_child(footer);
+
+        root
     }
 }
 
 #[component]
 fn App() -> impl View {
-    let body_content1: ChildrenFn = Arc::new(|| {
-        ViewStruct::new(Component::new(
+    let body1: ChildrenFn = (|| {
+        ViewStruct::from_component(Component::new(
             0,
             ComponentType::Text,
             ComponentProps::Text {
@@ -35,10 +73,11 @@ fn App() -> impl View {
                 color: None,
             },
         ))
-    });
+    })
+    .to_children();
 
-    let body_content2: ChildrenFn = Arc::new(|| {
-        ViewStruct::new(Component::new(
+    let body2: ChildrenFn = (|| {
+        ViewStruct::from_component(Component::new(
             0,
             ComponentType::Flex,
             ComponentProps::Flex {
@@ -48,29 +87,23 @@ fn App() -> impl View {
                 justify_content: "start".to_string(),
             },
         ))
-    });
+    })
+    .to_children();
 
     view! {
         <Flex direction="column" gap=20.0>
             <Text content="Slot Example" />
 
-            <Card
-                body=CardBody { children: body_content1 }
-            />
-
-            <Card
-                body=CardBody { children: body_content2 }
-            />
+            <Card body=CardBody { children: body1 } />
+            <Card body=CardBody { children: body2 } />
         </Flex>
     }
 }
 
-fn create_app_view() -> ViewStruct {
-    App()
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app_view = create_app_view();
-    rvue::run_app(|| app_view)?;
+    let app_view = App(Default::default());
+    let app_component = app_view.into_component();
+    let app_view_struct = ViewStruct::new(app_component);
+    rvue::run_app(|| app_view_struct)?;
     Ok(())
 }

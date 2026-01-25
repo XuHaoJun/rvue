@@ -239,6 +239,15 @@ fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> Token
                 }
             }
         }
+        ExpressionKind::ViewStruct => {
+            quote_spanned! { span =>
+                {
+                    let view_struct = #expr;
+                    let inner_comp = rvue::prelude::View::into_component(view_struct);
+                    inner_comp
+                }
+            }
+        }
     }
 }
 
