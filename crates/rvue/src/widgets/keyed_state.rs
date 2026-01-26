@@ -129,7 +129,7 @@ pub fn diff_keys<K: Eq + Hash + Clone>(
             removed.push(DiffOpRemove { at: pos });
         }
     }
-    removed.sort_by(|a, b| b.at.cmp(&a.at));
+    removed.sort_by_key(|a| std::cmp::Reverse(a.at));
 
     for (pos, new_key) in new_keys.iter().enumerate() {
         if !old_keys.contains(new_key) {
