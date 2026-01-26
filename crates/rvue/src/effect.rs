@@ -83,16 +83,16 @@ unsafe impl Trace for Effect {
         // Trace cleanups for any Gc pointers they might capture
         let cleanups_borrow = self.cleanups.borrow();
         for cleanup in cleanups_borrow.iter() {
-            // Cast FnOnce to Fn for scanning (safe since we only read memory)
-            // SAFETY: We cast &dyn FnOnce to &dyn Fn, which is valid for reading.
-            // We scan the closure's data for pointers, we don't call it.
-            let func_ptr: *const dyn Fn() = unsafe { std::mem::transmute(cleanup.as_ref()) };
-            let data_ptr = func_ptr as *const u8;
+            // SAFETY: We conservatively scan the FnOnce closure for GC pointers.
+            // This matches the pattern from rudo-gc's dummy_effect_test.rs.
+            // We use the actual type FnOnce (not transmute to Fn) and scan the
+            // closure's memory region for potential GC pointers.
+            let ptr = std::ptr::from_ref::<dyn FnOnce()>(cleanup.as_ref()).cast::<u8>();
             let layout = std::alloc::Layout::for_value(&**cleanup);
 
             if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
                 unsafe {
-                    visitor.visit_region(data_ptr, layout.size());
+                    visitor.visit_region(ptr, layout.size());
                 }
             }
         }

@@ -204,7 +204,11 @@ impl<T: Trace + Clone + 'static> SignalData<T> {
         // Find the signal by pointer and remove the specific weak reference
         // This is called during effect cleanup
         unsafe {
-            // The signal_ptr points to the SignalData, cast it back
+            // Cast the raw pointer back to SignalData.
+            // This is safe because:
+            // 1. The pointer was originally stored as `self as *const _ as *const ()`
+            // 2. SignalData<T> has a consistent layout with GcCell<T> as the first field
+            // 3. GcCell<T> is pointer-sized (NonNull<GcBox<T>>), so size is consistent
             let signal = &*effect_ptr.cast::<SignalData<()>>();
             let mut subscribers = signal.subscribers.borrow_mut();
             subscribers.retain(|weak| !Weak::ptr_eq(weak, weak_effect));
