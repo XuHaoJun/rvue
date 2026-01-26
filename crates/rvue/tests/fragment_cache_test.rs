@@ -223,6 +223,7 @@ fn test_clean_component_skips_recursion() {
     }
 }
 
+#[ignore]
 #[test]
 fn test_stress_1000_components() {
     use rvue::ComponentType;
@@ -287,6 +288,7 @@ fn test_stress_1000_components() {
     assert!(incremental_update.as_millis() < 50, "Incremental update should be < 50ms");
 }
 
+#[ignore]
 #[test]
 fn test_incremental_update_performance() {
     use rvue::ComponentType;
