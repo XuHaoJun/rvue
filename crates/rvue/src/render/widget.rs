@@ -4,6 +4,7 @@ use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
+use rustc_hash::FxHashSet;
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
@@ -11,6 +12,7 @@ pub fn render_component(
     component: &Gc<Component>,
     scene: &mut vello::Scene,
     transform: Affine,
+    already_appended: &mut FxHashSet<u64>,
 ) -> bool {
     let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
@@ -47,8 +49,11 @@ pub fn render_component(
         component.clear_dirty();
     }
 
-    if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
-        scene.append(local_scene, Some(transform));
+    if !already_appended.contains(&component.id) {
+        if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
+            scene.append(local_scene, Some(transform));
+            already_appended.insert(component.id);
+        }
     }
 
     let should_render_children = match &component.component_type {
@@ -65,13 +70,18 @@ pub fn render_component(
     };
 
     if should_render_children {
-        render_children(component, scene, transform);
+        render_children(component, scene, transform, already_appended);
     }
 
     is_dirty || cache_was_none
 }
 
-fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
+fn render_children(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    already_appended: &mut FxHashSet<u64>,
+) {
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
@@ -84,7 +94,7 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         };
         *child.vello_cache.borrow_mut() = None;
         child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
-        render_component(child, scene, transform * child_transform);
+        render_component(child, scene, transform * child_transform, already_appended);
     }
 }
 

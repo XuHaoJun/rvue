@@ -5,6 +5,7 @@ use crate::component::Component;
 use crate::render::widget::render_component;
 use crate::text::TextContext;
 use rudo_gc::Gc;
+use rustc_hash::FxHashSet;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 use vello::kurbo::Affine;
@@ -62,6 +63,8 @@ impl Scene {
             }
         }
 
+        let mut already_appended = FxHashSet::default();
+
         for component in &self.root_components {
             crate::effect::set_defer_effect_run(true);
 
@@ -82,11 +85,11 @@ impl Scene {
             if let Some(ref mut scene) = self.vello_scene {
                 if component.is_dirty() {
                     *component.vello_cache.borrow_mut() = None;
-                    render_component(component, scene, Affine::IDENTITY);
+                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
                 } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
                 } else {
-                    render_component(component, scene, Affine::IDENTITY);
+                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
                 }
             }
         }
