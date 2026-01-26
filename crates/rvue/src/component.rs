@@ -520,14 +520,51 @@ impl Component {
         }
     }
 
+    pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
+        self.event_handlers.borrow_mut().on_click = Some(handler);
+        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+    }
+
+    pub fn on_click_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
+        self.event_handlers.borrow_mut().on_click = Some(handler);
+        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+    }
+
     pub fn on_click<F>(self: &Gc<Self>, handler: F)
     where
         F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
+                handler,
+            );
         self.event_handlers.borrow_mut().on_click = Some(handler);
         self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+    }
+
+    pub fn on_pointer_down_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
+        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+    }
+
+    pub fn on_pointer_down_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
+        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_down<F>(self: &Gc<Self>, handler: F)
@@ -535,8 +572,27 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
+                handler,
+            );
         self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+    }
+
+    pub fn on_pointer_up_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
+        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+    }
+
+    pub fn on_pointer_up_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
+    {
+        let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
+        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_up<F>(self: &Gc<Self>, handler: F)
@@ -544,8 +600,97 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
+                handler,
+            );
         self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+    }
+
+    pub fn on_pointer_enter_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+    }
+
+    pub fn on_pointer_enter_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerInfo) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+    }
+
+    pub fn on_pointer_enter<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerInfo, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
+        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+    }
+
+    pub fn on_pointer_leave_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+    }
+
+    pub fn on_pointer_leave_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerInfo) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+    }
+
+    pub fn on_pointer_leave<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerInfo, &mut crate::event::context::EventContext)
+            + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
+        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+    }
+
+    pub fn on_pointer_move_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+    }
+
+    pub fn on_pointer_move_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::PointerMoveEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
     }
 
     pub fn on_pointer_move<F>(self: &Gc<Self>, handler: F)
@@ -553,8 +698,33 @@ impl Component {
         F: Fn(&crate::event::types::PointerMoveEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new(
+                handler,
+            );
         self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+    }
+
+    pub fn on_key_down_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_key_down = Some(handler);
+    }
+
+    pub fn on_key_down_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::KeyboardEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_key_down = Some(handler);
     }
 
     pub fn on_key_down<F>(self: &Gc<Self>, handler: F)
@@ -562,8 +732,31 @@ impl Component {
         F: Fn(&crate::event::types::KeyboardEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
         self.event_handlers.borrow_mut().on_key_down = Some(handler);
+    }
+
+    pub fn on_key_up_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_key_up = Some(handler);
+    }
+
+    pub fn on_key_up_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::types::KeyboardEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_key_up = Some(handler);
     }
 
     pub fn on_key_up<F>(self: &Gc<Self>, handler: F)
@@ -571,8 +764,31 @@ impl Component {
         F: Fn(&crate::event::types::KeyboardEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
         self.event_handlers.borrow_mut().on_key_up = Some(handler);
+    }
+
+    pub fn on_focus_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_focus = Some(handler);
+    }
+
+    pub fn on_focus_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::FocusEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_focus = Some(handler);
     }
 
     pub fn on_focus<F>(self: &Gc<Self>, handler: F)
@@ -580,8 +796,31 @@ impl Component {
         F: Fn(&crate::event::status::FocusEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
         self.event_handlers.borrow_mut().on_focus = Some(handler);
+    }
+
+    pub fn on_blur_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_blur = Some(handler);
+    }
+
+    pub fn on_blur_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::FocusEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_blur = Some(handler);
     }
 
     pub fn on_blur<F>(self: &Gc<Self>, handler: F)
@@ -589,8 +828,31 @@ impl Component {
         F: Fn(&crate::event::status::FocusEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
         self.event_handlers.borrow_mut().on_blur = Some(handler);
+    }
+
+    pub fn on_input_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_input = Some(handler);
+    }
+
+    pub fn on_input_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_input = Some(handler);
     }
 
     pub fn on_input<F>(self: &Gc<Self>, handler: F)
@@ -598,8 +860,31 @@ impl Component {
         F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
         self.event_handlers.borrow_mut().on_input = Some(handler);
+    }
+
+    pub fn on_change_0arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_change = Some(handler);
+    }
+
+    pub fn on_change_1arg<F>(self: &Gc<Self>, handler: F)
+    where
+        F: Fn(&crate::event::status::InputEvent) + 'static,
+    {
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
+                handler,
+            );
+        self.event_handlers.borrow_mut().on_change = Some(handler);
     }
 
     pub fn on_change<F>(self: &Gc<Self>, handler: F)
@@ -607,7 +892,8 @@ impl Component {
         F: Fn(&crate::event::status::InputEvent, &mut crate::event::context::EventContext)
             + 'static,
     {
-        let handler = crate::event::handler::EventHandler::new(handler);
+        let handler =
+            crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
         self.event_handlers.borrow_mut().on_change = Some(handler);
     }
 

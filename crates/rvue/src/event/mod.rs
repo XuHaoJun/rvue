@@ -11,7 +11,7 @@ pub mod update;
 pub use context::EventContext;
 pub use dispatch::{run_pointer_event_pass, run_text_event_pass};
 pub use focus::find_next_focusable;
-pub use handler::{EventHandler, EventHandlers};
+pub use handler::{AnyEventHandler, EventHandler, EventHandlers};
 pub use hit_test::hit_test;
 pub use status::StatusUpdate;
 pub use types::{
@@ -19,6 +19,10 @@ pub use types::{
     PointerScrollEvent, RvueEvent, TextEvent, WindowEvent,
 };
 pub use update::{run_update_focus_pass, run_update_pointer_pass};
+
+pub trait EventDescriptor {
+    type EventType;
+}
 
 #[cfg(test)]
 mod tests {
