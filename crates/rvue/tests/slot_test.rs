@@ -3,7 +3,6 @@
 use rudo_gc::Gc;
 use rvue::prelude::*;
 use rvue_macro::slot;
-use std::sync::Arc;
 
 #[slot]
 struct TestSlot {
@@ -25,15 +24,15 @@ fn create_test_view(id: u64) -> ViewStruct {
 
 #[test]
 fn test_slot_new() {
-    let slot = TestSlot::new(Arc::new(|| create_test_view(1)));
+    let slot = TestSlot::new((|| create_test_view(1)).to_children());
 
-    let view = (slot.children)();
+    let view = (slot.children.0)();
     assert_eq!(view.root_component.id, 1);
 }
 
 #[test]
 fn test_slot_into_vec() {
-    let slot = TestSlot::new(Arc::new(|| create_test_view(1)));
+    let slot = TestSlot::new((|| create_test_view(1)).to_children());
 
     let vec: Vec<TestSlot> = slot.into();
     assert_eq!(vec.len(), 1);
@@ -43,7 +42,7 @@ fn test_slot_into_vec() {
 fn test_to_children_fn() {
     let closure: ChildrenFn = (|| create_test_view(2)).to_children();
 
-    let view = closure();
+    let view = (closure.0)();
     assert_eq!(view.root_component.id, 2);
 }
 
@@ -55,7 +54,8 @@ fn test_maybe_slot() {
     assert!(none_slot.is_none());
     assert!(none_slot.render().is_none());
 
-    let some_slot = MaybeSlot::from(Some(rvue::slot::Slot::new(Arc::new(|| create_test_view(3)))));
+    let some_slot =
+        MaybeSlot::from(Some(rvue::slot::Slot::new((|| create_test_view(3)).to_children())));
 
     assert!(some_slot.is_some());
     let view = some_slot.render().unwrap();
@@ -67,16 +67,16 @@ fn test_slot_to_children_trait() {
     let view = create_test_view(4);
 
     let children_fn: ChildrenFn = view.to_children();
-    let rendered = children_fn();
+    let rendered = (children_fn.0)();
     assert_eq!(rendered.root_component.id, 4);
 }
 
 #[test]
 fn test_slot_clone() {
-    let slot = TestSlot::new(Arc::new(|| create_test_view(5)));
+    let slot = TestSlot::new((|| create_test_view(5)).to_children());
     let cloned = slot.clone();
 
-    let view = (cloned.children)();
+    let view = (cloned.children.0)();
     assert_eq!(view.root_component.id, 5);
 }
 
@@ -84,7 +84,7 @@ fn test_slot_clone() {
 fn test_slot_render() {
     use rvue::slot::Slot;
 
-    let slot = Slot::new(Arc::new(|| create_test_view(6)));
+    let slot = Slot::new((|| create_test_view(6)).to_children());
 
     let view = slot.render();
     assert_eq!(view.root_component.id, 6);

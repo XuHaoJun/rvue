@@ -4,15 +4,24 @@
 //! This follows the pattern established by Leptos and Vue.
 
 use crate::view::ViewStruct;
-use rudo_gc::Trace;
-use std::sync::Arc;
+use rudo_gc::{Gc, Trace};
+
+/// Wrapper for closures that ensures GC tracing works correctly.
+///
+/// This wrapper calls the closure during GC trace to trace any `Gc<T>`
+/// values in the returned ViewStruct, which also traces any `Gc<T>`
+/// captured in the closure's environment.
+pub struct ChildrenClosure(pub Box<dyn Fn() -> ViewStruct>);
+
+unsafe impl Trace for ChildrenClosure {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        let view = (self.0)();
+        view.trace(visitor);
+    }
+}
 
 /// A function that renders slot content, can be called multiple times
-///
-/// Note: ChildrenFn uses `Arc<dyn Fn()>` which is not `Send + Sync` by default.
-/// This is acceptable because UI rendering in rvue happens on a single-threaded
-/// event loop (winit). The closure will be invoked only on the main thread.
-pub type ChildrenFn = Arc<dyn Fn() -> ViewStruct>;
+pub type ChildrenFn = Gc<ChildrenClosure>;
 
 /// A function that renders slot content, can only be called once
 pub type Children = Box<dyn FnOnce() -> ViewStruct>;
@@ -35,7 +44,7 @@ impl Slot {
 
     /// Render the slot content and return the view
     pub fn render(&self) -> ViewStruct {
-        (self.children)()
+        (self.children.0)()
     }
 }
 
@@ -53,8 +62,7 @@ impl From<ChildrenFn> for Slot {
 
 unsafe impl Trace for Slot {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        let view = (self.children)();
-        view.trace(visitor);
+        self.children.trace(visitor);
     }
 }
 
@@ -71,7 +79,7 @@ where
     F: Fn() -> ViewStruct + 'static,
 {
     fn to_children(self) -> ChildrenFn {
-        Arc::new(self)
+        Gc::new(ChildrenClosure(Box::new(self)))
     }
 }
 
@@ -85,14 +93,9 @@ where
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
-    /// Converts a ViewStruct into a ChildrenFn by wrapping it in an Arc.
-    ///
-    /// Note: Uses `#[allow(clippy::arc_with_non_send_sync)]` because UI rendering
-    /// happens on a single-threaded event loop (winit). If multi-threaded rendering
-    /// is added in the future, this should be reviewed.
-    #[allow(clippy::arc_with_non_send_sync)]
     fn to_children(self) -> ChildrenFn {
-        Arc::new(move || self.clone())
+        let view = self;
+        Gc::new(ChildrenClosure(Box::new(move || view.clone())))
     }
 }
 
@@ -139,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_slot_new() {
-        let slot = Slot::new(Arc::new(|| ViewStruct::new(create_test_component())));
+        let slot = Slot::new((|| ViewStruct::new(create_test_component())).to_children());
 
         let view = slot.render();
         assert!(view.root_component.id == 0);
@@ -149,7 +152,7 @@ mod tests {
     fn test_to_children_fn() {
         let closure: ChildrenFn = (|| ViewStruct::new(create_test_component())).to_children();
 
-        let view = closure();
+        let view = (closure.0)();
         assert!(view.root_component.id == 0);
     }
 
@@ -159,11 +162,24 @@ mod tests {
         assert!(none_slot.is_none());
         assert!(none_slot.render().is_none());
 
-        let some_slot =
-            MaybeSlot::from(Some(Slot::new(Arc::new(|| ViewStruct::new(create_test_component())))));
+        let some_slot = MaybeSlot::from(Some(Slot::new(
+            (|| ViewStruct::new(create_test_component())).to_children(),
+        )));
 
         assert!(some_slot.is_some());
         let view = some_slot.render().unwrap();
+        assert!(view.root_component.id == 0);
+    }
+
+    #[test]
+    fn test_slot_with_gc_capture() {
+        let gc_component = create_test_component();
+        let gc_clone = gc_component.clone();
+
+        let closure: ChildrenFn =
+            Gc::new(ChildrenClosure(Box::new(move || ViewStruct::new(gc_clone.clone()))));
+
+        let view = (closure.0)();
         assert!(view.root_component.id == 0);
     }
 }

@@ -51,8 +51,7 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
                 fn trace(&self, visitor: &mut impl ::rudo_gc::Visitor) {
-                    let view = (self.children)();
-                    view.trace(visitor);
+                    self.children.trace(visitor);
                 }
             }
         }
@@ -64,8 +63,7 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
                 fn trace(&self, visitor: &mut impl ::rudo_gc::Visitor) {
-                    let view = (self.children)();
-                    view.trace(visitor);
+                    self.children.trace(visitor);
                     #(#trace_fields)*
                 }
             }
