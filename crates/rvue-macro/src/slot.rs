@@ -9,14 +9,20 @@
 //! The corresponding slot struct field should be `children` or `Children`.
 //! Named slots are converted to snake_case variable names for the slot closure.
 //!
-//! # Reactive Slots
+//! # Slot Props
 //!
-//! Currently, slot types are always wrapped in `ReactiveValue::Static`.
-//! Future versions may support reactive slot content for conditional slots.
+//! Slot struct fields (other than `children`) are treated as props.
+//! They get builder methods for setting values.
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{ItemStruct, LitStr, Meta};
+
+struct SlotField {
+    name: Ident,
+    ty: syn::Type,
+    attrs: Vec<syn::Attribute>,
+}
 
 pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse2::<ItemStruct>(item).expect("Failed to parse slot struct");
@@ -25,8 +31,8 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let vis = input.vis.clone();
     let name = &input.ident;
 
-    let mut children_field = None;
-    let mut other_fields: Vec<(Ident, syn::Type, Vec<syn::Attribute>)> = Vec::new();
+    let mut children_field: Option<(Ident, syn::Type)> = None;
+    let mut prop_fields: Vec<SlotField> = Vec::new();
 
     for field in input.fields.iter() {
         let field_name = field.ident.as_ref().unwrap().clone();
@@ -36,7 +42,7 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         if field_name == "children" || field_name == "Children" {
             children_field = Some((field_name, field_ty));
         } else {
-            other_fields.push((field_name, field_ty, field_attrs));
+            prop_fields.push(SlotField { name: field_name, ty: field_ty, attrs: field_attrs });
         }
     }
 
@@ -45,19 +51,19 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let builder_name_doc = LitStr::new(&format!("Props for the [`{name}`] slot."), name.span());
 
-    let struct_fields = if other_fields.is_empty() {
+    let struct_fields = if prop_fields.is_empty() {
         quote! { pub children: #children_ty }
     } else {
-        let field_names = other_fields.iter().map(|(name, _, _)| name);
-        let field_types = other_fields.iter().map(|(_, ty, _)| ty);
-        let field_attrs = other_fields.iter().map(|(_, _, attrs)| attrs);
+        let field_names = prop_fields.iter().map(|f| &f.name);
+        let field_types = prop_fields.iter().map(|f| &f.ty);
+        let field_attrs = prop_fields.iter().map(|f| &f.attrs);
         quote! {
             pub children: #children_ty,
             #(#(#field_attrs)* pub #field_names: #field_types),*
         }
     };
 
-    let trace_impl = if other_fields.is_empty() {
+    let trace_impl = if prop_fields.is_empty() {
         quote! {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
@@ -67,7 +73,8 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     } else {
-        let trace_fields = other_fields.iter().map(|(fname, _, _)| {
+        let trace_fields = prop_fields.iter().map(|f| {
+            let fname = &f.name;
             quote! { self.#fname.trace(visitor); }
         });
         quote! {
@@ -77,6 +84,43 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     self.children.trace(visitor);
                     #(#trace_fields)*
                 }
+            }
+        }
+    };
+
+    let new_impl = if prop_fields.is_empty() {
+        quote! {
+            impl #name {
+                pub fn new(children: #children_ty) -> Self {
+                    Self { children }
+                }
+            }
+        }
+    } else {
+        let field_names: Vec<_> = prop_fields.iter().map(|f| &f.name).collect();
+        let _field_types: Vec<_> = prop_fields.iter().map(|f| &f.ty).collect();
+        let set_methods = prop_fields.iter().map(|f| {
+            let fname = &f.name;
+            let fty = &f.ty;
+            let method_name = fname;
+            quote! {
+                pub fn #method_name(mut self, value: #fty) -> Self {
+                    self.#fname = value;
+                    self
+                }
+            }
+        });
+
+        quote! {
+            impl #name {
+                pub fn new(children: #children_ty) -> Self {
+                    Self {
+                        children,
+                        #(#field_names: ::core::default::Default::default()),*
+                    }
+                }
+
+                #(#set_methods)*
             }
         }
     };
@@ -92,6 +136,8 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #trace_impl
 
+        #new_impl
+
         impl From<#name> for Vec<#name> {
             fn from(value: #name) -> Self {
                 vec![value]
@@ -101,13 +147,6 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         impl rvue::widget::IntoReactiveValue<#name> for #name {
             fn into_reactive(self) -> rvue::widget::ReactiveValue<#name> {
                 rvue::widget::ReactiveValue::Static(self)
-            }
-        }
-
-        impl #name {
-            /// Create a new slot with the given children function
-            pub fn new(children: #children_ty) -> Self {
-                Self { children }
             }
         }
     };

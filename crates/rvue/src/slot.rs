@@ -7,10 +7,24 @@
 //!
 //! - `Children` - One-time content, consumed on render (`FnOnce`)
 //! - `ChildrenFn` - Reusable content, can be called multiple times (`Fn`)
+//! - `SlotProps` - Trait for slot properties (auto-derived by #[slot] macro)
+//!
+//! ## Slot Props
+//!
+//! Slot structs can have additional fields marked with `#[prop(...)]`:
+//! - `#[prop(into)]` - Call `.into()` on the value (handled by user)
+//! - `#[prop(optional)]` - Field is wrapped in `Option<T>`
 
 use crate::component::Component;
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, Trace};
+
+/// Marker trait for slot properties
+///
+/// This trait is automatically implemented by the `#[slot]` macro
+/// for slot structs with prop fields. It enables proper GC tracing
+/// of slot prop values.
+pub trait SlotProps: Trace + Clone + 'static {}
 
 /// Wrapper for closures that ensures GC tracing works correctly.
 pub struct ChildrenClosure(pub Box<dyn Fn() -> ViewStruct>);
