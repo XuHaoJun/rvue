@@ -1,6 +1,6 @@
 use crate::event::context::EventContext;
 use crate::event::status::{FocusEvent, InputEvent};
-use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerMoveEvent};
+use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerInfo, PointerMoveEvent};
 use rudo_gc::Trace;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,11 +12,13 @@ enum DynHandler {
     OneArgKeyboard(Box<dyn Fn(&KeyboardEvent)>),
     OneArgFocus(Box<dyn Fn(&FocusEvent)>),
     OneArgPointerMove(Box<dyn Fn(&PointerMoveEvent)>),
+    OneArgPointerInfo(Box<dyn Fn(&PointerInfo)>),
     TwoArgPointerButton(Box<dyn Fn(&PointerButtonEvent, &mut EventContext)>),
     TwoArgInput(Box<dyn Fn(&InputEvent, &mut EventContext)>),
     TwoArgKeyboard(Box<dyn Fn(&KeyboardEvent, &mut EventContext)>),
     TwoArgFocus(Box<dyn Fn(&FocusEvent, &mut EventContext)>),
     TwoArgPointerMove(Box<dyn Fn(&PointerMoveEvent, &mut EventContext)>),
+    TwoArgPointerInfo(Box<dyn Fn(&PointerInfo, &mut EventContext)>),
 }
 
 pub enum AnyEventHandler {
@@ -214,6 +216,38 @@ impl EventHandler<PointerMoveEvent> {
     }
 }
 
+impl EventHandler<PointerInfo> {
+    pub fn new_0arg<F>(handler: F) -> Self
+    where
+        F: Fn() + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::ZeroArg(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn new_1arg<F>(handler: F) -> Self
+    where
+        F: Fn(&PointerInfo) + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::OneArgPointerInfo(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn new<F>(handler: F) -> Self
+    where
+        F: Fn(&PointerInfo, &mut EventContext) + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::TwoArgPointerInfo(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
 impl EventHandler<PointerButtonEvent> {
     pub fn call(&self, event: &PointerButtonEvent, ctx: &mut EventContext) {
         if let Some(handler) = self.inner.borrow().as_ref() {
@@ -279,13 +313,26 @@ impl EventHandler<PointerMoveEvent> {
     }
 }
 
+impl EventHandler<PointerInfo> {
+    pub fn call(&self, event: &PointerInfo, ctx: &mut EventContext) {
+        if let Some(handler) = self.inner.borrow().as_ref() {
+            match handler {
+                DynHandler::ZeroArg(f) => f(),
+                DynHandler::OneArgPointerInfo(f) => f(event),
+                DynHandler::TwoArgPointerInfo(f) => f(event, ctx),
+                _ => {}
+            }
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct EventHandlers {
     pub on_pointer_down: Option<EventHandler<PointerButtonEvent>>,
     pub on_pointer_up: Option<EventHandler<PointerButtonEvent>>,
     pub on_pointer_move: Option<EventHandler<PointerMoveEvent>>,
-    pub on_pointer_enter: Option<EventHandler<PointerButtonEvent>>,
-    pub on_pointer_leave: Option<EventHandler<PointerButtonEvent>>,
+    pub on_pointer_enter: Option<EventHandler<PointerInfo>>,
+    pub on_pointer_leave: Option<EventHandler<PointerInfo>>,
     pub on_click: Option<EventHandler<PointerButtonEvent>>,
     pub on_key_down: Option<EventHandler<KeyboardEvent>>,
     pub on_key_up: Option<EventHandler<KeyboardEvent>>,
@@ -312,6 +359,14 @@ impl EventHandlers {
 
     pub fn get_pointer_move(&self) -> Option<&EventHandler<PointerMoveEvent>> {
         self.on_pointer_move.as_ref()
+    }
+
+    pub fn get_pointer_enter(&self) -> Option<&EventHandler<PointerInfo>> {
+        self.on_pointer_enter.as_ref()
+    }
+
+    pub fn get_pointer_leave(&self) -> Option<&EventHandler<PointerInfo>> {
+        self.on_pointer_leave.as_ref()
     }
 
     pub fn get_click(&self) -> Option<&EventHandler<PointerButtonEvent>> {
