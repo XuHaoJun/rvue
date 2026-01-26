@@ -7,14 +7,63 @@ use rudo_gc::Gc;
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
+mod post_paint {
+    use super::*;
+
+    pub fn post_paint_component(
+        component: &Gc<Component>,
+        scene: &mut vello::Scene,
+        transform: Affine,
+    ) {
+        match &component.component_type {
+            ComponentType::Show => {
+                if let ComponentProps::Show { when } = &*component.props.borrow() {
+                    if *when {
+                        post_paint_children(component, scene, transform);
+                    }
+                }
+            }
+            ComponentType::For => {
+                post_paint_children(component, scene, transform);
+            }
+            ComponentType::Flex => {
+                post_paint_children(component, scene, transform);
+            }
+            _ => {
+                if !component.children.borrow().is_empty() {
+                    post_paint_children(component, scene, transform);
+                }
+            }
+        }
+    }
+
+    fn post_paint_children(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
+        for child in component.children.borrow().iter() {
+            let child_transform = if let Some(layout_node) = child.layout_node() {
+                if let Some(layout) = layout_node.layout() {
+                    Affine::translate((layout.location.x as f64, layout.location.y as f64))
+                } else {
+                    Affine::IDENTITY
+                }
+            } else {
+                Affine::IDENTITY
+            };
+            post_paint_component(child, scene, transform * child_transform);
+        }
+    }
+}
+
+pub use post_paint::post_paint_component;
+
 pub fn render_component(
     component: &Gc<Component>,
     scene: &mut vello::Scene,
     transform: Affine,
 ) -> bool {
+    let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
 
-    if cache_was_none {
+    if is_dirty || cache_was_none {
         let mut local_scene = vello::Scene::new();
 
         match &component.component_type {
@@ -50,28 +99,24 @@ pub fn render_component(
         scene.append(local_scene, Some(transform));
     }
 
-    if cache_was_none {
-        match &component.component_type {
-            ComponentType::Show => {
-                if let ComponentProps::Show { when } = &*component.props.borrow() {
-                    if *when {
-                        render_children(component, scene, transform);
-                    }
-                }
-            }
-            ComponentType::For => {
-                render_children(component, scene, transform);
-            }
-            ComponentType::Flex => {
-                render_children(component, scene, transform);
-            }
-            _ => {
-                render_children(component, scene, transform);
+    let should_render_children = match &component.component_type {
+        ComponentType::Show => {
+            if let ComponentProps::Show { when } = &*component.props.borrow() {
+                *when
+            } else {
+                false
             }
         }
+        ComponentType::For => true,
+        ComponentType::Flex => true,
+        _ => !component.children.borrow().is_empty(),
+    };
+
+    if should_render_children {
+        render_children(component, scene, transform);
     }
 
-    cache_was_none
+    is_dirty || cache_was_none
 }
 
 fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
@@ -85,10 +130,6 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         } else {
             Affine::IDENTITY
         };
-        // Clear child cache and mark dirty when parent is being re-rendered
-        // This ensures children are re-evaluated when parent state changes (e.g., Show when)
-        *child.vello_cache.borrow_mut() = None;
-        child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
         render_component(child, scene, transform * child_transform);
     }
 }
