@@ -3,7 +3,9 @@
 use crate::component::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::view::View;
-use crate::widget::{BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget};
+use crate::widget::{
+    with_current_ctx, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
+};
 use crate::widgets::keyed_state::{diff_keys, KeyedState};
 use indexmap::IndexSet;
 use log::warn;
@@ -112,6 +114,7 @@ where
         new_items: Vec<T>,
         key_fn: &KF,
         view_fn: &VF,
+        ctx: &mut BuildContext,
     ) -> IndexSet<K, BuildHasherDefault<FxHasher>> {
         let mut new_keys: IndexSet<K, BuildHasherDefault<FxHasher>> =
             IndexSet::with_hasher(Default::default());
@@ -157,7 +160,7 @@ where
             for op in &diff.added {
                 if let Some(item) = new_items.get(op.at) {
                     let key = key_fn(item);
-                    let view = (view_fn)(item.clone());
+                    let view = with_current_ctx(ctx.id_counter, || view_fn(item.clone()));
                     let child_component = view.into_component();
 
                     while keyed_state.rendered_items.len() <= op.at {
@@ -275,7 +278,7 @@ where
             let key = (self.key_fn)(item);
             keyed_state.hashed_items.insert(key.clone());
 
-            let view = (self.view_fn)(item.clone());
+            let view = with_current_ctx(ctx.id_counter, || (self.view_fn)(item.clone()));
             let child_component = view.into_component();
 
             keyed_state.rendered_items.push(Some(crate::widgets::keyed_state::ItemEntry {
@@ -296,6 +299,7 @@ where
         let view_fn_clone = self.view_fn;
         let items_reactive = self.items.clone();
         let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
+        let ctx_id = *ctx.id_counter;
 
         let item_count_effect = if self.items.is_reactive() {
             let effect = create_effect(move || {
@@ -308,8 +312,20 @@ where
                         item_count_effect: None,
                         _phantom: std::marker::PhantomData,
                     };
-                    let _new_keys =
-                        state.update_keyed_items(new_items, &key_fn_clone, &view_fn_clone);
+                    let mut temp_taffy = taffy::TaffyTree::new();
+                    let mut temp_text_context = crate::text::TextContext::new();
+                    let mut temp_id_counter = ctx_id;
+                    let mut temp_ctx = BuildContext::new(
+                        &mut temp_taffy,
+                        &mut temp_text_context,
+                        &mut temp_id_counter,
+                    );
+                    let _new_keys = state.update_keyed_items(
+                        new_items,
+                        &key_fn_clone,
+                        &view_fn_clone,
+                        &mut temp_ctx,
+                    );
                 }
                 *comp_clone.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
                 comp_clone.mark_dirty();
@@ -336,6 +352,7 @@ where
             let items = self.items.clone();
             let keyed_state_gc = GcCell::clone(&state.keyed_state);
             let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
+            let ctx_id = state.component.id;
 
             let effect = create_effect(move || {
                 let new_items = items.get();
@@ -347,7 +364,16 @@ where
                         item_count_effect: None,
                         _phantom: std::marker::PhantomData,
                     };
-                    let _new_keys = state.update_keyed_items(new_items, &key_fn, &view_fn);
+                    let mut temp_taffy = taffy::TaffyTree::new();
+                    let mut temp_text_context = crate::text::TextContext::new();
+                    let mut temp_id_counter = ctx_id;
+                    let mut temp_ctx = BuildContext::new(
+                        &mut temp_taffy,
+                        &mut temp_text_context,
+                        &mut temp_id_counter,
+                    );
+                    let _new_keys =
+                        state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
                 }
                 *comp.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
                 comp.mark_dirty();
@@ -357,7 +383,12 @@ where
         } else {
             let new_items = self.items.get();
             let new_count = new_items.len();
-            let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn);
+            let mut temp_taffy = taffy::TaffyTree::new();
+            let mut temp_text_context = crate::text::TextContext::new();
+            let mut temp_id_counter = self.items.get().len() as u64 + 1000;
+            let mut temp_ctx =
+                BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
+            let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);
             *state.component.props.borrow_mut() =
                 ComponentProps::KeyedFor { item_count: new_count };
             state.component.mark_dirty();

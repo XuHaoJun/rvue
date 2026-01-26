@@ -258,7 +258,7 @@ fn generate_for_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let view_fn = extract_prop_value(
         attrs,
         "view",
-        || quote! { |item| view! { <Text content={format!("{:?}", item)} />} },
+        || quote! { |item, _ctx| view! { <Text content={format!("{:?}", item)} />} },
     );
 
     quote! {

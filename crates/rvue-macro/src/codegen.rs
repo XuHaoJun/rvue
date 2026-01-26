@@ -23,16 +23,26 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
 
     quote! {
         {
-            use rvue::widget::{BuildContext, Widget};
+            use rvue::widget::{BuildContext, Widget, get_current_ctx};
             use rvue::text::TextContext;
             use rvue::TaffyTree;
 
             let mut taffy = TaffyTree::new();
+            let mut id_counter: u64 = if let Some(ptr) = get_current_ctx() {
+                unsafe { *ptr }
+            } else {
+                0u64
+            };
             let mut text_context = TextContext::new();
-            let mut id_counter = 0u64;
             let mut #ctx_ident = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
             let root_component = #root_component;
+
+            // Update the shared counter if we're using one
+            if let Some(ptr) = get_current_ctx() {
+                unsafe { *ptr = id_counter; }
+            }
+
             rvue::ViewStruct::new(root_component)
         }
     }

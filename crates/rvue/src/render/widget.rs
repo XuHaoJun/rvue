@@ -69,8 +69,11 @@ pub fn render_component(
         _ => !component.children.borrow().is_empty(),
     };
 
+    let force_render_children =
+        matches!(&component.component_type, ComponentType::For | ComponentType::Flex);
+
     if should_render_children {
-        render_children(component, scene, transform, already_appended);
+        render_children(component, scene, transform, already_appended, force_render_children);
     }
 
     is_dirty || cache_was_none
@@ -81,6 +84,7 @@ fn render_children(
     scene: &mut vello::Scene,
     transform: Affine,
     already_appended: &mut FxHashSet<u64>,
+    force_render_children: bool,
 ) {
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
@@ -92,9 +96,13 @@ fn render_children(
         } else {
             Affine::IDENTITY
         };
-        *child.vello_cache.borrow_mut() = None;
-        child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
-        render_component(child, scene, transform * child_transform, already_appended);
+
+        let is_dirty = child.is_dirty();
+        let cache_was_none = child.vello_cache.borrow().is_none();
+
+        if force_render_children || is_dirty || cache_was_none {
+            render_component(child, scene, transform * child_transform, already_appended);
+        }
     }
 }
 
