@@ -17,6 +17,8 @@ pub type ComponentId = u64;
 pub struct ContextEntry {
     pub type_id: TypeId,
     pub value: Box<dyn Any>,
+    pub gc_ptr: *const u8,
+    pub gc_size: usize,
 }
 
 /// Wrapper for vello::Scene to implement Trace
@@ -123,12 +125,11 @@ unsafe impl Trace for Component {
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
-        // Conservatively scan context GC pointers for proper GC
-        for ptr in self.context_gc_ptrs.borrow().iter() {
-            if !ptr.is_null() {
-                // SAFETY: We're scanning a known valid pointer location
+        // Trace context values by conservatively scanning the GcBox region
+        for entry in self.contexts.borrow().iter() {
+            if !entry.gc_ptr.is_null() && entry.gc_size > 0 {
                 unsafe {
-                    visitor.visit_region(*ptr, std::mem::size_of::<*const u8>());
+                    visitor.visit_region(entry.gc_ptr, entry.gc_size);
                 }
             }
         }
@@ -577,11 +578,14 @@ impl Component {
     pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
         let gc_value: Gc<T> = Gc::new(value);
         let gc_ptr = Gc::internal_ptr(&gc_value);
-        self.contexts
-            .borrow_mut()
-            .push(ContextEntry { type_id: TypeId::of::<T>(), value: Box::new(gc_value) });
-        // Store the GC pointer's internal representation for conservative scanning
-        // Gc<T> is a thin pointer, we scan its memory location to find it during GC
+        self.contexts.borrow_mut().push(ContextEntry {
+            type_id: TypeId::of::<T>(),
+            value: Box::new(gc_value),
+            gc_ptr,
+            // Use the size of the GcBox allocation for conservative scanning
+            // GcBox<T> has a minimum size that includes the header plus T
+            gc_size: std::mem::size_of::<Gc<T>>(),
+        });
         self.context_gc_ptrs.borrow_mut().push(gc_ptr);
     }
 
@@ -591,7 +595,6 @@ impl Component {
         let contexts = self.contexts.borrow();
         for entry in contexts.iter().rev() {
             if entry.type_id == type_id {
-                // At this point we know the entry value is Box<dyn Any> containing Gc<T>
                 if let Some(gc_val) = entry.value.downcast_ref::<Gc<T>>() {
                     return Some(Gc::clone(gc_val));
                 }
