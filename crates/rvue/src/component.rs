@@ -108,7 +108,7 @@ pub struct Component {
 unsafe impl Trace for Component {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.children.trace(visitor);
-        self.parent.trace(visitor);
+        // self.parent.trace(visitor); // REMOVED: Tracing parent creates Component <-> Component cycles
         self.effects.trace(visitor);
         self.props.trace(visitor);
         self.layout_node.trace(visitor);

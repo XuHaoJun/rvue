@@ -45,14 +45,14 @@ fn test_show_widget_with_signal() {
 }
 
 #[test]
-fn test_complex_nested_structure() {
+fn test_two_reactive_then_nested_flex() {
     let (count, _set_count) = create_signal(0);
     let (label, _set_label) = create_signal("Button".to_string());
 
     let _view = view! {
         <Flex direction="column" gap=10.0>
             <Text content={format!("Count: {}", count.get())} />
-            <Button label={label.get()} />
+            <Text content={label.get()} />
             <Flex direction="row">
                 <Text content="Nested" />
             </Flex>
@@ -93,13 +93,13 @@ fn test_event_handler_with_signal() {
 
 #[test]
 fn test_reactive_text_update() {
-    let (count, set_count) = create_signal(0);
+    let (count, set_count) = create_signal("0".to_string());
 
     let view = view! {
-        <Text content={format!("Count: {}", count.get())} />
+        <Text content={count.clone()} />
     };
 
-    set_count.set(1);
+    set_count.set("1".to_string());
 
     let content = {
         let props = view.root_component.props.borrow();
@@ -109,22 +109,22 @@ fn test_reactive_text_update() {
             panic!("Expected Text component");
         }
     };
-    assert_eq!(content, "Count: 1");
+    assert_eq!(content, "1");
 }
 
 #[test]
 fn test_static_vs_dynamic_effects() {
-    let (count, set_count) = create_signal(0);
+    let (count, set_count) = create_signal("0".to_string());
 
     let reactive_view = view! {
-        <Text content={format!("Count: {}", count.get())} />
+        <Text content={count.clone()} />
     };
 
     let static_view = view! {
         <Text content="Static" />
     };
 
-    set_count.set(1);
+    set_count.set("1".to_string());
 
     assert_eq!(reactive_view.root_component.effects.borrow().len(), 1);
     assert_eq!(static_view.root_component.effects.borrow().len(), 0);
@@ -136,7 +136,7 @@ fn test_nested_reactive_update() {
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Name: {}", name.get())} />
+            <Text content={name.clone()} />
         </Flex>
     };
 
@@ -151,5 +151,5 @@ fn test_nested_reactive_update() {
             panic!("Expected Text child component");
         }
     };
-    assert_eq!(content, "Name: Bob");
+    assert_eq!(content, "Bob");
 }

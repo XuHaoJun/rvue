@@ -205,7 +205,6 @@ fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
 
 fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> TokenStream {
     let kind = classify_expression(expr);
-    let component_ident = format_ident!("component");
 
     match kind {
         ExpressionKind::Static => {
@@ -220,22 +219,11 @@ fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> Token
         ExpressionKind::Reactive => {
             quote_spanned! { span =>
                 {
-                    // Initial build with current value
-                    let widget = rvue::widgets::Text::new((#expr).to_string());
+                    // Pass the signal directly to preserve reactivity
+                    // The widget will call .get() internally when building
+                    let widget = rvue::widgets::Text::new(#expr);
                     let state = widget.build(&mut #ctx_ident);
-                    let #component_ident = state.component().clone();
-
-                    // Register effect for fine-grained updates
-                    {
-                        let comp = #component_ident.clone();
-                        let effect = rvue::prelude::create_effect(move || {
-                            let new_value = (#expr).to_string();
-                            comp.set_text_content(new_value);
-                        });
-                        #component_ident.add_effect(effect);
-                    }
-
-                    #component_ident
+                    state.component().clone()
                 }
             }
         }
@@ -356,17 +344,31 @@ fn generate_widget_builder_code(
 
     match widget_type {
         WidgetType::Text => {
-            let PropValue { value: content_value, .. } = props.value("content", || quote! { "" });
+            let PropValue { value: content_value, is_reactive } =
+                props.value("content", || quote! { "" });
             let widget_ident = Ident::new("Text", span);
-            quote! {
-                rvue::widgets::#widget_ident::new(#content_value.to_string())
+            if is_reactive {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#content_value)
+                }
+            } else {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#content_value.to_string())
+                }
             }
         }
         WidgetType::Button => {
-            let PropValue { value: label_value, .. } = props.value("label", || quote! { "" });
+            let PropValue { value: label_value, is_reactive } =
+                props.value("label", || quote! { "" });
             let widget_ident = Ident::new("Button", span);
-            quote! {
-                rvue::widgets::#widget_ident::new(#label_value.to_string())
+            if is_reactive {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#label_value)
+                }
+            } else {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#label_value.to_string())
+                }
             }
         }
         WidgetType::Flex => {
@@ -488,146 +490,14 @@ fn generate_widget_builder_code(
 }
 
 fn generate_reactive_effects(
-    widget_type: &WidgetType,
-    attributes: &[RvueAttribute],
-    component_ident: &Ident,
+    _widget_type: &WidgetType,
+    _attributes: &[RvueAttribute],
+    _component_ident: &Ident,
 ) -> TokenStream {
-    let props = WidgetProps::new(attributes);
-    let mut effects = Vec::new();
-
-    match widget_type {
-        WidgetType::Text => {
-            let content = props.value("content", || quote! { "" });
-            if content.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_text_content },
-                    &content.value,
-                ));
-            }
-        }
-        WidgetType::Button => {
-            let label = props.value("label", || quote! { "" });
-            if label.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_button_label },
-                    &label.value,
-                ));
-            }
-        }
-        WidgetType::Flex => {
-            let direction = props.value("direction", || quote! { "row" });
-            if direction.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_direction },
-                    &direction.value,
-                ));
-            }
-            let gap = props.value("gap", || quote! { 0.0 });
-            if gap.is_reactive {
-                effects.push(generate_effect(component_ident, quote! { set_flex_gap }, &gap.value));
-            }
-            let align_items = props.value("align_items", || quote! { "stretch" });
-            if align_items.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_align_items },
-                    &align_items.value,
-                ));
-            }
-            let justify_content = props.value("justify_content", || quote! { "start" });
-            if justify_content.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_justify_content },
-                    &justify_content.value,
-                ));
-            }
-        }
-        WidgetType::TextInput => {
-            let value = props.value("value", || quote! { "" });
-            if value.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_text_input_value },
-                    &value.value,
-                ));
-            }
-        }
-        WidgetType::NumberInput => {
-            let value = props.value("value", || quote! { 0.0 });
-            if value.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_number_input_value },
-                    &value.value,
-                ));
-            }
-        }
-        WidgetType::Checkbox => {
-            let checked = props.value("checked", || quote! { false });
-            if checked.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_checkbox_checked },
-                    &checked.value,
-                ));
-            }
-        }
-        WidgetType::Radio => {
-            let value = props.value("value", || quote! { "" });
-            if value.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_radio_value },
-                    &value.value,
-                ));
-            }
-            let checked = props.value("checked", || quote! { false });
-            if checked.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_radio_checked },
-                    &checked.value,
-                ));
-            }
-        }
-        WidgetType::Show => {
-            let when = props.value("when", || quote! { false });
-            if when.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_show_when },
-                    &when.value,
-                ));
-            }
-        }
-        WidgetType::For => {}
-        WidgetType::Custom(_) => {}
-    }
-
-    quote! {
-        #(#effects)*
-    }
-}
-
-fn generate_effect(
-    component_ident: &Ident,
-    setter: TokenStream,
-    expr: &TokenStream,
-) -> TokenStream {
-    quote! {
-        {
-            let comp = #component_ident.clone();
-            let effect = create_effect(move || {
-                let new_value = #expr;
-                comp.#setter(new_value);
-            });
-            #component_ident.add_effect(effect);
-        }
-    }
+    // Widgets handle reactive content internally in their build() methods.
+    // The effect is created there if the content is reactive.
+    // So we do not need to generate additional effects here.
+    quote! {}
 }
 
 fn generate_string_effect(

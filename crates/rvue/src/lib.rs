@@ -33,6 +33,7 @@ pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };
 pub use render::{render_component, Scene};
+pub use rudo_gc::Gc;
 pub use signal::{
     create_memo, create_memo_with_equality, create_signal, ReadSignal, SignalRead, SignalWrite,
     WriteSignal,

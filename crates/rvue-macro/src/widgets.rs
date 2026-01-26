@@ -102,52 +102,28 @@ fn event_handler_types(event_name: &str) -> (TokenStream, TokenStream) {
     (event_ty, ctx_ty)
 }
 
-fn generate_text_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_text_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let content = extract_prop_value(attrs, "content", || quote! { "" });
-    // Text widget in rvue currently takes only content string in new()
-    // Font size and color are not yet supported in new() signature based on provided file
-    // But ComponentProps has them. Text::new implementation ignores them?
-    // Checking Text::new in rvue: pub fn new(id, content) -> Gc<Component>
-    // It creates ComponentProps internally.
 
     quote! {
-        rvue::widgets::Text::new(
-            #id,
-            #content.to_string()
-        )
+        rvue::widgets::Text::new(#content.to_string())
     }
 }
 
-fn generate_button_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_button_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let label = extract_prop_value(attrs, "label", || quote! { "".to_string() });
 
     quote! {
-        rvue::widgets::Button::new(
-            #id,
-            #label.to_string()
-        )
+        rvue::widgets::Button::new(#label.to_string())
     }
 }
 
-fn generate_flex_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
-    // Flex::new takes enums. We need to handle this.
-    // For now assuming the user provides expressions that evaluate to the enum or we need conversion.
-    // Since smoke_test doesn't test Flex yet, I'll use Default if attributes are missing,
-    // or try to parse if I can.
-    // But to match the previous implementation's intent (passing strings),
-    // I should probably see if I can convert strings to enums in generated code.
-    // However, Flex::new takes FlexDirection, not String.
-    // I'll assume for now we use defaults or expressions.
-
-    // Check if attributes exist, otherwise use defaults
-    // For string literals, we need to convert them to enums
+fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let direction = extract_prop_value(attrs, "direction", || quote! { "row" });
     let gap = extract_prop_value(attrs, "gap", || quote! { 0.0 });
     let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
     let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
 
-    // Convert string literals to enum values
-    // This is a temporary solution - in Phase 3, the macro will use the new Widget API
     quote! {
         {
             use rvue::style::{FlexDirection, AlignItems, JustifyContent};
@@ -178,60 +154,45 @@ fn generate_flex_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
                 "space-evenly" => JustifyContent::SpaceEvenly,
                 _ => JustifyContent::Start,
             };
-            rvue::widgets::Flex::new(
-                #id,
-                direction_enum,
-                #gap,
-                align_enum,
-                justify_enum
-            )
+            rvue::widgets::Flex::new()
+                .direction(direction_enum)
+                .gap(#gap)
+                .align_items(align_enum)
+                .justify_content(justify_enum)
         }
     }
 }
 
-fn generate_text_input_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_text_input_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let value = extract_prop_value(attrs, "value", || quote! { "".to_string() });
 
     quote! {
-        rvue::widgets::TextInput::new(
-            #id,
-            #value
-        )
+        rvue::widgets::TextInput::new(#value)
     }
 }
 
-fn generate_number_input_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_number_input_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let value = extract_prop_value(attrs, "value", || quote! { 0.0 });
 
     quote! {
-        rvue::widgets::NumberInput::new(
-            #id,
-            #value
-        )
+        rvue::widgets::NumberInput::new(#value)
     }
 }
 
-fn generate_checkbox_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_checkbox_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let checked = extract_prop_value(attrs, "checked", || quote! { false });
 
     quote! {
-        rvue::widgets::Checkbox::new(
-            #id,
-            #checked
-        )
+        rvue::widgets::Checkbox::new(#checked)
     }
 }
 
-fn generate_radio_widget(id: u64, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_radio_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let value = extract_prop_value(attrs, "value", || quote! { "".to_string() });
     let checked = extract_prop_value(attrs, "checked", || quote! { false });
 
     quote! {
-        rvue::widgets::Radio::new(
-            #id,
-            #value,
-            #checked
-        )
+        rvue::widgets::Radio::new(#value.to_string(), #checked)
     }
 }
 
@@ -261,7 +222,7 @@ fn generate_for_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     }
 }
 
-fn generate_custom_widget(id: u64, name: &str, attrs: &[RvueAttribute]) -> TokenStream {
+fn generate_custom_widget(_id: u64, name: &str, attrs: &[RvueAttribute]) -> TokenStream {
     let widget_name = format_ident!("{}", name);
     let props = attrs.iter().filter(|a| !matches!(a, RvueAttribute::Event { .. })).map(|attr| {
         let name = format_ident!("{}", attr.name());
@@ -272,7 +233,7 @@ fn generate_custom_widget(id: u64, name: &str, attrs: &[RvueAttribute]) -> Token
     });
 
     quote! {
-        #widget_name::new(#id)#(#props)*
+        #widget_name::new()#(#props)*
     }
 }
 

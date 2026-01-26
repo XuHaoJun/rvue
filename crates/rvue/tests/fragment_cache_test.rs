@@ -5,14 +5,14 @@ use rvue_macro::view;
 
 #[test]
 fn test_nested_child_transform_update() {
-    let (text_content, set_text_content) = create_signal("Initial");
+    let (text_content, set_text_content) = create_signal("Initial".to_string());
     let set_text_content_clone = set_text_content.clone();
 
     let view = view! {
         <Flex direction="column" gap=10.0 align_items="center">
-            <Text content={text_content.get()} />
+            <Text content={text_content.clone()} />
             <Button label="Click" on_click=move || {
-                set_text_content_clone.set("Updated");
+                set_text_content_clone.set("Updated".to_string());
             } />
         </Flex>
     };
@@ -24,7 +24,7 @@ fn test_nested_child_transform_update() {
 
     assert!(!root_component.is_dirty());
 
-    set_text_content.set("Changed text");
+    set_text_content.set("Changed text".to_string());
     assert!(root_component.is_dirty());
     scene.update();
     assert!(!root_component.is_dirty());

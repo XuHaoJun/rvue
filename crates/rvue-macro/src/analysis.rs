@@ -24,6 +24,11 @@ pub fn classify_expression(expr: &Expr) -> ExpressionKind {
         return ExpressionKind::ViewStruct;
     }
 
+    // Check if it's a signal variable (heuristic)
+    if is_signal_variable(expr) {
+        return ExpressionKind::Reactive;
+    }
+
     let mut detector = ReactiveDetector { is_reactive: false };
     detector.visit_expr(expr);
     if detector.is_reactive {
@@ -31,6 +36,52 @@ pub fn classify_expression(expr: &Expr) -> ExpressionKind {
     } else {
         ExpressionKind::Static
     }
+}
+
+/// Check if an expression is a signal variable (path expression ending with common signal patterns)
+fn is_signal_variable(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(path) => {
+            if let Some(segment) = path.path.segments.last() {
+                let name = segment.ident.to_string();
+                // Common signal variable name patterns
+                if name.ends_with("_signal")
+                    || name.ends_with("_signal_rc")
+                    || name == "signal"
+                    || name == "sig"
+                {
+                    return true;
+                }
+                // Check for lowercase identifiers that might be signals
+                // (this is a heuristic - in a real implementation we might need type info)
+                let first_char = name.chars().next();
+                if first_char.map_or(false, |c| c.is_lowercase())
+                    && !name.starts_with("is_")
+                    && !name.starts_with("has_")
+                {
+                    // Could be a signal, be conservative and treat as reactive
+                    return true;
+                }
+            }
+        }
+        Expr::MethodCall(expr_method) => {
+            // Check if it's a .clone() call on a signal
+            if expr_method.method == "clone" {
+                // Recursively check the receiver
+                return is_signal_variable(&expr_method.receiver);
+            }
+        }
+        Expr::Block(expr_block) => {
+            // Recursively check the inner expression
+            if let Some(stmt) = expr_block.block.stmts.last() {
+                if let syn::Stmt::Expr(inner_expr, _) = stmt {
+                    return is_signal_variable(inner_expr);
+                }
+            }
+        }
+        _ => {}
+    }
+    false
 }
 
 /// Check if an expression is a ViewStruct by looking at its type path

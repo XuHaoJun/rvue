@@ -65,6 +65,11 @@ impl Scene {
         }
 
         for component in &self.root_components {
+            // Set parent to None so dirty propagation works correctly
+            // (root components don't have a parent, but this allows propagation
+            // from children to reach the root)
+            component.set_parent(None);
+
             // 1. Layout Pass (shared tree) - needed for positioning of all components
             let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
             component.set_layout_node(layout.clone());

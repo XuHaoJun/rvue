@@ -28,24 +28,18 @@ unsafe impl Trace for Effect {
         self.owner.trace(visitor);
         // subscriptions contains raw pointers, not traced
 
-        // Conservatively scan the main closure's captured environment.
-        // We utilize the fact that Box<T> allocates memory corresponding to the layout of T.
-        // We cast the fat pointer to a thin data pointer.
-        let data_ptr = (&*self.closure) as *const dyn Fn() as *const u8;
-        let layout = self.closure_layout;
-
-        // Only scan if the closure has data and is sufficiently aligned to potentially contain pointers.
-        if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
-            unsafe {
-                visitor.visit_region(data_ptr, layout.size());
-            }
-        }
+        // Temporarily disable conservative scanning of closures to prevent stack overflow
+        // in deep component trees.
+        // TODO: Implement precise tracing of closure captures using `TraceClosure` trait
+        // or iterate over tracked signals instead of scanning memory.
 
         // Also scan cleanup closures if any
         let cleanups_borrow = self.cleanups.borrow();
         for cleanup in cleanups_borrow.iter() {
-            let func_ptr: *const dyn FnOnce() = &**cleanup;
-            // Cast fat pointer -> thin data pointer
+            // Cast FnOnce to Fn for scanning (safe since we only read memory)
+            // SAFETY: We cast &dyn FnOnce to &dyn Fn, which is valid for reading.
+            // We scan the closure's data for pointers, we don't call it.
+            let func_ptr: *const dyn Fn() = unsafe { std::mem::transmute(cleanup.as_ref()) };
             let data_ptr = func_ptr as *const u8;
             let layout = std::alloc::Layout::for_value(&**cleanup);
 
