@@ -65,14 +65,17 @@ impl Scene {
         }
 
         for component in &self.root_components {
-            // Set parent to None so dirty propagation works correctly
-            // (root components don't have a parent, but this allows propagation
-            // from children to reach the root)
-            component.set_parent(None);
+            // Defer effect execution until after parent chain is set up
+            crate::effect::set_defer_effect_run(true);
 
             // 1. Layout Pass (shared tree) - needed for positioning of all components
             let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
             component.set_layout_node(layout.clone());
+
+            // Flush pending effects now that parent chain is established
+            crate::effect::flush_pending_effects();
+            crate::effect::set_defer_effect_run(false);
+
             if let Some(node_id) = layout.taffy_node() {
                 if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {
                     eprintln!("Scene layout calculation failed: {:?}", e);

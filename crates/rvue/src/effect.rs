@@ -9,6 +9,43 @@ use std::sync::atomic::{AtomicBool, Ordering};
 // Thread-local storage for tracking the currently running effect
 thread_local! {
     static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = const { RefCell::new(None) };
+    static EFFECTS_PENDING_RUN: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    static DEFER_EFFECT_RUN: RefCell<bool> = const { RefCell::new(false) };
+}
+
+/// Create a new effect that automatically runs when dependencies change
+///
+/// The effect runs immediately on creation, and automatically tracks
+/// which signals are accessed during execution. When any tracked signal
+/// changes, the effect will be marked dirty and can be re-run.
+pub fn create_effect<F>(closure: F) -> Gc<Effect>
+where
+    F: Fn() + 'static,
+{
+    let effect = Effect::new(closure);
+    DEFER_EFFECT_RUN.with(|defer| {
+        if *defer.borrow() {
+            EFFECTS_PENDING_RUN.with(|pending| {
+                pending.borrow_mut().push(Gc::clone(&effect));
+            });
+        } else {
+            Effect::run(&effect);
+        }
+    });
+    effect
+}
+
+/// Flush any pending effects that were deferred during layout tree building
+pub fn flush_pending_effects() {
+    let pending = EFFECTS_PENDING_RUN.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    for effect in pending {
+        Effect::run(&effect);
+    }
+}
+
+/// Set whether to defer effect execution (used during layout tree building)
+pub fn set_defer_effect_run(defer: bool) {
+    DEFER_EFFECT_RUN.with(|d| *d.borrow_mut() = defer);
 }
 
 /// Effect structure for reactive computations
@@ -182,20 +219,6 @@ impl Drop for Effect {
 /// This is used by signals to automatically register dependencies
 pub(crate) fn current_effect() -> Option<Gc<Effect>> {
     CURRENT_EFFECT.with(|cell| cell.borrow().clone())
-}
-
-/// Create a new effect that automatically runs when dependencies change
-///
-/// The effect runs immediately on creation, and automatically tracks
-/// which signals are accessed during execution. When any tracked signal
-/// changes, the effect will be marked dirty and can be re-run.
-pub fn create_effect<F>(closure: F) -> Gc<Effect>
-where
-    F: Fn() + 'static,
-{
-    let effect = Effect::new(closure);
-    Effect::run(&effect);
-    effect
 }
 
 /// Run a closure without tracking any dependencies
