@@ -7,9 +7,8 @@ use crate::layout::LayoutNode;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use taffy::TaffyTree;
-use vello::kurbo::{Affine, Rect};
 use vello::Scene;
 
 /// Unique identifier for a component
@@ -29,42 +28,6 @@ pub struct SceneWrapper(pub Scene);
 unsafe impl Trace for SceneWrapper {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // vello::Scene does not contain any GC pointers
-    }
-}
-
-/// Scene cache entry for incremental rendering
-#[derive(Default)]
-pub struct SceneCacheEntry {
-    pub scene: Scene,
-    pub postfix_scene: Scene,
-    pub bounds: Rect,
-    pub transform: Affine,
-    pub initialized: bool,
-}
-
-unsafe impl Trace for SceneCacheEntry {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // vello::Scene and kurbo types do not contain GC pointers
-    }
-}
-
-/// Component render state for tracking rendering status
-#[derive(Default)]
-pub struct ComponentRenderState {
-    pub cache: Option<SceneCacheEntry>,
-    pub is_dirty: AtomicBool,
-    pub dirty_version: AtomicU64,
-}
-
-impl ComponentRenderState {
-    pub fn new() -> Self {
-        Self { cache: None, is_dirty: AtomicBool::new(true), dirty_version: AtomicU64::new(0) }
-    }
-}
-
-unsafe impl Trace for ComponentRenderState {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        self.cache.trace(_visitor);
     }
 }
 

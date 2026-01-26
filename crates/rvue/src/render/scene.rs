@@ -2,11 +2,9 @@
 
 use crate::component::build_layout_tree;
 use crate::component::Component;
-use crate::component::SceneCacheEntry;
-use crate::render::widget::{post_paint_component, render_component};
+use crate::render::widget::render_component;
 use crate::text::TextContext;
 use rudo_gc::Gc;
-use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 use taffy::prelude::*;
 use taffy::TaffyTree;
@@ -20,20 +18,18 @@ pub struct Scene {
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
     pub text_context: TextContext,
-    pub scene_cache: FxHashMap<u64, SceneCacheEntry>,
 }
 
 impl Scene {
     /// Create a new scene with lazy renderer initialization
     pub fn new() -> Self {
         Self {
-            vello_scene: None, // Defer scene creation until first render
+            vello_scene: None,
             root_components: Vec::new(),
             is_dirty: true,
             renderer_initialized: false,
             taffy: TaffyTree::new(),
             text_context: TextContext::new(),
-            scene_cache: FxHashMap::default(),
         }
     }
 
@@ -113,7 +109,6 @@ impl Scene {
 
             if let Some(ref mut scene) = self.vello_scene {
                 render_component(component, scene, Affine::IDENTITY);
-                post_paint_component(component, scene, Affine::IDENTITY);
             }
         }
 
