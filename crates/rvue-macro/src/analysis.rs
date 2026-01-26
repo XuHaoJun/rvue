@@ -74,6 +74,16 @@ fn is_signal_variable(expr: &Expr) -> bool {
                     // Could be a signal, be conservative and treat as reactive
                     return true;
                 }
+                // Check for common derived signal patterns (memo, computed, etc.)
+                if name.ends_with("_derived")
+                    || name.ends_with("_computed")
+                    || name.ends_with("_memo")
+                    || name.ends_with("_label")
+                    || name.ends_with("_text")
+                    || name.ends_with("_display")
+                {
+                    return true;
+                }
             }
         }
         Expr::MethodCall(expr_method) => {
@@ -81,6 +91,22 @@ fn is_signal_variable(expr: &Expr) -> bool {
             if expr_method.method == "clone" {
                 // Recursively check the receiver
                 return is_signal_variable(&expr_method.receiver);
+            }
+        }
+        Expr::Call(call) => {
+            // Check if it's a function call that returns a signal
+            if let Expr::Path(path) = &*call.func {
+                if let Some(segment) = path.path.segments.last() {
+                    let name = segment.ident.to_string();
+                    // Functions that create signals/memos
+                    if name == "create_memo"
+                        || name == "create_memo_with_equality"
+                        || name == "create_signal"
+                        || name == "create_effect"
+                    {
+                        return true;
+                    }
+                }
             }
         }
         Expr::Block(expr_block) => {

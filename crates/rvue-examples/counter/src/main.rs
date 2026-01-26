@@ -28,7 +28,7 @@ fn create_counter_view() -> ViewStruct {
 
     let view = view! {
         <Flex direction="column" gap=20.0 align_items="center" justify_content="center">
-            <Text content={count_label} />
+            <Text content=count_label />
             <Show when=show_message.get()>
                 <Text content="Counter is active!" />
             </Show>
