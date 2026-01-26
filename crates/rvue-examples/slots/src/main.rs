@@ -1,101 +1,186 @@
-//! Slot example demonstrating the slot mechanism
+//! Table example demonstrating slot mechanism with props
 //!
-//! This example shows how to define slots and use them in components.
+//! This example shows how to use slots for building composable table components:
+//! - TableHeadSlot - slot for table header content
+//! - TableRowSlot - slot for table rows with props (index, is_even)
+//! - TableCellSlot - slot for table cells with props (column, is_header)
+//!
+//! Pattern: Create slot instances with props, pass them as component props using `slot={instance}`
 
-use rudo_gc::Gc;
 use rvue::prelude::*;
 use rvue_macro::{component, slot, view};
 
 #[slot]
-struct CardBody {
+struct TableHeadSlot {
+    children: ChildrenFn,
+}
+
+#[slot]
+struct TableRowSlot {
+    index: i32,
+    is_even: bool,
+    children: ChildrenFn,
+}
+
+#[slot]
+struct TableCellSlot {
+    column: String,
+    is_header: bool,
     children: ChildrenFn,
 }
 
 #[component]
-fn Card(body: CardBody) -> impl View {
-    let body_view = body.children.run();
-    CardInner { view: body_view }
+fn Table(head: TableHeadSlot) -> impl View {
+    let head_view = head.children.run();
+
+    let root = Component::new(
+        0,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "column".to_string(),
+            gap: 0.0,
+            align_items: "stretch".to_string(),
+            justify_content: "start".to_string(),
+        },
+    );
+
+    root.add_child(head_view.root_component);
+
+    root
 }
 
-struct CardInner {
-    view: ViewStruct,
+#[component]
+fn TableRow(slot: TableRowSlot) -> impl View {
+    let cells_view = slot.children.run();
+
+    let root = Component::new(
+        0,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "row".to_string(),
+            gap: 0.0,
+            align_items: "center".to_string(),
+            justify_content: "start".to_string(),
+        },
+    );
+
+    root.add_child(cells_view.root_component);
+
+    root
 }
 
-impl View for CardInner {
-    fn into_component(self) -> Gc<Component> {
-        let root = Component::new(
-            0,
-            ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: "column".to_string(),
-                gap: 10.0,
-                align_items: "stretch".to_string(),
-                justify_content: "start".to_string(),
-            },
-        );
+#[component]
+fn TableCell(slot: TableCellSlot) -> impl View {
+    let cell_view = slot.children.run();
 
-        let header = Component::new(
-            0,
-            ComponentType::Text,
-            ComponentProps::Text {
-                content: "Card Header".to_string(),
-                font_size: None,
-                color: None,
-            },
-        );
-        let footer = Component::new(
-            0,
-            ComponentType::Text,
-            ComponentProps::Text {
-                content: "Card Footer".to_string(),
-                font_size: None,
-                color: None,
-            },
-        );
+    let root = Component::new(
+        0,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "row".to_string(),
+            gap: 0.0,
+            align_items: "center".to_string(),
+            justify_content: "start".to_string(),
+        },
+    );
 
-        root.add_child(header);
-        root.add_child(self.view.root_component.clone());
-        root.add_child(footer);
+    root.add_child(cell_view.root_component);
 
-        root
-    }
+    root
 }
 
 #[component]
 fn App() -> impl View {
-    let body1: ChildrenFn = (|| {
+    let headers = TableHeadSlot::new(
+        (|| {
+            ViewStruct::from_component(Component::new(
+                0,
+                ComponentType::Text,
+                ComponentProps::Text {
+                    content: "Table Header".to_string(),
+                    font_size: None,
+                    color: None,
+                },
+            ))
+        })
+        .to_children(),
+    );
+
+    let cell1_content: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
             0,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: "This is the card body content.".to_string(),
-                font_size: None,
-                color: None,
-            },
+            ComponentProps::Text { content: "Header 1".to_string(), font_size: None, color: None },
         ))
     })
     .to_children();
 
-    let body2: ChildrenFn = (|| {
+    let cell2_content: ChildrenFn = (|| {
+        ViewStruct::from_component(Component::new(
+            0,
+            ComponentType::Text,
+            ComponentProps::Text { content: "Header 2".to_string(), font_size: None, color: None },
+        ))
+    })
+    .to_children();
+
+    let cell3_content: ChildrenFn = (|| {
+        ViewStruct::from_component(Component::new(
+            0,
+            ComponentType::Text,
+            ComponentProps::Text { content: "Header 3".to_string(), font_size: None, color: None },
+        ))
+    })
+    .to_children();
+
+    let cell1 = TableCellSlot::new(cell1_content).column("col1".to_string()).is_header(true);
+
+    let cell2 = TableCellSlot::new(cell2_content).column("col2".to_string()).is_header(true);
+
+    let cell3 = TableCellSlot::new(cell3_content).column("col3".to_string()).is_header(true);
+
+    let row1_cells: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
             0,
             ComponentType::Flex,
             ComponentProps::Flex {
                 direction: "row".to_string(),
-                gap: 5.0,
-                align_items: "start".to_string(),
+                gap: 0.0,
+                align_items: "center".to_string(),
                 justify_content: "start".to_string(),
             },
         ))
     })
     .to_children();
 
+    let row1 = TableRowSlot::new(row1_cells).index(1).is_even(false);
+
+    let data_cells1: ChildrenFn = (|| {
+        ViewStruct::from_component(Component::new(
+            0,
+            ComponentType::Text,
+            ComponentProps::Text { content: "Data 1".to_string(), font_size: None, color: None },
+        ))
+    })
+    .to_children();
+
+    let _data_cell1 = TableCellSlot::new(data_cells1).column("col1".to_string()).is_header(false);
+
     view! {
         <Flex direction="column" gap=20.0>
-            <Text content="Slot Example" />
+            <Text content="Table with Slots Example" />
 
-            <Card body=CardBody { children: body1 } />
-            <Card body=CardBody { children: body2 } />
+            <Table head=headers />
+
+            <Text content="Header Cells:" />
+            <TableCell slot=cell1 />
+            <TableCell slot=cell2 />
+            <TableCell slot=cell3 />
+
+            <Text content="Row:" />
+            <TableRow slot=row1>
+                <TableCell slot=data_cell1 />
+            </TableRow>
         </Flex>
     }
 }

@@ -27,7 +27,13 @@ fn parse_keyed_attribute(attr: &KeyedAttribute) -> Result<RvueAttribute, Attribu
     if let Some(slot_name) = name.strip_prefix("slot:") {
         return parse_slot_attr(attr, Some(slot_name.to_string()), span);
     } else if name == "slot" {
-        return parse_slot_attr(attr, None, span);
+        if let Some(expr) = attr.value() {
+            if is_slot_content_expression(expr) {
+                return parse_slot_attr(attr, None, span);
+            } else {
+                return parse_prop_attr(attr, &name, span);
+            }
+        }
     }
 
     if let Some(event_name) = name.strip_prefix("on_") {
@@ -40,6 +46,16 @@ fn parse_keyed_attribute(attr: &KeyedAttribute) -> Result<RvueAttribute, Attribu
         parse_event_attr(attr, "pointer_down", span)
     } else {
         parse_prop_attr(attr, &name, span)
+    }
+}
+
+/// Check if an expression represents slot content (vs prop passing)
+fn is_slot_content_expression(expr: &Expr) -> bool {
+    match expr {
+        Expr::Block(block) => !block.block.stmts.is_empty(),
+        Expr::Macro(_) => true,
+        Expr::Struct(_) => false,
+        _ => false,
     }
 }
 

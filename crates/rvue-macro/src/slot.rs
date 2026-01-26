@@ -16,7 +16,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use syn::{ItemStruct, LitStr, Meta};
+use syn::{ItemStruct, LitStr};
 
 struct SlotField {
     name: Ident,
@@ -27,7 +27,7 @@ struct SlotField {
 pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = syn::parse2::<ItemStruct>(item).expect("Failed to parse slot struct");
 
-    let docs = extract_docs(&input.attrs);
+    let struct_attrs: Vec<_> = input.attrs.iter().collect();
     let vis = input.vis.clone();
     let name = &input.ident;
 
@@ -125,53 +125,58 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    let output = quote! {
-        #[doc = #builder_name_doc]
-        #[doc = ""]
-        #docs
-        #[derive(Clone)]
-        #vis struct #name {
-            #struct_fields
-        }
+    let output = if struct_attrs.is_empty() {
+        quote! {
+            #[doc = #builder_name_doc]
+            #[doc = ""]
+            #[derive(Clone)]
+            #vis struct #name {
+                #struct_fields
+            }
 
-        #trace_impl
+            #trace_impl
 
-        #new_impl
+            #new_impl
 
-        impl From<#name> for Vec<#name> {
-            fn from(value: #name) -> Self {
-                vec![value]
+            impl From<#name> for Vec<#name> {
+                fn from(value: #name) -> Self {
+                    vec![value]
+                }
+            }
+
+            impl rvue::widget::IntoReactiveValue<#name> for #name {
+                fn into_reactive(self) -> rvue::widget::ReactiveValue<#name> {
+                    rvue::widget::ReactiveValue::Static(self)
+                }
             }
         }
+    } else {
+        quote! {
+            #(#struct_attrs)*
+            #[doc = #builder_name_doc]
+            #[doc = ""]
+            #[derive(Clone)]
+            #vis struct #name {
+                #struct_fields
+            }
 
-        impl rvue::widget::IntoReactiveValue<#name> for #name {
-            fn into_reactive(self) -> rvue::widget::ReactiveValue<#name> {
-                rvue::widget::ReactiveValue::Static(self)
+            #trace_impl
+
+            #new_impl
+
+            impl From<#name> for Vec<#name> {
+                fn from(value: #name) -> Self {
+                    vec![value]
+                }
+            }
+
+            impl rvue::widget::IntoReactiveValue<#name> for #name {
+                fn into_reactive(self) -> rvue::widget::ReactiveValue<#name> {
+                    rvue::widget::ReactiveValue::Static(self)
+                }
             }
         }
     };
 
     output
-}
-
-fn extract_docs(attrs: &[syn::Attribute]) -> TokenStream {
-    let docs: Vec<_> = attrs
-        .iter()
-        .filter_map(|attr| {
-            if let Meta::NameValue(name_value) = &attr.meta {
-                if name_value.path.is_ident("doc") {
-                    return Some(name_value.value.clone());
-                }
-            }
-            None
-        })
-        .collect();
-
-    if docs.is_empty() {
-        return TokenStream::new();
-    }
-
-    quote! {
-        #(#docs)*
-    }
 }
