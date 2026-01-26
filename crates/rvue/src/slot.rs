@@ -37,7 +37,7 @@ impl LazyView {
     }
 
     fn run(&self) -> ViewStruct {
-        self.view.as_ref().unwrap().as_ref().clone()
+        self.view.as_ref().expect("LazyView::run() called after view was dropped").as_ref().clone()
     }
 }
 
@@ -162,12 +162,9 @@ where
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
-    /// Note: This creates a reusable closure that clones the ViewStruct on each call.
-    /// While ChildrenFn supports multiple calls, this conversion may be inefficient
-    /// for large view trees. Consider using Children (FnOnce) for one-time content.
     fn to_children(self) -> ChildrenFn {
-        let view = self;
-        ChildrenFn(Gc::new(LazyView::new(Box::new(move || view.clone()))))
+        let view_gc = Gc::new(self);
+        ChildrenFn(Gc::new(LazyView { view: Some(view_gc) }))
     }
 }
 
