@@ -14,7 +14,6 @@ thread_local! {
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
-    closure_layout: std::alloc::Layout,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
@@ -26,14 +25,25 @@ unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Trace known Gc fields
         self.owner.trace(visitor);
-        // subscriptions contains raw pointers, not traced
 
-        // Temporarily disable conservative scanning of closures to prevent stack overflow
-        // in deep component trees.
-        // TODO: Implement precise tracing of closure captures using `TraceClosure` trait
-        // or iterate over tracked signals instead of scanning memory.
+        // Precise tracing: iterate over subscriptions and trace the signal data
+        let subscriptions = self.subscriptions.borrow();
+        for (signal_ptr, _) in subscriptions.iter() {
+            if *signal_ptr == std::ptr::null() {
+                continue;
+            }
 
-        // Also scan cleanup closures if any
+            // Trace the signal data using conservative scanning
+            // SAFETY: The pointer is a valid SignalData pointer that was stored when
+            // the effect subscribed to the signal.
+            unsafe {
+                let signal_ptr_u8 = *signal_ptr as *const u8;
+                let size = std::mem::size_of::<SignalData<()>>();
+                visitor.visit_region(signal_ptr_u8, size);
+            }
+        }
+
+        // Trace cleanups for any Gc pointers they might capture
         let cleanups_borrow = self.cleanups.borrow();
         for cleanup in cleanups_borrow.iter() {
             // Cast FnOnce to Fn for scanning (safe since we only read memory)
@@ -69,10 +79,8 @@ impl Effect {
     {
         let owner = crate::runtime::current_owner();
         let boxed = Box::new(closure);
-        let closure_layout = std::alloc::Layout::for_value(&*boxed);
         Gc::new(Self {
             closure: boxed,
-            closure_layout,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
