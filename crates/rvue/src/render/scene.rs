@@ -5,7 +5,6 @@ use crate::component::Component;
 use crate::render::widget::render_component;
 use crate::text::TextContext;
 use rudo_gc::Gc;
-use std::collections::HashSet;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 use vello::kurbo::Affine;
@@ -30,23 +29,6 @@ impl Scene {
             renderer_initialized: false,
             taffy: TaffyTree::new(),
             text_context: TextContext::new(),
-        }
-    }
-
-    fn collect_dirty_components(component: &Gc<Component>, dirty: &mut HashSet<u64>) {
-        if component.is_dirty() {
-            dirty.insert(component.id);
-        }
-
-        for child in component.children.borrow().iter() {
-            Self::collect_dirty_components(child, dirty);
-        }
-    }
-
-    fn get_all_components(component: &Gc<Component>, all: &mut Vec<Gc<Component>>) {
-        all.push(Gc::clone(component));
-        for child in component.children.borrow().iter() {
-            Self::get_all_components(child, all);
         }
     }
 
@@ -80,16 +62,6 @@ impl Scene {
             }
         }
 
-        let mut all_components = Vec::new();
-        for component in &self.root_components {
-            Self::get_all_components(component, &mut all_components);
-        }
-
-        let mut dirty_components = HashSet::new();
-        for component in &self.root_components {
-            Self::collect_dirty_components(component, &mut dirty_components);
-        }
-
         for component in &self.root_components {
             crate::effect::set_defer_effect_run(true);
 
@@ -108,7 +80,14 @@ impl Scene {
             crate::component::propagate_layout_results(component, &self.taffy);
 
             if let Some(ref mut scene) = self.vello_scene {
-                render_component(component, scene, Affine::IDENTITY);
+                if component.is_dirty() {
+                    *component.vello_cache.borrow_mut() = None;
+                    render_component(component, scene, Affine::IDENTITY);
+                } else if let Some(ref cached) = *component.vello_cache.borrow() {
+                    scene.append(&cached.0, Some(Affine::IDENTITY));
+                } else {
+                    render_component(component, scene, Affine::IDENTITY);
+                }
             }
         }
 

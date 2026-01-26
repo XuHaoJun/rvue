@@ -82,6 +82,8 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         } else {
             Affine::IDENTITY
         };
+        *child.vello_cache.borrow_mut() = None;
+        child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
         render_component(child, scene, transform * child_transform);
     }
 }
