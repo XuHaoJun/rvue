@@ -26,7 +26,7 @@ fn create_test_view(id: u64) -> ViewStruct {
 fn test_slot_new() {
     let slot = TestSlot::new((|| create_test_view(1)).to_children());
 
-    let view = (slot.children.0)();
+    let view = slot.children.run();
     assert_eq!(view.root_component.id, 1);
 }
 
@@ -39,35 +39,49 @@ fn test_slot_into_vec() {
 }
 
 #[test]
-fn test_to_children_fn() {
+fn test_children_fn_run() {
     let closure: ChildrenFn = (|| create_test_view(2)).to_children();
 
-    let view = (closure.0)();
+    let view = closure.run();
     assert_eq!(view.root_component.id, 2);
 }
 
 #[test]
-fn test_maybe_slot() {
-    use rvue::slot::MaybeSlot;
+fn test_children_fn_multiple_calls() {
+    let counter = std::rc::Rc::new(std::cell::RefCell::new(0));
+    let counter_clone = counter.clone();
+    let closure: ChildrenFn = (move || {
+        *counter_clone.borrow_mut() += 1;
+        create_test_view(2)
+    })
+    .to_children();
 
-    let none_slot: MaybeSlot = MaybeSlot::default();
-    assert!(none_slot.is_none());
-    assert!(none_slot.render().is_none());
+    closure.run();
+    closure.run();
+    assert_eq!(*counter.borrow(), 2);
+}
 
-    let some_slot =
-        MaybeSlot::from(Some(rvue::slot::Slot::new((|| create_test_view(3)).to_children())));
+#[test]
+fn test_maybe_children() {
+    use rvue::slot::MaybeChildren;
 
-    assert!(some_slot.is_some());
-    let view = some_slot.render().unwrap();
+    let none: MaybeChildren = MaybeChildren::default();
+    assert!(none.is_none());
+    assert!(none.render().is_none());
+
+    let closure: ChildrenFn = (|| create_test_view(3)).to_children();
+    let some = MaybeChildren::from(closure);
+    assert!(some.is_some());
+    let view = some.run().unwrap();
     assert_eq!(view.root_component.id, 3);
 }
 
 #[test]
-fn test_slot_to_children_trait() {
+fn test_to_children_traits() {
     let view = create_test_view(4);
 
     let children_fn: ChildrenFn = view.to_children();
-    let rendered = (children_fn.0)();
+    let rendered = children_fn.run();
     assert_eq!(rendered.root_component.id, 4);
 }
 
@@ -76,16 +90,13 @@ fn test_slot_clone() {
     let slot = TestSlot::new((|| create_test_view(5)).to_children());
     let cloned = slot.clone();
 
-    let view = (cloned.children.0)();
+    let view = cloned.children.run();
     assert_eq!(view.root_component.id, 5);
 }
 
 #[test]
-fn test_slot_render() {
-    use rvue::slot::Slot;
-
-    let slot = Slot::new((|| create_test_view(6)).to_children());
-
-    let view = slot.render();
+fn test_children_run() {
+    let children: Children = Children(Box::new(|| create_test_view(6)));
+    let view = children.run();
     assert_eq!(view.root_component.id, 6);
 }

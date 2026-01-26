@@ -2,15 +2,17 @@
 //!
 //! Slots allow components to accept and render content from their parents.
 //! This follows the pattern established by Leptos and Vue.
+//!
+//! ## Types
+//!
+//! - `Children` - One-time content, consumed on render (`FnOnce`)
+//! - `ChildrenFn` - Reusable content, can be called multiple times (`Fn`)
 
+use crate::component::Component;
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, Trace};
 
 /// Wrapper for closures that ensures GC tracing works correctly.
-///
-/// This wrapper calls the closure during GC trace to trace any `Gc<T>`
-/// values in the returned ViewStruct, which also traces any `Gc<T>`
-/// captured in the closure's environment.
 pub struct ChildrenClosure(pub Box<dyn Fn() -> ViewStruct>);
 
 unsafe impl Trace for ChildrenClosure {
@@ -20,57 +22,90 @@ unsafe impl Trace for ChildrenClosure {
     }
 }
 
-/// A function that renders slot content, can be called multiple times
-pub type ChildrenFn = Gc<ChildrenClosure>;
-
-/// A function that renders slot content, can only be called once
-pub type Children = Box<dyn FnOnce() -> ViewStruct>;
-
-/// A slot that can be passed to a component
+/// A function that renders slot content, can be called multiple times.
 ///
-/// Slots are not components themselves - they are containers for content
-/// that gets rendered directly by the parent component.
+/// This uses `Gc` for shared ownership. Use `.run()` to render.
 #[derive(Clone)]
-pub struct Slot {
-    /// The function that renders this slot's content
-    pub children: ChildrenFn,
-}
+pub struct ChildrenFn(pub Gc<ChildrenClosure>);
 
-impl Slot {
-    /// Create a new slot with the given children function
-    pub fn new(children: ChildrenFn) -> Self {
-        Self { children }
-    }
-
-    /// Render the slot content and return the view
-    pub fn render(&self) -> ViewStruct {
-        (self.children.0)()
+impl ChildrenFn {
+    /// Render the slot content and return the view.
+    ///
+    /// This can be called multiple times - the closure will be re-executed each time.
+    pub fn run(&self) -> ViewStruct {
+        (self.0 .0)()
     }
 }
 
-impl From<Slot> for Vec<Slot> {
-    fn from(value: Slot) -> Self {
-        vec![value]
-    }
-}
-
-impl From<ChildrenFn> for Slot {
-    fn from(children: ChildrenFn) -> Self {
-        Slot::new(children)
-    }
-}
-
-unsafe impl Trace for Slot {
+unsafe impl Trace for ChildrenFn {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        self.children.trace(visitor);
+        self.0.trace(visitor);
+    }
+}
+
+/// A function that renders slot content, can only be called once.
+///
+/// This consumes the closure on render (FnOnce semantics).
+pub struct Children(pub Box<dyn FnOnce() -> ViewStruct>);
+
+impl Children {
+    /// Render the slot content and return the view.
+    ///
+    /// This consumes the closure - can only be called once.
+    pub fn run(self) -> ViewStruct {
+        (self.0)()
+    }
+}
+
+impl<F> From<Box<F>> for Children
+where
+    F: FnOnce() -> ViewStruct + 'static,
+{
+    fn from(value: Box<F>) -> Self {
+        Children(value)
+    }
+}
+
+/// Wrapper for optional children content.
+#[derive(Clone, Default)]
+pub struct MaybeChildren(pub Option<ChildrenFn>);
+
+impl MaybeChildren {
+    /// Render the children if they exist
+    pub fn render(&self) -> Option<ViewStruct> {
+        self.0.as_ref().map(|children| children.run())
+    }
+
+    /// Render the children, consuming self
+    pub fn run(self) -> Option<ViewStruct> {
+        self.0.map(|children| children.run())
+    }
+
+    /// Check if children exist
+    pub fn is_some(&self) -> bool {
+        self.0.is_some()
+    }
+
+    /// Check if children are empty
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+}
+
+impl From<Option<ChildrenFn>> for MaybeChildren {
+    fn from(value: Option<ChildrenFn>) -> Self {
+        MaybeChildren(value)
+    }
+}
+
+impl From<ChildrenFn> for MaybeChildren {
+    fn from(value: ChildrenFn) -> Self {
+        MaybeChildren(Some(value))
     }
 }
 
 /// Trait for converting values into children types
-///
-/// This allows flexible composition of children content in the view! macro.
 pub trait ToChildren<T> {
-    /// Convert the given value into children
     fn to_children(self) -> T;
 }
 
@@ -79,7 +114,7 @@ where
     F: Fn() -> ViewStruct + 'static,
 {
     fn to_children(self) -> ChildrenFn {
-        Gc::new(ChildrenClosure(Box::new(self)))
+        ChildrenFn(Gc::new(ChildrenClosure(Box::new(self))))
     }
 }
 
@@ -88,41 +123,42 @@ where
     F: FnOnce() -> ViewStruct + 'static,
 {
     fn to_children(self) -> Children {
-        Box::new(self)
+        Children(Box::new(self))
     }
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
     fn to_children(self) -> ChildrenFn {
         let view = self;
-        Gc::new(ChildrenClosure(Box::new(move || view.clone())))
+        ChildrenFn(Gc::new(ChildrenClosure(Box::new(move || view.clone()))))
     }
 }
 
-/// Wrapper for optional slot content
-#[derive(Clone, Default)]
-pub struct MaybeSlot(pub Option<Slot>);
-
-impl From<Option<Slot>> for MaybeSlot {
-    fn from(value: Option<Slot>) -> Self {
-        MaybeSlot(value)
+impl ToChildren<Children> for ViewStruct {
+    fn to_children(self) -> Children {
+        Children(Box::new(move || self.clone()))
     }
 }
 
-impl MaybeSlot {
-    /// Render the slot if it exists
-    pub fn render(&self) -> Option<ViewStruct> {
-        self.0.as_ref().map(|slot| slot.render())
-    }
-
-    /// Check if the slot has content
-    pub fn is_some(&self) -> bool {
-        self.0.is_some()
-    }
-
-    /// Check if the slot is empty
-    pub fn is_none(&self) -> bool {
-        self.0.is_none()
+impl ToChildren<ChildrenFn> for MaybeChildren {
+    fn to_children(self) -> ChildrenFn {
+        let inner = self.0;
+        ChildrenFn(Gc::new(ChildrenClosure(Box::new(move || {
+            inner.as_ref().map_or_else(
+                || {
+                    ViewStruct::new(Component::new(
+                        0,
+                        crate::component::ComponentType::Text,
+                        crate::component::ComponentProps::Text {
+                            content: String::new(),
+                            font_size: None,
+                            color: None,
+                        },
+                    ))
+                },
+                |c| c.run(),
+            )
+        }))))
     }
 }
 
@@ -141,45 +177,61 @@ mod tests {
     }
 
     #[test]
-    fn test_slot_new() {
-        let slot = Slot::new((|| ViewStruct::new(create_test_component())).to_children());
+    fn test_children_fn_run() {
+        let children: ChildrenFn = (|| ViewStruct::new(create_test_component())).to_children();
 
-        let view = slot.render();
+        let view = children.run();
         assert!(view.root_component.id == 0);
     }
 
     #[test]
-    fn test_to_children_fn() {
+    fn test_children_fn_multiple_calls() {
+        let counter = std::rc::Rc::new(std::cell::RefCell::new(0));
+        let counter_clone = counter.clone();
+        let children: ChildrenFn = (move || {
+            *counter_clone.borrow_mut() += 1;
+            ViewStruct::new(create_test_component())
+        })
+        .to_children();
+
+        let _view1 = children.run();
+        let _view2 = children.run();
+        assert_eq!(*counter.borrow(), 2);
+    }
+
+    #[test]
+    fn test_children_run() {
+        let called = std::rc::Rc::new(std::cell::RefCell::new(false));
+        let called_clone = called.clone();
+        let children: Children = Children(Box::new(move || {
+            *called_clone.borrow_mut() = true;
+            ViewStruct::new(create_test_component())
+        }));
+
+        let view = children.run();
+        assert!(*called.borrow());
+        assert!(view.root_component.id == 0);
+    }
+
+    #[test]
+    fn test_maybe_children() {
+        let none: MaybeChildren = MaybeChildren::default();
+        assert!(none.is_none());
+        assert!(none.render().is_none());
+
         let closure: ChildrenFn = (|| ViewStruct::new(create_test_component())).to_children();
-
-        let view = (closure.0)();
+        let some = MaybeChildren::from(closure);
+        assert!(some.is_some());
+        let view = some.run().unwrap();
         assert!(view.root_component.id == 0);
     }
 
     #[test]
-    fn test_maybe_slot() {
-        let none_slot: MaybeSlot = MaybeSlot::default();
-        assert!(none_slot.is_none());
-        assert!(none_slot.render().is_none());
+    fn test_to_children_traits() {
+        let from_closure: ChildrenFn = (|| ViewStruct::new(create_test_component())).to_children();
+        assert!(from_closure.run().root_component.id == 0);
 
-        let some_slot = MaybeSlot::from(Some(Slot::new(
-            (|| ViewStruct::new(create_test_component())).to_children(),
-        )));
-
-        assert!(some_slot.is_some());
-        let view = some_slot.render().unwrap();
-        assert!(view.root_component.id == 0);
-    }
-
-    #[test]
-    fn test_slot_with_gc_capture() {
-        let gc_component = create_test_component();
-        let gc_clone = gc_component.clone();
-
-        let closure: ChildrenFn =
-            Gc::new(ChildrenClosure(Box::new(move || ViewStruct::new(gc_clone.clone()))));
-
-        let view = (closure.0)();
-        assert!(view.root_component.id == 0);
+        let from_view: ChildrenFn = ViewStruct::new(create_test_component()).to_children();
+        assert!(from_view.run().root_component.id == 0);
     }
 }
