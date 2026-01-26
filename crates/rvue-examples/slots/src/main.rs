@@ -13,7 +13,7 @@ struct CardBody {
 
 #[component]
 fn Card(body: CardBody) -> impl View {
-    let body_view = (body.children)();
+    let body_view = (body.children.0)();
     CardInner { view: body_view }
 }
 

@@ -47,8 +47,18 @@ fn is_signal_variable(expr: &Expr) -> bool {
                 // Common signal variable name patterns
                 if name.ends_with("_signal")
                     || name.ends_with("_signal_rc")
+                    || name.ends_with("_value")
+                    || name.ends_with("_state")
+                    || name.ends_with("_clone")
+                    || name.ends_with("_s")
                     || name == "signal"
                     || name == "sig"
+                    || name == "count"
+                    || name == "text"
+                    || name == "name"
+                    || name == "label"
+                    || name == "value"
+                    || name == "doubled"
                 {
                     return true;
                 }
@@ -59,7 +69,7 @@ fn is_signal_variable(expr: &Expr) -> bool {
                 if first_char.is_some_and(|c| c.is_lowercase())
                     && !name.starts_with("is_")
                     && !name.starts_with("has_")
-                    && (name.len() <= 2 || name.ends_with("_s"))
+                    && name.len() <= 2
                 {
                     // Could be a signal, be conservative and treat as reactive
                     return true;

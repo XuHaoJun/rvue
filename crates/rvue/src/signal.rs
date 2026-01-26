@@ -59,6 +59,12 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for ReadSignal<T> {
     }
 }
 
+impl<T: Trace + Clone + std::fmt::Display + 'static> std::fmt::Display for ReadSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self.data.value.borrow())
+    }
+}
+
 unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.data.trace(visitor);

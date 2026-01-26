@@ -106,7 +106,7 @@ fn generate_text_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let content = extract_prop_value(attrs, "content", || quote! { "" });
 
     quote! {
-        rvue::widgets::Text::new(#content.to_string())
+        rvue::widgets::Text::new(#content)
     }
 }
 
