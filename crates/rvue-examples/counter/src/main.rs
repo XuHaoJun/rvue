@@ -1,4 +1,5 @@
 //! Counter example application with click event handling
+#![allow(unused_braces)]
 
 use rvue::prelude::*;
 use rvue_macro::view;

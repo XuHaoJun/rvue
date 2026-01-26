@@ -1,4 +1,5 @@
 //! Form example demonstrating all input types
+#![allow(unused_braces)]
 
 use rvue::prelude::*;
 use rvue_macro::view;
