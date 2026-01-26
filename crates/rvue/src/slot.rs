@@ -37,7 +37,20 @@ impl LazyView {
     }
 
     fn run(&self) -> ViewStruct {
-        self.view.as_ref().expect("LazyView::run() called after view was dropped").as_ref().clone()
+        self.view.as_ref().map_or_else(
+            || {
+                ViewStruct::new(Component::new(
+                    0,
+                    crate::component::ComponentType::Text,
+                    crate::component::ComponentProps::Text {
+                        content: String::new(),
+                        font_size: None,
+                        color: None,
+                    },
+                ))
+            },
+            |view| view.as_ref().clone(),
+        )
     }
 }
 

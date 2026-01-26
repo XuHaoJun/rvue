@@ -30,41 +30,95 @@ pub fn generate_widget_code(
 /// Generate event handler calls
 pub fn generate_event_handlers(id: &Ident, events: &[(&str, &Expr)]) -> TokenStream {
     let handlers = events.iter().map(|(name, handler)| {
-        let handler_ident = format_ident!("on_{}", name);
-        let (event_ty, ctx_ty) = event_handler_types(name);
-        let wrapper = match closure_arg_count(handler) {
-            Some(0) => Some(quote! {
-                #id.#handler_ident(move |event: &#event_ty, ctx: &mut #ctx_ty| {
-                    let _ = (event, ctx);
-                    handler();
-                });
-            }),
-            Some(1) => Some(quote! {
-                #id.#handler_ident(move |event: &#event_ty, ctx: &mut #ctx_ty| {
-                    let _ = ctx;
-                    handler(event);
-                });
-            }),
-            Some(2) => None,
-            _ => None,
-        };
+        let setter_call = event_setter(name, handler);
 
-        if let Some(wrapper) = wrapper {
-            quote! {
-                {
-                    let handler = #handler;
-                    #wrapper
-                }
-            }
-        } else {
-            quote! {
-                #id.#handler_ident(#handler);
-            }
+        quote! {
+            #id.#setter_call
         }
     });
 
     quote! {
         #(#handlers;)*
+    }
+}
+
+fn event_setter(event_name: &str, handler: &Expr) -> TokenStream {
+    let arg_count = closure_arg_count(handler);
+
+    match event_name {
+        "click" => match arg_count {
+            Some(0) => quote! { on_click_0arg(#handler) },
+            Some(1) => quote! { on_click_1arg(#handler) },
+            Some(2) => quote! { on_click(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "input" => match arg_count {
+            Some(0) => quote! { on_input_0arg(#handler) },
+            Some(1) => quote! { on_input_1arg(#handler) },
+            Some(2) => quote! { on_input(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "change" => match arg_count {
+            Some(0) => quote! { on_change_0arg(#handler) },
+            Some(1) => quote! { on_change_1arg(#handler) },
+            Some(2) => quote! { on_change(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "key_down" => match arg_count {
+            Some(0) => quote! { on_key_down_0arg(#handler) },
+            Some(1) => quote! { on_key_down_1arg(#handler) },
+            Some(2) => quote! { on_key_down(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "key_up" => match arg_count {
+            Some(0) => quote! { on_key_up_0arg(#handler) },
+            Some(1) => quote! { on_key_up_1arg(#handler) },
+            Some(2) => quote! { on_key_up(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "focus" => match arg_count {
+            Some(0) => quote! { on_focus_0arg(#handler) },
+            Some(1) => quote! { on_focus_1arg(#handler) },
+            Some(2) => quote! { on_focus(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "blur" => match arg_count {
+            Some(0) => quote! { on_blur_0arg(#handler) },
+            Some(1) => quote! { on_blur_1arg(#handler) },
+            Some(2) => quote! { on_blur(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_down" => match arg_count {
+            Some(0) => quote! { on_pointer_down_0arg(#handler) },
+            Some(1) => quote! { on_pointer_down_1arg(#handler) },
+            Some(2) => quote! { on_pointer_down(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_up" => match arg_count {
+            Some(0) => quote! { on_pointer_up_0arg(#handler) },
+            Some(1) => quote! { on_pointer_up_1arg(#handler) },
+            Some(2) => quote! { on_pointer_up(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_enter" => match arg_count {
+            Some(0) => quote! { on_pointer_enter_0arg(#handler) },
+            Some(1) => quote! { on_pointer_enter_1arg(#handler) },
+            Some(2) => quote! { on_pointer_enter(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_leave" => match arg_count {
+            Some(0) => quote! { on_pointer_leave_0arg(#handler) },
+            Some(1) => quote! { on_pointer_leave_1arg(#handler) },
+            Some(2) => quote! { on_pointer_leave(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_move" => match arg_count {
+            Some(0) => quote! { on_pointer_move_0arg(#handler) },
+            Some(1) => quote! { on_pointer_move_1arg(#handler) },
+            Some(2) => quote! { on_pointer_move(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        _ => panic!("Unknown event: {}", event_name),
     }
 }
 
@@ -81,25 +135,19 @@ fn unwrap_expr(expr: &Expr) -> &Expr {
             Some(syn::Stmt::Expr(inner, _)) => inner,
             _ => expr,
         },
+        Expr::Block(block) => {
+            for stmt in &block.block.stmts {
+                if let syn::Stmt::Expr(inner, _) = stmt {
+                    if let Expr::Closure(_) = inner {
+                        return inner;
+                    }
+                }
+            }
+            expr
+        }
         Expr::Paren(paren) => unwrap_expr(&paren.expr),
         _ => expr,
     }
-}
-
-fn event_handler_types(event_name: &str) -> (TokenStream, TokenStream) {
-    let ctx_ty = quote! { rvue::event::context::EventContext };
-    let event_ty = match event_name {
-        "click" | "pointer_down" | "pointer_up" => {
-            quote! { rvue::event::types::PointerButtonEvent }
-        }
-        "pointer_move" => quote! { rvue::event::types::PointerMoveEvent },
-        "key_down" | "key_up" => quote! { rvue::event::types::KeyboardEvent },
-        "focus" | "blur" => quote! { rvue::event::status::FocusEvent },
-        "input" | "change" => quote! { rvue::event::status::InputEvent },
-        _ => quote! { rvue::event::types::PointerButtonEvent },
-    };
-
-    (event_ty, ctx_ty)
 }
 
 fn generate_text_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {

@@ -3,10 +3,9 @@ use crate::event::context::EventContext;
 use crate::event::focus::find_next_focusable;
 use crate::event::hit_test::hit_test;
 use crate::event::path::merge_state_up;
-use crate::event::types::{KeyState, PointerButtonEvent, PointerEvent, TextEvent};
+use crate::event::types::{KeyState, PointerEvent, TextEvent};
 use rudo_gc::Gc;
-use vello::kurbo::Point;
-use winit::keyboard::{Key, ModifiersState, NamedKey};
+use winit::keyboard::{Key, NamedKey};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Handled {
@@ -99,30 +98,14 @@ fn dispatch_pointer_event(
                     handler.call(e, &mut ctx);
                 }
             }
-            PointerEvent::Enter(_) => {
-                if let Some(handler) = handlers.on_pointer_enter.as_ref() {
-                    handler.call(
-                        &PointerButtonEvent {
-                            button: crate::event::types::PointerButton::Primary,
-                            position: Point::ZERO,
-                            click_count: 0,
-                            modifiers: ModifiersState::default().into(),
-                        },
-                        &mut ctx,
-                    );
+            PointerEvent::Enter(e) => {
+                if let Some(handler) = handlers.get_pointer_enter() {
+                    handler.call(e, &mut ctx);
                 }
             }
-            PointerEvent::Leave(_) => {
-                if let Some(handler) = handlers.on_pointer_leave.as_ref() {
-                    handler.call(
-                        &PointerButtonEvent {
-                            button: crate::event::types::PointerButton::Primary,
-                            position: Point::ZERO,
-                            click_count: 0,
-                            modifiers: ModifiersState::default().into(),
-                        },
-                        &mut ctx,
-                    );
+            PointerEvent::Leave(e) => {
+                if let Some(handler) = handlers.get_pointer_leave() {
+                    handler.call(e, &mut ctx);
                 }
             }
             _ => {}
