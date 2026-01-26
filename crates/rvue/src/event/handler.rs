@@ -2,7 +2,6 @@ use crate::event::context::EventContext;
 use crate::event::status::{FocusEvent, InputEvent};
 use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerMoveEvent};
 use rudo_gc::Trace;
-use std::any::TypeId;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -344,22 +343,37 @@ impl EventHandlers {
     }
 
     pub fn set_handler<E: 'static>(&mut self, handler: EventHandler<E>) {
-        let type_id = TypeId::of::<E>();
-        if type_id == TypeId::of::<PointerButtonEvent>() {
+        let type_id = std::any::TypeId::of::<E>();
+        if type_id == std::any::TypeId::of::<PointerButtonEvent>() {
             let ptr = &handler as *const EventHandler<E> as *const EventHandler<PointerButtonEvent>;
-            self.on_click = Some(unsafe { std::ptr::read(ptr) });
-        } else if type_id == TypeId::of::<InputEvent>() {
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_click =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
+        } else if type_id == std::any::TypeId::of::<InputEvent>() {
             let ptr = &handler as *const EventHandler<E> as *const EventHandler<InputEvent>;
-            self.on_input = Some(unsafe { std::ptr::read(ptr) });
-        } else if type_id == TypeId::of::<KeyboardEvent>() {
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_input =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
+        } else if type_id == std::any::TypeId::of::<KeyboardEvent>() {
             let ptr = &handler as *const EventHandler<E> as *const EventHandler<KeyboardEvent>;
-            self.on_key_down = Some(unsafe { std::ptr::read(ptr) });
-        } else if type_id == TypeId::of::<FocusEvent>() {
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_key_down =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
+        } else if type_id == std::any::TypeId::of::<FocusEvent>() {
             let ptr = &handler as *const EventHandler<E> as *const EventHandler<FocusEvent>;
-            self.on_focus = Some(unsafe { std::ptr::read(ptr) });
-        } else if type_id == TypeId::of::<PointerMoveEvent>() {
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_focus =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
+        } else if type_id == std::any::TypeId::of::<PointerMoveEvent>() {
             let ptr = &handler as *const EventHandler<E> as *const EventHandler<PointerMoveEvent>;
-            self.on_pointer_move = Some(unsafe { std::ptr::read(ptr) });
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_pointer_move =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
         }
     }
 }

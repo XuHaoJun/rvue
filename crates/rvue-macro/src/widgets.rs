@@ -100,6 +100,18 @@ fn event_setter(event_name: &str, handler: &Expr) -> TokenStream {
             Some(2) => quote! { on_pointer_up(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
+        "pointer_enter" => match arg_count {
+            Some(0) => quote! { on_pointer_enter_0arg(#handler) },
+            Some(1) => quote! { on_pointer_enter_1arg(#handler) },
+            Some(2) => quote! { on_pointer_enter(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
+        "pointer_leave" => match arg_count {
+            Some(0) => quote! { on_pointer_leave_0arg(#handler) },
+            Some(1) => quote! { on_pointer_leave_1arg(#handler) },
+            Some(2) => quote! { on_pointer_leave(#handler) },
+            _ => panic!("Event handler with more than 2 arguments not supported"),
+        },
         "pointer_move" => match arg_count {
             Some(0) => quote! { on_pointer_move_0arg(#handler) },
             Some(1) => quote! { on_pointer_move_1arg(#handler) },
@@ -123,6 +135,16 @@ fn unwrap_expr(expr: &Expr) -> &Expr {
             Some(syn::Stmt::Expr(inner, _)) => inner,
             _ => expr,
         },
+        Expr::Block(block) => {
+            for stmt in &block.block.stmts {
+                if let syn::Stmt::Expr(inner, _) = stmt {
+                    if let Expr::Closure(_) = inner {
+                        return inner;
+                    }
+                }
+            }
+            expr
+        }
         Expr::Paren(paren) => unwrap_expr(&paren.expr),
         _ => expr,
     }
