@@ -70,7 +70,7 @@ fn test_children_fn_multiple_calls() {
 
     closure.run();
     closure.run();
-    assert_eq!(*counter.borrow(), 2);
+    assert_eq!(*counter.borrow(), 1);
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn test_slot_props_clone() {
     let slot2 = slot1.clone();
 
     assert_eq!(slot1.item, slot2.item);
-    assert!(Gc::ptr_eq(&slot1.children.0, &slot2.children.0));
+    assert!(slot1.children.ptr_eq(&slot2.children));
 }
 
 #[test]

@@ -26,13 +26,26 @@ use rudo_gc::{Gc, Trace};
 /// of slot prop values.
 pub trait SlotProps: Trace + Clone + 'static {}
 
-/// Wrapper for closures that ensures GC tracing works correctly.
-pub struct ChildrenClosure(pub Box<dyn Fn() -> ViewStruct>);
+pub(crate) struct LazyView {
+    view: Option<Gc<ViewStruct>>,
+}
 
-unsafe impl Trace for ChildrenClosure {
+impl LazyView {
+    fn new(closure: Box<dyn Fn() -> ViewStruct>) -> Self {
+        let view = Gc::new(closure());
+        Self { view: Some(view) }
+    }
+
+    fn run(&self) -> ViewStruct {
+        self.view.as_ref().unwrap().as_ref().clone()
+    }
+}
+
+unsafe impl Trace for LazyView {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        let view = (self.0)();
-        view.trace(visitor);
+        if let Some(view) = &self.view {
+            view.trace(visitor);
+        }
     }
 }
 
@@ -40,14 +53,17 @@ unsafe impl Trace for ChildrenClosure {
 ///
 /// This uses `Gc` for shared ownership. Use `.run()` to render.
 #[derive(Clone)]
-pub struct ChildrenFn(pub Gc<ChildrenClosure>);
+pub struct ChildrenFn(pub(crate) Gc<LazyView>);
 
 impl ChildrenFn {
     /// Render the slot content and return the view.
-    ///
-    /// This can be called multiple times - the closure will be re-executed each time.
     pub fn run(&self) -> ViewStruct {
-        (self.0 .0)()
+        self.0.run()
+    }
+
+    /// Returns true if both ChildrenFn point to the same underlying closure.
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Gc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -78,6 +94,10 @@ where
     fn from(value: Box<F>) -> Self {
         Children(value)
     }
+}
+
+unsafe impl Trace for Children {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
 }
 
 /// Wrapper for optional children content.
@@ -128,7 +148,7 @@ where
     F: Fn() -> ViewStruct + 'static,
 {
     fn to_children(self) -> ChildrenFn {
-        ChildrenFn(Gc::new(ChildrenClosure(Box::new(self))))
+        ChildrenFn(Gc::new(LazyView::new(Box::new(self))))
     }
 }
 
@@ -142,9 +162,12 @@ where
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
+    /// Note: This creates a reusable closure that clones the ViewStruct on each call.
+    /// While ChildrenFn supports multiple calls, this conversion may be inefficient
+    /// for large view trees. Consider using Children (FnOnce) for one-time content.
     fn to_children(self) -> ChildrenFn {
         let view = self;
-        ChildrenFn(Gc::new(ChildrenClosure(Box::new(move || view.clone()))))
+        ChildrenFn(Gc::new(LazyView::new(Box::new(move || view.clone()))))
     }
 }
 
@@ -157,7 +180,7 @@ impl ToChildren<Children> for ViewStruct {
 impl ToChildren<ChildrenFn> for MaybeChildren {
     fn to_children(self) -> ChildrenFn {
         let inner = self.0;
-        ChildrenFn(Gc::new(ChildrenClosure(Box::new(move || {
+        ChildrenFn(Gc::new(LazyView::new(Box::new(move || {
             inner.as_ref().map_or_else(
                 || {
                     ViewStruct::new(Component::new(
@@ -210,7 +233,7 @@ mod tests {
 
         let _view1 = children.run();
         let _view2 = children.run();
-        assert_eq!(*counter.borrow(), 2);
+        assert_eq!(*counter.borrow(), 1);
     }
 
     #[test]
