@@ -47,102 +47,62 @@ fn event_setter(event_name: &str, handler: &Expr) -> TokenStream {
 
     match event_name {
         "click" => match arg_count {
-            Some(0) => {
-                quote! { on_click(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_click(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_click_0arg(#handler) },
+            Some(1) => quote! { on_click_1arg(#handler) },
             Some(2) => quote! { on_click(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "input" => match arg_count {
-            Some(0) => {
-                quote! { on_input(|_: &rvue::event::status::InputEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_input(|_: &rvue::event::status::InputEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_input_0arg(#handler) },
+            Some(1) => quote! { on_input_1arg(#handler) },
             Some(2) => quote! { on_input(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "change" => match arg_count {
-            Some(0) => {
-                quote! { on_change(|_: &rvue::event::status::InputEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_change(|_: &rvue::event::status::InputEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_change_0arg(#handler) },
+            Some(1) => quote! { on_change_1arg(#handler) },
             Some(2) => quote! { on_change(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "key_down" => match arg_count {
-            Some(0) => {
-                quote! { on_key_down(|_: &rvue::event::types::KeyboardEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_key_down(|_: &rvue::event::types::KeyboardEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_key_down_0arg(#handler) },
+            Some(1) => quote! { on_key_down_1arg(#handler) },
             Some(2) => quote! { on_key_down(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "key_up" => match arg_count {
-            Some(0) => {
-                quote! { on_key_up(|_: &rvue::event::types::KeyboardEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_key_up(|_: &rvue::event::types::KeyboardEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_key_up_0arg(#handler) },
+            Some(1) => quote! { on_key_up_1arg(#handler) },
             Some(2) => quote! { on_key_up(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "focus" => match arg_count {
-            Some(0) => {
-                quote! { on_focus(|_: &rvue::event::status::FocusEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_focus(|_: &rvue::event::status::FocusEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_focus_0arg(#handler) },
+            Some(1) => quote! { on_focus_1arg(#handler) },
             Some(2) => quote! { on_focus(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "blur" => match arg_count {
-            Some(0) => {
-                quote! { on_blur(|_: &rvue::event::status::FocusEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_blur(|_: &rvue::event::status::FocusEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_blur_0arg(#handler) },
+            Some(1) => quote! { on_blur_1arg(#handler) },
             Some(2) => quote! { on_blur(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "pointer_down" => match arg_count {
-            Some(0) => {
-                quote! { on_pointer_down(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_pointer_down(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_pointer_down_0arg(#handler) },
+            Some(1) => quote! { on_pointer_down_1arg(#handler) },
             Some(2) => quote! { on_pointer_down(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "pointer_up" => match arg_count {
-            Some(0) => {
-                quote! { on_pointer_up(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_pointer_up(|_: &rvue::event::types::PointerButtonEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_pointer_up_0arg(#handler) },
+            Some(1) => quote! { on_pointer_up_1arg(#handler) },
             Some(2) => quote! { on_pointer_up(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
         "pointer_move" => match arg_count {
-            Some(0) => {
-                quote! { on_pointer_move(|_: &rvue::event::types::PointerMoveEvent, _: &mut rvue::event::EventContext| {}) }
-            }
-            Some(1) => {
-                quote! { on_pointer_move(|_: &rvue::event::types::PointerMoveEvent, _: &mut rvue::event::EventContext| { #handler(_) }) }
-            }
+            Some(0) => quote! { on_pointer_move_0arg(#handler) },
+            Some(1) => quote! { on_pointer_move_1arg(#handler) },
             Some(2) => quote! { on_pointer_move(#handler) },
             _ => panic!("Event handler with more than 2 arguments not supported"),
         },
