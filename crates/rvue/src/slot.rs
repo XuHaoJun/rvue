@@ -8,6 +8,10 @@ use rudo_gc::Trace;
 use std::sync::Arc;
 
 /// A function that renders slot content, can be called multiple times
+///
+/// Note: ChildrenFn uses `Arc<dyn Fn()>` which is not `Send + Sync` by default.
+/// This is acceptable because UI rendering in rvue happens on a single-threaded
+/// event loop (winit). The closure will be invoked only on the main thread.
 pub type ChildrenFn = Arc<dyn Fn() -> ViewStruct>;
 
 /// A function that renders slot content, can only be called once
@@ -48,9 +52,9 @@ impl From<ChildrenFn> for Slot {
 }
 
 unsafe impl Trace for Slot {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // ChildrenFn is Arc<dyn Fn()>, which doesn't contain GC pointers
-        // The actual ViewStruct returned by the closure will be traced when called
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        let view = (self.children)();
+        view.trace(visitor);
     }
 }
 
@@ -81,6 +85,11 @@ where
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
+    /// Converts a ViewStruct into a ChildrenFn by wrapping it in an Arc.
+    ///
+    /// Note: Uses `#[allow(clippy::arc_with_non_send_sync)]` because UI rendering
+    /// happens on a single-threaded event loop (winit). If multi-threaded rendering
+    /// is added in the future, this should be reviewed.
     #[allow(clippy::arc_with_non_send_sync)]
     fn to_children(self) -> ChildrenFn {
         Arc::new(move || self.clone())

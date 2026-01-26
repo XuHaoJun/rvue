@@ -53,11 +53,13 @@ fn is_signal_variable(expr: &Expr) -> bool {
                     return true;
                 }
                 // Check for lowercase identifiers that might be signals
-                // (this is a heuristic - in a real implementation we might need type info)
+                // (this is a heuristic - only treat single-char names or common short names as signals)
+                // This avoids false positives for things like "children", "view", "slot", etc.
                 let first_char = name.chars().next();
                 if first_char.is_some_and(|c| c.is_lowercase())
                     && !name.starts_with("is_")
                     && !name.starts_with("has_")
+                    && (name.len() <= 2 || name.ends_with("_s"))
                 {
                     // Could be a signal, be conservative and treat as reactive
                     return true;

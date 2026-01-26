@@ -50,22 +50,22 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
-                fn trace(&self, _visitor: &mut impl ::rudo_gc::Visitor) {
-                    // children is Arc<dyn Fn()>, which doesn't contain GC pointers
-                    // The actual ViewStruct returned by the closure will be traced when called
+                fn trace(&self, visitor: &mut impl ::rudo_gc::Visitor) {
+                    let view = (self.children)();
+                    view.trace(visitor);
                 }
             }
         }
     } else {
         let trace_fields = other_fields.iter().map(|(fname, _, _)| {
-            quote! { self.#fname.trace(_visitor); }
+            quote! { self.#fname.trace(visitor); }
         });
         quote! {
             #[automatically_derived]
             unsafe impl ::rudo_gc::Trace for #name {
-                fn trace(&self, _visitor: &mut impl ::rudo_gc::Visitor) {
-                    // children is Arc<dyn Fn()>, which doesn't contain GC pointers
-                    // The actual ViewStruct returned by the closure will be traced when called
+                fn trace(&self, visitor: &mut impl ::rudo_gc::Visitor) {
+                    let view = (self.children)();
+                    view.trace(visitor);
                     #(#trace_fields)*
                 }
             }
