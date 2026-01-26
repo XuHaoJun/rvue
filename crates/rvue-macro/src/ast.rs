@@ -5,7 +5,7 @@
 
 #![allow(dead_code)]
 
-use proc_macro2::{Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use syn::Expr;
 
 /// Top-level node in the rvue AST
@@ -61,6 +61,9 @@ pub enum RvueAttribute {
     Dynamic { name: String, expr: Expr, span: Span },
     /// Event handler (on_click, on_key_down, etc.)
     Event { name: String, handler: Expr, span: Span },
+    /// Slot attribute (slot:name or slot)
+    /// The value is the tokens that create the slot content
+    Slot { name: Option<String>, content: TokenStream, span: Span },
 }
 
 /// Text node
@@ -79,6 +82,7 @@ impl RvueAttribute {
             RvueAttribute::Static { span, .. } => *span,
             RvueAttribute::Dynamic { span, .. } => *span,
             RvueAttribute::Event { span, .. } => *span,
+            RvueAttribute::Slot { span, .. } => *span,
         }
     }
 
@@ -88,6 +92,20 @@ impl RvueAttribute {
             RvueAttribute::Static { name, .. } => name,
             RvueAttribute::Dynamic { name, .. } => name,
             RvueAttribute::Event { name, .. } => name,
+            RvueAttribute::Slot { .. } => "slot",
+        }
+    }
+
+    /// Check if this is a slot attribute
+    pub fn is_slot(&self) -> bool {
+        matches!(self, RvueAttribute::Slot { .. })
+    }
+
+    /// Get slot information if this is a slot
+    pub fn as_slot(&self) -> Option<(&Option<String>, &TokenStream)> {
+        match self {
+            RvueAttribute::Slot { name, content, .. } => Some((name, content)),
+            _ => None,
         }
     }
 }

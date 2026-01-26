@@ -9,12 +9,48 @@ use std::sync::atomic::{AtomicBool, Ordering};
 // Thread-local storage for tracking the currently running effect
 thread_local! {
     static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = const { RefCell::new(None) };
+    static EFFECTS_PENDING_RUN: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    static DEFER_EFFECT_RUN: RefCell<bool> = const { RefCell::new(false) };
+}
+
+/// Create a new effect that automatically runs when dependencies change
+///
+/// The effect runs immediately on creation, and automatically tracks
+/// which signals are accessed during execution. When any tracked signal
+/// changes, the effect will be marked dirty and can be re-run.
+pub fn create_effect<F>(closure: F) -> Gc<Effect>
+where
+    F: Fn() + 'static,
+{
+    let effect = Effect::new(closure);
+    DEFER_EFFECT_RUN.with(|defer| {
+        if *defer.borrow() {
+            EFFECTS_PENDING_RUN.with(|pending| {
+                pending.borrow_mut().push(Gc::clone(&effect));
+            });
+        } else {
+            Effect::run(&effect);
+        }
+    });
+    effect
+}
+
+/// Flush any pending effects that were deferred during layout tree building
+pub fn flush_pending_effects() {
+    let pending = EFFECTS_PENDING_RUN.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    for effect in pending {
+        Effect::run(&effect);
+    }
+}
+
+/// Set whether to defer effect execution (used during layout tree building)
+pub fn set_defer_effect_run(defer: bool) {
+    DEFER_EFFECT_RUN.with(|d| *d.borrow_mut() = defer);
 }
 
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
-    closure_layout: std::alloc::Layout,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
@@ -26,32 +62,37 @@ unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         // Trace known Gc fields
         self.owner.trace(visitor);
-        // subscriptions contains raw pointers, not traced
 
-        // Conservatively scan the main closure's captured environment.
-        // We utilize the fact that Box<T> allocates memory corresponding to the layout of T.
-        // We cast the fat pointer to a thin data pointer.
-        let data_ptr = (&*self.closure) as *const dyn Fn() as *const u8;
-        let layout = self.closure_layout;
+        // Precise tracing: iterate over subscriptions and trace the signal data
+        let subscriptions = self.subscriptions.borrow();
+        for (signal_ptr, _) in subscriptions.iter() {
+            if signal_ptr.is_null() {
+                continue;
+            }
 
-        // Only scan if the closure has data and is sufficiently aligned to potentially contain pointers.
-        if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
+            // Trace the signal data using conservative scanning
+            // SAFETY: The pointer is a valid SignalData pointer that was stored when
+            // the effect subscribed to the signal.
             unsafe {
-                visitor.visit_region(data_ptr, layout.size());
+                let signal_ptr_u8 = *signal_ptr as *const u8;
+                let size = std::mem::size_of::<SignalData<()>>();
+                visitor.visit_region(signal_ptr_u8, size);
             }
         }
 
-        // Also scan cleanup closures if any
+        // Trace cleanups for any Gc pointers they might capture
         let cleanups_borrow = self.cleanups.borrow();
         for cleanup in cleanups_borrow.iter() {
-            let func_ptr: *const dyn FnOnce() = &**cleanup;
-            // Cast fat pointer -> thin data pointer
-            let data_ptr = func_ptr as *const u8;
+            // SAFETY: We conservatively scan the FnOnce closure for GC pointers.
+            // This matches the pattern from rudo-gc's dummy_effect_test.rs.
+            // We use the actual type FnOnce (not transmute to Fn) and scan the
+            // closure's memory region for potential GC pointers.
+            let ptr = std::ptr::from_ref::<dyn FnOnce()>(cleanup.as_ref()).cast::<u8>();
             let layout = std::alloc::Layout::for_value(&**cleanup);
 
             if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
                 unsafe {
-                    visitor.visit_region(data_ptr, layout.size());
+                    visitor.visit_region(ptr, layout.size());
                 }
             }
         }
@@ -75,10 +116,8 @@ impl Effect {
     {
         let owner = crate::runtime::current_owner();
         let boxed = Box::new(closure);
-        let closure_layout = std::alloc::Layout::for_value(&*boxed);
         Gc::new(Self {
             closure: boxed,
-            closure_layout,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
@@ -127,8 +166,9 @@ impl Effect {
 
             // Execute the closure (this may trigger signal.get() calls which will
             // automatically register this effect as a subscriber)
-            if let Some(owner) = gc_effect.owner.borrow().as_ref() {
-                crate::runtime::with_owner(Gc::clone(owner), || {
+            let owner = gc_effect.owner.borrow();
+            if owner.is_some() {
+                crate::runtime::with_owner(Gc::clone(owner.as_ref().unwrap()), || {
                     (gc_effect.closure)();
                 });
             } else {
@@ -179,20 +219,6 @@ impl Drop for Effect {
 /// This is used by signals to automatically register dependencies
 pub(crate) fn current_effect() -> Option<Gc<Effect>> {
     CURRENT_EFFECT.with(|cell| cell.borrow().clone())
-}
-
-/// Create a new effect that automatically runs when dependencies change
-///
-/// The effect runs immediately on creation, and automatically tracks
-/// which signals are accessed during execution. When any tracked signal
-/// changes, the effect will be marked dirty and can be re-run.
-pub fn create_effect<F>(closure: F) -> Gc<Effect>
-where
-    F: Fn() + 'static,
-{
-    let effect = Effect::new(closure);
-    Effect::run(&effect);
-    effect
 }
 
 /// Run a closure without tracking any dependencies

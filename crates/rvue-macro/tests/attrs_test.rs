@@ -59,8 +59,10 @@ fn test_dynamic_boolean_attribute() {
 #[test]
 fn test_complex_expression_attribute() {
     let count = 5;
+    let label = format!("Count: {}", count);
+    #[allow(unused_braces)]
     let _view = view! {
-        <Text content={format!("Count: {}", count)} />
+        <Text content={label} />
     };
     let _ = _view;
 }

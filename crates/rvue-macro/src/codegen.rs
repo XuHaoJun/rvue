@@ -65,8 +65,10 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
             let widget_name = Ident::new(name, el.span);
             let props_struct_name = Ident::new(&format!("{}Props", name), el.span);
 
-            let props_init = el
-                .attributes
+            let (slot_attrs, normal_attrs): (Vec<_>, _) =
+                el.attributes.iter().partition(|a| a.is_slot());
+
+            let props_init = normal_attrs
                 .iter()
                 .filter(|a| !matches!(a, RvueAttribute::Event { .. }))
                 .map(|attr| {
@@ -81,24 +83,29 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
 
             let events_code = generate_event_handlers_for_element(&component_ident, el);
 
+            let slot_code = if !slot_attrs.is_empty() {
+                generate_slot_injection(&slot_attrs, &component_ident)
+            } else {
+                quote! {}
+            };
+
             quote! {
                 {
                     let props = #props_struct_name {
                         #(#props_init),*
                     };
 
-                    // Create the component object for this custom widget to act as a scope owner
                     let #component_ident = #ctx_ident.create_component(
                         rvue::component::ComponentType::Custom(#name.to_string()),
                         rvue::component::ComponentProps::Custom { data: String::new() }
                     );
 
-                    // Run the setup function with this component as the owner
                     let view = rvue::runtime::with_owner(#component_ident.clone(), || #widget_name(props));
 
-                    // Convert view to component and add as child
                     let inner_comp = rvue::prelude::View::into_component(view);
                     #component_ident.add_child(inner_comp);
+
+                    #slot_code
 
                     #events_code
 
@@ -131,6 +138,57 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
     }
 }
 
+/// Generate code to inject slot content into a parent component
+fn generate_slot_injection(slot_attrs: &[&RvueAttribute], component_ident: &Ident) -> TokenStream {
+    let slot_injections: Vec<TokenStream> = slot_attrs
+        .iter()
+        .filter_map(|attr| attr.as_slot())
+        .map(|(slot_name, content)| {
+            let slot_var = if let Some(name) = slot_name {
+                let slot_ident =
+                    Ident::new(&convert_to_snake_case(name), proc_macro2::Span::call_site());
+                quote! { #slot_ident }
+            } else {
+                let slot_ident = Ident::new("children", proc_macro2::Span::call_site());
+                quote! { #slot_ident }
+            };
+
+            quote! {
+                {
+                    let #slot_var = rvue::slot::ToChildren::to_children(move || {
+                        rvue::runtime::with_owner(#component_ident.clone(), || #content)
+                    });
+                    let slot_view = #slot_var.run();
+                    let inner_comp = rvue::prelude::View::into_component(slot_view);
+                    #component_ident.add_child(inner_comp);
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        #(#slot_injections)*
+    }
+}
+
+/// Convert a string to snake_case
+fn convert_to_snake_case(name: &str) -> String {
+    let mut result = String::new();
+
+    for c in name.chars() {
+        if c.is_uppercase() {
+            if !result.is_empty() {
+                result.push('_');
+            }
+            result.push(c.to_lowercase().next().unwrap());
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
 fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
     let content = &text.content;
 
@@ -145,7 +203,6 @@ fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
 
 fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> TokenStream {
     let kind = classify_expression(expr);
-    let component_ident = format_ident!("component");
 
     match kind {
         ExpressionKind::Static => {
@@ -160,22 +217,20 @@ fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> Token
         ExpressionKind::Reactive => {
             quote_spanned! { span =>
                 {
-                    // Initial build with current value
-                    let widget = rvue::widgets::Text::new((#expr).to_string());
+                    // Pass the signal directly to preserve reactivity
+                    // The widget will call .get() internally when building
+                    let widget = rvue::widgets::Text::new(#expr);
                     let state = widget.build(&mut #ctx_ident);
-                    let #component_ident = state.component().clone();
-
-                    // Register effect for fine-grained updates
-                    {
-                        let comp = #component_ident.clone();
-                        let effect = rvue::prelude::create_effect(move || {
-                            let new_value = (#expr).to_string();
-                            comp.set_text_content(new_value);
-                        });
-                        #component_ident.add_effect(effect);
-                    }
-
-                    #component_ident
+                    state.component().clone()
+                }
+            }
+        }
+        ExpressionKind::ViewStruct => {
+            quote_spanned! { span =>
+                {
+                    let view_struct = #expr;
+                    let inner_comp = rvue::prelude::View::into_component(view_struct);
+                    inner_comp
                 }
             }
         }
@@ -287,17 +342,31 @@ fn generate_widget_builder_code(
 
     match widget_type {
         WidgetType::Text => {
-            let PropValue { value: content_value, .. } = props.value("content", || quote! { "" });
+            let PropValue { value: content_value, is_reactive } =
+                props.value("content", || quote! { "" });
             let widget_ident = Ident::new("Text", span);
-            quote! {
-                rvue::widgets::#widget_ident::new(#content_value.to_string())
+            if is_reactive {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#content_value)
+                }
+            } else {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#content_value.to_string())
+                }
             }
         }
         WidgetType::Button => {
-            let PropValue { value: label_value, .. } = props.value("label", || quote! { "" });
+            let PropValue { value: label_value, is_reactive } =
+                props.value("label", || quote! { "" });
             let widget_ident = Ident::new("Button", span);
-            quote! {
-                rvue::widgets::#widget_ident::new(#label_value.to_string())
+            if is_reactive {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#label_value)
+                }
+            } else {
+                quote! {
+                    rvue::widgets::#widget_ident::new(#label_value.to_string())
+                }
             }
         }
         WidgetType::Flex => {
@@ -419,163 +488,14 @@ fn generate_widget_builder_code(
 }
 
 fn generate_reactive_effects(
-    widget_type: &WidgetType,
-    attributes: &[RvueAttribute],
-    component_ident: &Ident,
+    _widget_type: &WidgetType,
+    _attributes: &[RvueAttribute],
+    _component_ident: &Ident,
 ) -> TokenStream {
-    let props = WidgetProps::new(attributes);
-    let mut effects = Vec::new();
-
-    match widget_type {
-        WidgetType::Text => {
-            let content = props.value("content", || quote! { "" });
-            if content.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_text_content },
-                    &content.value,
-                ));
-            }
-        }
-        WidgetType::Button => {
-            let label = props.value("label", || quote! { "" });
-            if label.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_button_label },
-                    &label.value,
-                ));
-            }
-        }
-        WidgetType::Flex => {
-            let direction = props.value("direction", || quote! { "row" });
-            if direction.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_direction },
-                    &direction.value,
-                ));
-            }
-            let gap = props.value("gap", || quote! { 0.0 });
-            if gap.is_reactive {
-                effects.push(generate_effect(component_ident, quote! { set_flex_gap }, &gap.value));
-            }
-            let align_items = props.value("align_items", || quote! { "stretch" });
-            if align_items.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_align_items },
-                    &align_items.value,
-                ));
-            }
-            let justify_content = props.value("justify_content", || quote! { "start" });
-            if justify_content.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_flex_justify_content },
-                    &justify_content.value,
-                ));
-            }
-        }
-        WidgetType::TextInput => {
-            let value = props.value("value", || quote! { "" });
-            if value.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_text_input_value },
-                    &value.value,
-                ));
-            }
-        }
-        WidgetType::NumberInput => {
-            let value = props.value("value", || quote! { 0.0 });
-            if value.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_number_input_value },
-                    &value.value,
-                ));
-            }
-        }
-        WidgetType::Checkbox => {
-            let checked = props.value("checked", || quote! { false });
-            if checked.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_checkbox_checked },
-                    &checked.value,
-                ));
-            }
-        }
-        WidgetType::Radio => {
-            let value = props.value("value", || quote! { "" });
-            if value.is_reactive {
-                effects.push(generate_string_effect(
-                    component_ident,
-                    quote! { set_radio_value },
-                    &value.value,
-                ));
-            }
-            let checked = props.value("checked", || quote! { false });
-            if checked.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_radio_checked },
-                    &checked.value,
-                ));
-            }
-        }
-        WidgetType::Show => {
-            let when = props.value("when", || quote! { false });
-            if when.is_reactive {
-                effects.push(generate_effect(
-                    component_ident,
-                    quote! { set_show_when },
-                    &when.value,
-                ));
-            }
-        }
-        WidgetType::For => {}
-        WidgetType::Custom(_) => {}
-    }
-
-    quote! {
-        #(#effects)*
-    }
-}
-
-fn generate_effect(
-    component_ident: &Ident,
-    setter: TokenStream,
-    expr: &TokenStream,
-) -> TokenStream {
-    quote! {
-        {
-            let comp = #component_ident.clone();
-            let effect = create_effect(move || {
-                let new_value = #expr;
-                comp.#setter(new_value);
-            });
-            #component_ident.add_effect(effect);
-        }
-    }
-}
-
-fn generate_string_effect(
-    component_ident: &Ident,
-    setter: TokenStream,
-    expr: &TokenStream,
-) -> TokenStream {
-    quote! {
-        {
-            let comp = #component_ident.clone();
-            let effect = create_effect(move || {
-                let new_value = (#expr).to_string();
-                comp.#setter(new_value);
-            });
-            #component_ident.add_effect(effect);
-        }
-    }
+    // Widgets handle reactive content internally in their build() methods.
+    // The effect is created there if the content is reactive.
+    // So we do not need to generate additional effects here.
+    quote! {}
 }
 
 struct PropValue {
@@ -615,6 +535,10 @@ fn extract_attr_value(attr: &RvueAttribute) -> PropValue {
         }
         RvueAttribute::Event { .. } => PropValue {
             value: quote! { compile_error!("Unexpected event attribute in property position") },
+            is_reactive: false,
+        },
+        RvueAttribute::Slot { .. } => PropValue {
+            value: quote! { compile_error!("Unexpected slot attribute in property position") },
             is_reactive: false,
         },
     }

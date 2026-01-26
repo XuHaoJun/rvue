@@ -36,6 +36,17 @@ impl ViewStruct {
     pub fn add_effect(&mut self, effect: Gc<Effect>) {
         self.effects.push(effect);
     }
+
+    /// Wrap a component as a view struct (for use in view! macro)
+    pub fn from_component(root_component: Gc<Component>) -> Self {
+        Self::new(root_component)
+    }
+}
+
+impl From<Gc<Component>> for ViewStruct {
+    fn from(root_component: Gc<Component>) -> Self {
+        ViewStruct::new(root_component)
+    }
 }
 
 /// Implement View for ViewStruct

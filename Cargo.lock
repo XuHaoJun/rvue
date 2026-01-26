@@ -2221,9 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4aeaf1af1d6745ce27e805d80429389c3fc7e9bd17ec454128982c9020ac028"
+checksum = "c3e2cccea09284b5384a792fe0d06ca5e84fe8dd9f6c1264a06cbb87058d5493"
 dependencies = [
  "libc",
  "rudo-gc-derive",
@@ -2480,6 +2480,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bdd58c3c93c3d278ca835519292445cb4b0d4dc59ccfdf7ceadaab3f8aeb4038"
 dependencies = [
  "version_check",
+]
+
+[[package]]
+name = "slots-example"
+version = "0.1.0"
+dependencies = [
+ "rudo-gc",
+ "rvue",
+ "rvue-macro",
 ]
 
 [[package]]

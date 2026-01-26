@@ -1,6 +1,7 @@
 use crate::event::context::EventContext;
 use crate::event::status::{FocusEvent, InputEvent};
 use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerMoveEvent};
+use rudo_gc::Trace;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -13,6 +14,13 @@ pub struct EventHandler<E: 'static> {
 impl<E> Clone for EventHandler<E> {
     fn clone(&self) -> Self {
         EventHandler { inner: Rc::clone(&self.inner) }
+    }
+}
+
+unsafe impl<E: 'static> Trace for EventHandler<E> {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // EventHandler closures don't contain GC pointers
+        // They capture data by value (Rc, RefCell, etc.)
     }
 }
 
@@ -45,6 +53,13 @@ pub struct EventHandlers {
     pub on_blur: Option<EventHandler<FocusEvent>>,
     pub on_input: Option<EventHandler<InputEvent>>,
     pub on_change: Option<EventHandler<InputEvent>>,
+}
+
+unsafe impl Trace for EventHandlers {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // EventHandlers contain EventHandler which don't contain GC pointers
+        // No need to trace individual handlers
+    }
 }
 
 impl EventHandlers {

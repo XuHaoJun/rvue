@@ -1,3 +1,5 @@
+#![allow(unused_braces)]
+
 use rudo_gc::Gc;
 use rvue::prelude::*;
 use rvue::Scene;
@@ -5,14 +7,15 @@ use rvue_macro::view;
 
 #[test]
 fn test_nested_child_transform_update() {
-    let (text_content, set_text_content) = create_signal("Initial");
+    let (text_content, set_text_content) = create_signal("Initial".to_string());
     let set_text_content_clone = set_text_content.clone();
+    let text_value = text_content.clone();
 
     let view = view! {
         <Flex direction="column" gap=10.0 align_items="center">
-            <Text content={text_content.get()} />
+            <Text content={text_value} />
             <Button label="Click" on_click=move || {
-                set_text_content_clone.set("Updated");
+                set_text_content_clone.set("Updated".to_string());
             } />
         </Flex>
     };
@@ -24,7 +27,7 @@ fn test_nested_child_transform_update() {
 
     assert!(!root_component.is_dirty());
 
-    set_text_content.set("Changed text");
+    set_text_content.set("Changed text".to_string());
     assert!(root_component.is_dirty());
     scene.update();
     assert!(!root_component.is_dirty());
@@ -42,10 +45,11 @@ fn test_nested_child_transform_update() {
 fn test_sibling_cache_preserved() {
     let (count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
+    let count_label = || format!("Count: {}", count.get());
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Count: {}", count.get())} />
+            <Text content={count_label()} />
             <Text content="Static sibling" />
             <Button label="+" on_click=move || set_count_clone.update(|c| *c += 1) />
         </Flex>
@@ -75,10 +79,11 @@ fn test_sibling_cache_preserved() {
 fn test_cache_not_double_appended() {
     let (count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
+    let count_label = || format!("Count: {}", count.get());
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Count: {}", count.get())} />
+            <Text content={count_label()} />
         </Flex>
     };
 
@@ -113,10 +118,11 @@ fn test_cache_not_double_appended() {
 fn test_parent_dirty_force_child_regen() {
     let (outer_count, set_outer_count) = create_signal(0);
     let set_outer_count_clone = set_outer_count.clone();
+    let outer_label = || format!("Outer: {}", outer_count.get());
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Outer: {}", outer_count.get())} />
+            <Text content={outer_label()} />
             <Flex direction="row">
                 <Text content="Inner static" />
             </Flex>
@@ -154,10 +160,11 @@ fn test_parent_dirty_force_child_regen() {
 fn test_cache_valid_after_multiple_updates() {
     let (count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
+    let count_label = || format!("Count: {}", count.get());
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Count: {}", count.get())} />
+            <Text content={count_label()} />
             <Text content="Static" />
         </Flex>
     };
@@ -185,10 +192,11 @@ fn test_cache_valid_after_multiple_updates() {
 fn test_clean_component_skips_recursion() {
     let (count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
+    let count_label = || format!("Count: {}", count.get());
 
     let view = view! {
         <Flex direction="column">
-            <Text content={format!("Count: {}", count.get())} />
+            <Text content={count_label()} />
             <Flex direction="row">
                 <Text content="Nested child" />
                 <Text content="Another child" />

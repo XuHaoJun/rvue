@@ -74,6 +74,7 @@ fn test_deeply_nested() {
 #[test]
 fn test_block_expressions() {
     let value = "dynamic";
+    #[allow(unused_braces)]
     let _view = view! {
         <Text content={value} />
     };
@@ -83,6 +84,7 @@ fn test_block_expressions() {
 #[test]
 fn test_mixed_static_dynamic() {
     let dynamic = "dynamic";
+    #[allow(unused_braces)]
     let _view = view! {
         <Flex direction="column" gap=10.0>
             <Text content="static" />
