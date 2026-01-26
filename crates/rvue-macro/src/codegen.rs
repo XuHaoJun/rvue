@@ -175,9 +175,8 @@ fn generate_slot_injection(slot_attrs: &[&RvueAttribute], component_ident: &Iden
 /// Convert a string to snake_case
 fn convert_to_snake_case(name: &str) -> String {
     let mut result = String::new();
-    let mut chars = name.chars().peekable();
 
-    while let Some(c) = chars.next() {
+    for c in name.chars() {
         if c.is_uppercase() {
             if !result.is_empty() {
                 result.push('_');
@@ -498,23 +497,6 @@ fn generate_reactive_effects(
     // The effect is created there if the content is reactive.
     // So we do not need to generate additional effects here.
     quote! {}
-}
-
-fn generate_string_effect(
-    component_ident: &Ident,
-    setter: TokenStream,
-    expr: &TokenStream,
-) -> TokenStream {
-    quote! {
-        {
-            let comp = #component_ident.clone();
-            let effect = create_effect(move || {
-                let new_value = (#expr).to_string();
-                comp.#setter(new_value);
-            });
-            #component_ident.add_effect(effect);
-        }
-    }
 }
 
 struct PropValue {

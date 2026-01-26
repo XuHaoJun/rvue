@@ -55,7 +55,7 @@ fn is_signal_variable(expr: &Expr) -> bool {
                 // Check for lowercase identifiers that might be signals
                 // (this is a heuristic - in a real implementation we might need type info)
                 let first_char = name.chars().next();
-                if first_char.map_or(false, |c| c.is_lowercase())
+                if first_char.is_some_and(|c| c.is_lowercase())
                     && !name.starts_with("is_")
                     && !name.starts_with("has_")
                 {
@@ -73,10 +73,8 @@ fn is_signal_variable(expr: &Expr) -> bool {
         }
         Expr::Block(expr_block) => {
             // Recursively check the inner expression
-            if let Some(stmt) = expr_block.block.stmts.last() {
-                if let syn::Stmt::Expr(inner_expr, _) = stmt {
-                    return is_signal_variable(inner_expr);
-                }
+            if let Some(syn::Stmt::Expr(inner_expr, _)) = expr_block.block.stmts.last() {
+                return is_signal_variable(inner_expr);
             }
         }
         _ => {}

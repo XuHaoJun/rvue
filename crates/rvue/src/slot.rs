@@ -81,6 +81,7 @@ where
 }
 
 impl ToChildren<ChildrenFn> for ViewStruct {
+    #[allow(clippy::arc_with_non_send_sync)]
     fn to_children(self) -> ChildrenFn {
         Arc::new(move || self.clone())
     }

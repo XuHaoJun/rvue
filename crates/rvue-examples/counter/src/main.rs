@@ -22,10 +22,11 @@ fn create_counter_view() -> ViewStruct {
 
     let set_count_inc = set_count.clone();
     let set_count_dec = set_count;
+    let count_label = move || format!("Count: {}", count.get());
 
     let view = view! {
         <Flex direction="column" gap=20.0 align_items="center" justify_content="center">
-            <Text content={format!("Count: {}", count.get())} />
+            <Text content={count_label()} />
             <Show when=show_message.get()>
                 <Text content="Counter is active!" />
             </Show>

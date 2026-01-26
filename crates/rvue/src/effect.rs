@@ -29,7 +29,7 @@ unsafe impl Trace for Effect {
         // Precise tracing: iterate over subscriptions and trace the signal data
         let subscriptions = self.subscriptions.borrow();
         for (signal_ptr, _) in subscriptions.iter() {
-            if *signal_ptr == std::ptr::null() {
+            if signal_ptr.is_null() {
                 continue;
             }
 
@@ -129,8 +129,9 @@ impl Effect {
 
             // Execute the closure (this may trigger signal.get() calls which will
             // automatically register this effect as a subscriber)
-            if let Some(owner) = gc_effect.owner.borrow().as_ref() {
-                crate::runtime::with_owner(Gc::clone(owner), || {
+            let owner = gc_effect.owner.borrow();
+            if owner.is_some() {
+                crate::runtime::with_owner(Gc::clone(owner.as_ref().unwrap()), || {
                     (gc_effect.closure)();
                 });
             } else {

@@ -25,8 +25,16 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalData<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalData<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
-        // Note: subscribers uses Weak<Effect>, which doesn't need tracing
-        // Weak references don't keep objects alive, so GC handles them automatically
+        // Trace subscribers to keep effects alive during GC
+        // The subscribers list contains Weak<Effect>, which normally don't need tracing.
+        // But we trace them anyway to ensure effects are kept alive if they're
+        // referenced from thread-local storage (like LEAKED_EFFECTS).
+        let subscribers = self.subscribers.borrow();
+        for weak in subscribers.iter() {
+            if let Some(effect) = weak.upgrade() {
+                effect.trace(visitor);
+            }
+        }
         // AtomicU64 is not GC-managed, so we don't trace it
     }
 }

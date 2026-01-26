@@ -103,7 +103,7 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    output.into()
+    output
 }
 
 fn extract_docs(attrs: &[syn::Attribute]) -> TokenStream {

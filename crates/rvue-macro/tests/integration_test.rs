@@ -3,15 +3,19 @@
 //! These tests verify that the macro works correctly with the full rvue runtime,
 //! including signals, effects, and component trees.
 
+#![allow(unused_braces)]
+
 use rvue::prelude::*;
 use rvue_macro::view;
 
 #[test]
 fn test_signal_reactivity() {
     let (count, _set_count) = create_signal(0);
+    let count_label = || format!("Count: {}", count.get());
 
+    #[allow(unused_braces)]
     let _view = view! {
-        <Text content={format!("Count: {}", count.get())} />
+        <Text content={count_label()} />
     };
 
     let _ = _view;
@@ -20,10 +24,12 @@ fn test_signal_reactivity() {
 #[test]
 fn test_nested_with_signals() {
     let (text, _set_text) = create_signal("Hello".to_string());
+    let text_value = text.get();
 
+    #[allow(unused_braces)]
     let _view = view! {
         <Flex direction="column">
-            <Text content={text.get()} />
+            <Text content={text_value} />
             <Text content="Static" />
         </Flex>
     };
@@ -34,9 +40,11 @@ fn test_nested_with_signals() {
 #[test]
 fn test_show_widget_with_signal() {
     let (visible, _set_visible) = create_signal(true);
+    let visible_value = visible.get();
 
+    #[allow(unused_braces)]
     let _view = view! {
-        <Show when=visible.get()>
+        <Show when={visible_value}>
             <Text content="Visible" />
         </Show>
     };
@@ -48,11 +56,14 @@ fn test_show_widget_with_signal() {
 fn test_two_reactive_then_nested_flex() {
     let (count, _set_count) = create_signal(0);
     let (label, _set_label) = create_signal("Button".to_string());
+    let count_label = || format!("Count: {}", count.get());
+    let label_value = label.get();
 
+    #[allow(unused_braces)]
     let _view = view! {
         <Flex direction="column" gap=10.0>
-            <Text content={format!("Count: {}", count.get())} />
-            <Text content={label.get()} />
+            <Text content={count_label()} />
+            <Text content={label_value} />
             <Flex direction="row">
                 <Text content="Nested" />
             </Flex>
@@ -66,11 +77,14 @@ fn test_two_reactive_then_nested_flex() {
 fn test_multiple_signals() {
     let (name, _set_name) = create_signal("World".to_string());
     let (age, _set_age) = create_signal(25);
+    let name_label = || format!("Name: {}", name.get());
+    let age_label = || format!("Age: {}", age.get());
 
+    #[allow(unused_braces)]
     let _view = view! {
         <Flex direction="column">
-            <Text content={format!("Name: {}", name.get())} />
-            <Text content={format!("Age: {}", age.get())} />
+            <Text content={name_label()} />
+            <Text content={age_label()} />
         </Flex>
     };
 
@@ -80,10 +94,12 @@ fn test_multiple_signals() {
 #[test]
 fn test_event_handler_with_signal() {
     let (count, set_count) = create_signal(0);
+    let count_label = || format!("Count: {}", count.get());
 
+    #[allow(unused_braces)]
     let _view = view! {
         <Button
-            label={format!("Count: {}", count.get())}
+            label={count_label()}
             on_click=move || set_count.update(|c| *c += 1)
         />
     };

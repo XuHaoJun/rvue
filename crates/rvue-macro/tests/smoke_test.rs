@@ -3,6 +3,8 @@
 //! This test suite verifies that the view! macro compiles and generates valid code
 //! for all built-in widgets and common patterns.
 
+#![allow(unused_braces)]
+
 use rvue_macro::view;
 
 #[test]
