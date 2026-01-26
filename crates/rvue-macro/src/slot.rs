@@ -2,6 +2,17 @@
 //!
 //! This macro transforms a struct definition into a slot type that can be used
 //! as a component property for accepting content from parents.
+//!
+//! # Naming Convention
+//!
+//! Slot attributes in the `view!` macro use snake_case (e.g., `slot:body`).
+//! The corresponding slot struct field should be `children` or `Children`.
+//! Named slots are converted to snake_case variable names for the slot closure.
+//!
+//! # Reactive Slots
+//!
+//! Currently, slot types are always wrapped in `ReactiveValue::Static`.
+//! Future versions may support reactive slot content for conditional slots.
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
@@ -22,7 +33,7 @@ pub fn slot_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let field_ty = field.ty.clone();
         let field_attrs = field.attrs.clone();
 
-        if field_name == "children" {
+        if field_name == "children" || field_name == "Children" {
             children_field = Some((field_name, field_ty));
         } else {
             other_fields.push((field_name, field_ty, field_attrs));

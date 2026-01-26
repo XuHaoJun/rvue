@@ -156,7 +156,7 @@ fn generate_slot_injection(slot_attrs: &[&RvueAttribute], component_ident: &Iden
             quote! {
                 {
                     let #slot_var = rvue::slot::ToChildren::to_children(move || {
-                        #content
+                        rvue::runtime::with_owner(#component_ident.clone(), || #content)
                     });
                     let slot_view = #slot_var.run();
                     let inner_comp = rvue::prelude::View::into_component(slot_view);
