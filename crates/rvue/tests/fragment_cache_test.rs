@@ -190,8 +190,7 @@ fn test_cache_valid_after_multiple_updates() {
 
 #[test]
 fn test_clean_component_skips_recursion() {
-    let (count, set_count) = create_signal(0);
-    let set_count_clone = set_count.clone();
+    let (count, _) = create_signal(0);
     let count_label = || format!("Count: {}", count.get());
 
     let view = view! {

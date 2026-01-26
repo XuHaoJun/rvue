@@ -37,10 +37,6 @@ impl Scene {
         }
     }
 
-    fn get_or_create_cache_entry(&mut self, component_id: u64) -> &mut SceneCacheEntry {
-        self.scene_cache.entry(component_id).or_default()
-    }
-
     fn collect_dirty_components(component: &Gc<Component>, dirty: &mut HashSet<u64>) {
         if component.is_dirty() {
             dirty.insert(component.id);
