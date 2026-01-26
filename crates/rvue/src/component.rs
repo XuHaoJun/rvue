@@ -574,6 +574,22 @@ impl Component {
         self.event_handlers.borrow_mut().on_change = Some(handler);
     }
 
+    /// Generic event registration method (Leptos-style)
+    /// The handler type is inferred from the EventType associated type
+    pub fn on<E, F>(self: &Gc<Self>, _event: E, handler: F)
+    where
+        E: crate::event::EventDescriptor + 'static,
+        F: Fn(&E::EventType, &mut crate::event::EventContext) + 'static,
+    {
+        let handler = crate::event::EventHandler::new(handler);
+        self.event_handlers.borrow_mut().set_handler(handler);
+    }
+
+    /// Set event handler directly for a specific event field
+    pub fn set_handler<E: 'static>(&self, handler: crate::event::EventHandler<E>) {
+        self.event_handlers.borrow_mut().set_handler(handler);
+    }
+
     /// Provide context to this component and its descendants
     pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
         let gc_value: Gc<T> = Gc::new(value);

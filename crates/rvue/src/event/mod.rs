@@ -20,6 +20,10 @@ pub use types::{
 };
 pub use update::{run_update_focus_pass, run_update_pointer_pass};
 
+pub trait EventDescriptor {
+    type EventType;
+}
+
 #[cfg(test)]
 mod tests {
     use super::types::AccessEvent;

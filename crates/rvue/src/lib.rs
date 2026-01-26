@@ -12,6 +12,7 @@ pub mod component;
 pub mod context;
 pub mod effect;
 pub mod error;
+pub mod ev;
 pub mod event;
 pub mod layout;
 pub mod prelude;

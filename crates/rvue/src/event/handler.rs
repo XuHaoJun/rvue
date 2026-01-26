@@ -2,6 +2,7 @@ use crate::event::context::EventContext;
 use crate::event::status::{FocusEvent, InputEvent};
 use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerMoveEvent};
 use rudo_gc::Trace;
+use std::any::TypeId;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -20,7 +21,6 @@ impl<E> Clone for EventHandler<E> {
 unsafe impl<E: 'static> Trace for EventHandler<E> {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // EventHandler closures don't contain GC pointers
-        // They capture data by value (Rc, RefCell, etc.)
     }
 }
 
@@ -58,7 +58,6 @@ pub struct EventHandlers {
 unsafe impl Trace for EventHandlers {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // EventHandlers contain EventHandler which don't contain GC pointers
-        // No need to trace individual handlers
     }
 }
 
@@ -101,5 +100,20 @@ impl EventHandlers {
 
     pub fn get_change(&self) -> Option<&EventHandler<InputEvent>> {
         self.on_change.as_ref()
+    }
+
+    pub fn set_handler<E: 'static>(&mut self, handler: EventHandler<E>) {
+        let type_id = TypeId::of::<E>();
+        if type_id == TypeId::of::<PointerButtonEvent>() {
+            self.on_click = Some(unsafe { std::mem::transmute(handler) });
+        } else if type_id == TypeId::of::<InputEvent>() {
+            self.on_input = Some(unsafe { std::mem::transmute(handler) });
+        } else if type_id == TypeId::of::<KeyboardEvent>() {
+            self.on_key_down = Some(unsafe { std::mem::transmute(handler) });
+        } else if type_id == TypeId::of::<FocusEvent>() {
+            self.on_focus = Some(unsafe { std::mem::transmute(handler) });
+        } else if type_id == TypeId::of::<PointerMoveEvent>() {
+            self.on_pointer_move = Some(unsafe { std::mem::transmute(handler) });
+        }
     }
 }
