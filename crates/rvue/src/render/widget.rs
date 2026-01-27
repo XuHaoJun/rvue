@@ -69,8 +69,10 @@ pub fn render_component(
         _ => !component.children.borrow().is_empty(),
     };
 
-    let force_render_children =
-        matches!(&component.component_type, ComponentType::For | ComponentType::Flex);
+    let force_render_children = matches!(
+        &component.component_type,
+        ComponentType::For | ComponentType::Flex | ComponentType::Show
+    );
 
     if should_render_children {
         render_children(component, scene, transform, already_appended, force_render_children);
