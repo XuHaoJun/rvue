@@ -49,6 +49,7 @@ pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};
 pub use widget::{
-    BuildContext, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget, WidgetWrapper,
+    get_current_ctx, with_current_ctx, BuildContext, IntoReactiveValue, IntoWidget, Mountable,
+    ReactiveValue, Widget, WidgetWrapper,
 };
 pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

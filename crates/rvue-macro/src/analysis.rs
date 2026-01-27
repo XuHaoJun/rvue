@@ -126,24 +126,61 @@ fn is_view_struct_type(expr: &Expr) -> bool {
         Expr::Path(path) => {
             if let Some(segment) = path.path.segments.last() {
                 let name = segment.ident.to_string();
-                // Check for ViewStruct or ViewStruct::new()
                 if name == "ViewStruct" {
                     return true;
                 }
-                // Also check for lowercase 'view_struct' which might be a variable
-                // In this case, we can't know for sure, so we treat it as ViewStruct
-                // if it looks like it could be one (single identifier that's not a signal get)
                 if name == "view_struct" {
                     return true;
+                }
+                // Recognize variable names that likely hold ViewStruct values
+                // This includes common patterns like head_view, cells_view, cell_view, etc.
+                if name.ends_with("_view")
+                    || name.starts_with("head_")
+                    || name.starts_with("cell")
+                    || name.contains("view")
+                {
+                    return true;
+                }
+                // Recognize slot children.run() pattern
+                if name == "children" {
+                    return true;
+                }
+                if name == "Gc" {
+                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                        if let Some(syn::GenericArgument::Type(syn::Type::Path(type_path))) =
+                            args.args.first()
+                        {
+                            if let Some(last_seg) = type_path.path.segments.last() {
+                                if last_seg.ident == "Component" {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         Expr::Macro(expr_macro) => {
-            // Check for macros like `view! { ... }` which might return ViewStruct
             let path = &expr_macro.mac.path;
             if let Some(segment) = path.get_ident() {
                 if segment == "view" {
                     return true;
+                }
+            }
+        }
+        Expr::MethodCall(expr_method) => {
+            let method_name = expr_method.method.to_string();
+            if method_name.contains("component") {
+                return true;
+            }
+            // Recognize .run() calls on slot children
+            if method_name == "run" {
+                if let Expr::Path(path) = &*expr_method.receiver {
+                    if let Some(segment) = path.path.segments.last() {
+                        if segment.ident == "children" {
+                            return true;
+                        }
+                    }
                 }
             }
         }

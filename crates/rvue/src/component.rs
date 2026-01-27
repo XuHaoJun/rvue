@@ -7,22 +7,31 @@ use crate::layout::LayoutNode;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use taffy::TaffyTree;
 use vello::Scene;
 
 /// Unique identifier for a component
+use std::sync::atomic::{AtomicU64, Ordering};
+
+pub static NEXT_COMPONENT_ID: AtomicU64 = AtomicU64::new(0);
+
+#[inline(always)]
+pub fn next_component_id() -> ComponentId {
+    NEXT_COMPONENT_ID.fetch_add(1, Ordering::SeqCst)
+}
+
 pub type ComponentId = u64;
 
 pub struct ContextEntry {
     pub type_id: TypeId,
-    pub value: Box<dyn Any>,
+    pub value: Box<dyn std::any::Any>,
     pub gc_ptr: *const u8,
     pub gc_size: usize,
 }
 
 /// Wrapper for vello::Scene to implement Trace
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SceneWrapper(pub Scene);
 
 unsafe impl Trace for SceneWrapper {
@@ -91,6 +100,7 @@ pub struct Component {
     pub effects: GcCell<Vec<Gc<Effect>>>,
     pub props: GcCell<ComponentProps>,
     pub is_dirty: AtomicBool,
+    pub is_updating: AtomicBool,
     pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
     pub layout_node: GcCell<Option<LayoutNode>>,
     pub flags: GcCell<ComponentFlags>,
@@ -132,6 +142,35 @@ unsafe impl Trace for Component {
                     visitor.visit_region(entry.gc_ptr, entry.gc_size);
                 }
             }
+        }
+    }
+}
+
+impl Clone for Component {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            component_type: self.component_type.clone(),
+            children: GcCell::new(self.children.borrow().clone()),
+            parent: GcCell::new(None),
+            effects: GcCell::new(self.effects.borrow().clone()),
+            props: GcCell::new(self.props.borrow().clone()),
+            is_dirty: AtomicBool::new(self.is_dirty.load(Ordering::SeqCst)),
+            is_updating: AtomicBool::new(false),
+            user_data: GcCell::new(None), // Can't clone Box<dyn Any>
+            layout_node: GcCell::new(self.layout_node.borrow().clone()),
+            flags: GcCell::new(*self.flags.borrow()),
+            is_hovered: GcCell::new(*self.is_hovered.borrow()),
+            has_hovered: GcCell::new(*self.has_hovered.borrow()),
+            is_active: GcCell::new(*self.is_active.borrow()),
+            has_active: GcCell::new(*self.has_active.borrow()),
+            is_focused: GcCell::new(*self.is_focused.borrow()),
+            has_focus_target: GcCell::new(*self.has_focus_target.borrow()),
+            event_handlers: GcCell::new(self.event_handlers.borrow().clone()),
+            vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
+            contexts: GcCell::new(Vec::new()), // Can't clone Box<dyn Any>
+            context_gc_ptrs: GcCell::new(Vec::new()),
+            cleanups: GcCell::new(Vec::new()), // Can't clone closures
         }
     }
 }
@@ -179,6 +218,7 @@ impl Component {
             effects: GcCell::new(Vec::new()),
             props: GcCell::new(props),
             is_dirty: AtomicBool::new(true),
+            is_updating: AtomicBool::new(false),
             user_data: GcCell::new(None),
             layout_node: GcCell::new(None),
             flags: GcCell::new(flags),
@@ -194,6 +234,12 @@ impl Component {
             context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
         })
+    }
+
+    /// Create a new component with a globally unique ID (for use in slots)
+    pub fn with_global_id(component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
+        let id = next_component_id();
+        Self::new(id, component_type, props)
     }
 
     /// Mark the component as dirty (needs re-render)
@@ -1005,6 +1051,19 @@ impl ComponentLifecycle for Component {
     }
 
     fn update(&self) {
+        eprintln!(
+            "UPDATE id={}, type={:?}, children={}",
+            self.id,
+            self.component_type,
+            self.children.borrow().len()
+        );
+        // Use atomic operation to detect cycles
+        let is_updating = self.is_updating.swap(true, Ordering::SeqCst);
+        if is_updating {
+            // Cycle detected - skip this update to prevent infinite recursion
+            return;
+        }
+
         // Run all effects that are dirty
         for effect in self.effects.borrow().iter() {
             Effect::update_if_dirty(effect);
@@ -1031,6 +1090,8 @@ impl ComponentLifecycle for Component {
         for child in self.children.borrow().iter() {
             child.update();
         }
+
+        self.is_updating.store(false, Ordering::SeqCst);
     }
 }
 

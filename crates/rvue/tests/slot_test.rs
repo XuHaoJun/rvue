@@ -2,6 +2,9 @@
 
 use rudo_gc::Gc;
 use rvue::prelude::*;
+use rvue::text::TextContext;
+use rvue::widget::BuildContext;
+use rvue::TaffyTree;
 use rvue_macro::slot;
 
 #[slot]
@@ -36,15 +39,20 @@ fn create_test_view(id: u64) -> ViewStruct {
 
 #[test]
 fn test_slot_new() {
-    let slot = TestSlot::new((|| create_test_view(1)).to_children());
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let view = slot.children.run();
+    let slot = TestSlot::new((|_: &mut BuildContext| create_test_view(1)).to_children());
+
+    let view = slot.children.run(&mut ctx);
     assert_eq!(view.root_component.id, 1);
 }
 
 #[test]
 fn test_slot_into_vec() {
-    let slot = TestSlot::new((|| create_test_view(1)).to_children());
+    let slot = TestSlot::new((|_: &mut BuildContext| create_test_view(1)).to_children());
 
     let vec: Vec<TestSlot> = slot.into();
     assert_eq!(vec.len(), 1);
@@ -52,9 +60,14 @@ fn test_slot_into_vec() {
 
 #[test]
 fn test_children_fn_run() {
-    let closure: ChildrenFn = (|| create_test_view(2)).to_children();
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let view = closure.run();
+    let closure: ChildrenFn = (|_: &mut BuildContext| create_test_view(2)).to_children();
+
+    let view = closure.run(&mut ctx);
     assert_eq!(view.root_component.id, 2);
 }
 
@@ -62,15 +75,20 @@ fn test_children_fn_run() {
 fn test_children_fn_multiple_calls() {
     let counter = std::rc::Rc::new(std::cell::RefCell::new(0));
     let counter_clone = counter.clone();
-    let closure: ChildrenFn = (move || {
+    let closure: ChildrenFn = (move |_: &mut BuildContext| {
         *counter_clone.borrow_mut() += 1;
         create_test_view(2)
     })
     .to_children();
 
-    closure.run();
-    closure.run();
-    assert_eq!(*counter.borrow(), 1);
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    closure.run(&mut ctx);
+    closure.run(&mut ctx);
+    assert_eq!(*counter.borrow(), 2);
 }
 
 #[test]
@@ -79,65 +97,93 @@ fn test_maybe_children() {
 
     let none: MaybeChildren = MaybeChildren::default();
     assert!(none.is_none());
-    assert!(none.render().is_none());
 
-    let closure: ChildrenFn = (|| create_test_view(3)).to_children();
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    assert!(none.render(&mut ctx).is_none());
+
+    let closure: ChildrenFn = (|_: &mut BuildContext| create_test_view(3)).to_children();
     let some = MaybeChildren::from(closure);
     assert!(some.is_some());
-    let view = some.run().unwrap();
+    let view = some.run(&mut ctx).unwrap();
     assert_eq!(view.root_component.id, 3);
 }
 
 #[test]
 fn test_to_children_traits() {
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
     let view = create_test_view(4);
 
     let children_fn: ChildrenFn = view.to_children();
-    let rendered = children_fn.run();
+    let rendered = children_fn.run(&mut ctx);
     assert_eq!(rendered.root_component.id, 4);
 }
 
 #[test]
 fn test_slot_clone() {
-    let slot = TestSlot::new((|| create_test_view(5)).to_children());
+    let slot = TestSlot::new((|_: &mut BuildContext| create_test_view(5)).to_children());
     let cloned = slot.clone();
 
-    let view = cloned.children.run();
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    let view = cloned.children.run(&mut ctx);
     assert_eq!(view.root_component.id, 5);
 }
 
 #[test]
 fn test_children_fn_single_run() {
-    let children: Children = Children(Box::new(|| create_test_view(6)));
-    let view = children.run();
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    let children: Children = Children(Box::new(|_: &mut BuildContext| create_test_view(6)));
+    let view = children.run(&mut ctx);
     assert_eq!(view.root_component.id, 6);
 }
 
 #[test]
 fn test_slot_with_props() {
-    let slot = TestSlotWithProps::new((|| create_test_view(7)).to_children())
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    let slot = TestSlotWithProps::new((|_: &mut BuildContext| create_test_view(7)).to_children())
         .item("test_item".to_string());
 
     assert_eq!(slot.item, "test_item");
-    let view = slot.children.run();
+    let view = slot.children.run(&mut ctx);
     assert_eq!(view.root_component.id, 7);
 }
 
 #[test]
 fn test_slot_with_optional_props() {
-    let slot = TestSlotWithOptional::new((|| create_test_view(8)).to_children())
-        .item(Some("optional_item".to_string()));
+    let slot =
+        TestSlotWithOptional::new((|_: &mut BuildContext| create_test_view(8)).to_children())
+            .item(Some("optional_item".to_string()));
 
     assert_eq!(slot.item.unwrap(), "optional_item");
 
-    let slot_none = TestSlotWithOptional::new((|| create_test_view(9)).to_children());
+    let slot_none =
+        TestSlotWithOptional::new((|_: &mut BuildContext| create_test_view(9)).to_children());
     assert!(slot_none.item.is_none());
 }
 
 #[test]
 fn test_slot_props_clone() {
-    let slot1 =
-        TestSlotWithProps::new((|| create_test_view(10)).to_children()).item("item1".to_string());
+    let slot1 = TestSlotWithProps::new((|_: &mut BuildContext| create_test_view(10)).to_children())
+        .item("item1".to_string());
     let slot2 = slot1.clone();
 
     assert_eq!(slot1.item, slot2.item);
@@ -148,17 +194,19 @@ fn test_slot_props_clone() {
 fn test_slot_into_reactive_value() {
     use rvue::widget::IntoReactiveValue;
 
-    let slot = TestSlot::new((|| create_test_view(11)).to_children());
+    let slot = TestSlot::new((|_: &mut BuildContext| create_test_view(11)).to_children());
     let reactive = slot.into_reactive();
 
     match reactive {
         ReactiveValue::Static(s) => {
-            let view = s.children.run();
+            let mut taffy = TaffyTree::new();
+            let mut text_context = TextContext::new();
+            let mut id_counter: u64 = 0;
+            let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+            let view = s.children.run(&mut ctx);
             assert_eq!(view.root_component.id, 11);
         }
-        ReactiveValue::Signal(_) => {
-            // Signal variant exists but not tested here
-        }
+        ReactiveValue::Signal(_) => {}
     }
 }
 
@@ -166,7 +214,7 @@ fn test_slot_into_reactive_value() {
 fn test_slot_with_props_into_reactive_value() {
     use rvue::widget::IntoReactiveValue;
 
-    let slot = TestSlotWithProps::new((|| create_test_view(12)).to_children())
+    let slot = TestSlotWithProps::new((|_: &mut BuildContext| create_test_view(12)).to_children())
         .item("reactive_item".to_string());
     let reactive = slot.into_reactive();
 
@@ -174,15 +222,13 @@ fn test_slot_with_props_into_reactive_value() {
         ReactiveValue::Static(s) => {
             assert_eq!(s.item, "reactive_item");
         }
-        ReactiveValue::Signal(_) => {
-            // Signal variant exists but not tested here
-        }
+        ReactiveValue::Signal(_) => {}
     }
 }
 
 #[test]
 fn test_slot_multiple_props() {
-    let slot = TestSlotWithProps::new((|| create_test_view(13)).to_children())
+    let slot = TestSlotWithProps::new((|_: &mut BuildContext| create_test_view(13)).to_children())
         .item("multi_prop".to_string());
 
     let slot2 = slot.clone().item("updated".to_string());
