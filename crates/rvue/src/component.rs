@@ -1051,12 +1051,6 @@ impl ComponentLifecycle for Component {
     }
 
     fn update(&self) {
-        eprintln!(
-            "UPDATE id={}, type={:?}, children={}",
-            self.id,
-            self.component_type,
-            self.children.borrow().len()
-        );
         // Use atomic operation to detect cycles
         let is_updating = self.is_updating.swap(true, Ordering::SeqCst);
         if is_updating {

@@ -386,15 +386,6 @@ impl<'a> AppState<'a> {
             self.last_gc_count = metrics.total_collections;
 
             let duration_ms = metrics.duration.as_millis();
-            // println!(
-            //     "[GC] Collection #{}: {:?} ({}ms), reclaimed {} bytes, surviving {} bytes",
-            //     metrics.total_collections,
-            //     metrics.collection_type,
-            //     duration_ms,
-            //     metrics.bytes_reclaimed,
-            //     metrics.bytes_surviving
-            // );
-
             if duration_ms > 16 {
                 eprintln!("WARNING: GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
             }
