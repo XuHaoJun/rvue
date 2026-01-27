@@ -1,63 +1,171 @@
 <!--
-Sync Impact Report:
-- Version change: 0.0.0 → 1.0.0
-- List of modified principles:
-  - [PRINCIPLE_1_NAME] → I. High-Bar Code Quality
-  - [PRINCIPLE_2_NAME] → II. Robust Testing Standards
-  - [PRINCIPLE_3_NAME] → III. Seamless User Experience Consistency
-  - [PRINCIPLE_4_NAME] → IV. Performance-First Architecture
-  - [PRINCIPLE_5_NAME] → V. Long-Term Maintainability & Documentation
-- Added sections:
-  - Development Workflow & Security
-  - Compliance & Quality Gates
-- Removed sections: None
-- Templates requiring updates:
-  - .specify/templates/plan-template.md (✅ updated)
-  - .specify/templates/spec-template.md (✅ updated)
-  - .specify/templates/tasks-template.md (✅ updated)
-- Follow-up TODOs: None
+Sync Impact Report
+==================
+Version Change: N/A → 1.0.0 (Initial constitution creation)
+
+Modified Principles:
+- N/A (first constitution)
+
+Added Sections:
+- Core Principles (5 principles)
+  - I. Code Quality
+  - II. Testing Standards
+  - III. User Experience Consistency
+  - IV. Performance Requirements
+  - V. Safety and Correctness
+- Additional Constraints
+  - Technology Stack
+  - Dependency Management
+- Development Workflow
+  - Code Review Requirements
+  - Quality Gates
+  - Commit Practices
+- Governance
+  - Amendment Procedure
+  - Compliance Review
+  - Runtime Guidance
+
+Removed Sections:
+- N/A (first constitution)
+
+Templates Requiring Updates:
+- .specify/templates/plan-template.md ✅ No changes needed (Constitution Check section already flexible)
+- .specify/templates/spec-template.md ✅ No changes needed (User scenarios and testing already covered)
+- .specify/templates/tasks-template.md ✅ No changes needed (Testing organization already flexible)
+
+Follow-up TODOs:
+- N/A (all placeholders filled)
 -->
 
-# Jun Constitution
+# Rvue Constitution
 
 ## Core Principles
 
-### I. High-Bar Code Quality
-Every line of code MUST be clean, readable, and strictly follow the project's linting and formatting rules. Technical debt is not permitted; refactoring MUST be performed as part of every feature implementation. Code SHOULD be self-documenting but complex logic MUST be accompanied by comments explaining the 'why'.
+### I. Code Quality
 
-### II. Robust Testing Standards
-Automated tests are NON-NEGOTIABLE. Every new feature MUST include unit tests for core logic and integration tests for cross-component interactions. Regression testing MUST be automated. No feature is considered 'complete' until all tests pass in the CI environment.
+All code MUST adhere to Rust best practices and produce clean, maintainable codebases.
 
-### III. Seamless User Experience Consistency
-All user-facing interfaces MUST adhere to a unified design language and interaction pattern. Consistency in feedback (loading states, error messages), navigation, and layout is paramount. Any deviation MUST be explicitly justified in the feature specification.
+- Follow Rust standard conventions (RFC 1437) for naming, formatting, and structure.
+- Write self-documenting code with clear intent and descriptive names.
+- Use exhaustive pattern matching for enums to catch missing cases at compile time.
+- Prefer Result/Option over unwrap in public APIs; include context in error messages.
+- Max line width: 100 characters; indentation: 4 spaces (no tabs).
+- All public APIs MUST have documentation comments explaining behavior and edge cases.
 
-### IV. Performance-First Architecture
-Performance is a primary requirement, not an afterthought. Latency, resource usage (CPU/Memory), and load times MUST be monitored and kept within predefined thresholds. Performance regressions MUST be treated as blockers. Primary actions SHOULD respond within 200ms.
+Rationale: A high-quality codebase reduces bugs, lowers maintenance cost, and improves developer experience. Rust's type system and compiler enforce safety when used correctly.
 
-### V. Long-Term Maintainability & Documentation
-The project is built for longevity. All major architectural decisions and feature implementations MUST be documented through the Spec-Plan-Task workflow. Documentation MUST be kept in sync with the implementation. Code SHOULD be modular and follow the "Separation of Concerns" principle.
+### II. Testing Standards
 
-## Development Workflow & Security
+All features MUST be tested comprehensively to ensure correctness and prevent regressions.
 
-### Workflow Discipline
-All changes MUST follow the official workflow:
-1. `/speckit.specify`: Define what and why.
-2. `/speckit.plan`: Design how and verify against this Constitution.
-3. `/speckit.tasks`: Break down into independent, testable units.
-4. `/speckit.implement`: Execute tasks and verify.
+- Unit tests MUST be placed in `tests/unit/` directory with naming convention `test_<feature>_<behavior>`.
+- Integration tests MUST be placed in `tests/` root directory.
+- All public APIs MUST have corresponding tests verifying behavior.
+- Tests MUST use appropriate assertions (`assert_eq!`, `assert!`, `assert_ne!`).
+- Tests run single-threaded via `cargo test -- --test-threads=1` to ensure deterministic behavior.
+- A feature is NOT complete until all associated tests pass.
 
-### Security First
-Data handling and external communications MUST undergo security review. Secrets MUST NEVER be committed to the repository. Input validation MUST be performed at every boundary.
+Rationale: Comprehensive testing catches bugs early, enables safe refactoring, and provides confidence in code correctness. Tests serve as living documentation of expected behavior.
 
-## Compliance & Quality Gates
+### III. User Experience Consistency
 
-### Mandatory Reviews
-All Pull Requests MUST be reviewed for compliance with these principles. If a violation is necessary, it MUST be documented in the Implementation Plan's "Complexity Tracking" section.
+The framework MUST provide a consistent, Vue-like developer experience across all APIs.
 
-### CI/CD Enforcement
-The CI/CD pipeline MUST enforce linting, formatting, and testing standards. Failure in any of these gates MUST block deployment.
+- Follow Vue's reactivity model: `create_signal`, `create_effect`, and declarative `view!` syntax.
+- API naming MUST be consistent: snake_case for functions/variables, PascalCase for types/traits.
+- Provide a prelude module (`rvue::prelude::*`) for commonly used types and traits.
+- Component props MUST follow a predictable pattern: derive from simple data types.
+- Error messages MUST be actionable and include context: `"Failed to X: {details}"`.
+
+Rationale: Consistency reduces cognitive load for developers. Vue-inspired patterns are familiar to many developers, lowering the learning curve for Rvue.
+
+### IV. Performance Requirements
+
+The framework MUST deliver native performance through GPU acceleration and minimal overhead.
+
+- Hot-path functions MUST use `#[inline(always)]` to eliminate function call overhead.
+- Use `AtomicU64` with `Ordering::SeqCst` for version tracking in reactive primitives.
+- Fine-grained reactivity MUST avoid full-tree re-renders; only changed elements update.
+- Memory management MUST use `Gc<T>` and `GcCell<T>` appropriately for garbage-collected types.
+- Release all borrows before running effects to prevent borrow checker conflicts.
+- Benchmark applications (`cargo run --bin benchmark`) MUST validate startup and memory performance.
+
+Rationale: Performance is a core value proposition of Rvue. GPU-accelerated rendering and fine-grained reactivity must not be undermined by inefficient code patterns.
+
+### V. Safety and Correctness
+
+The framework MUST leverage Rust's safety guarantees and prevent undefined behavior.
+
+- NO unsafe code allowed except in FFI boundaries or when absolutely required for performance.
+- All public APIs MUST return `Result` or `Option` for fallible operations.
+- Use `thiserror` or manual `impl Error` for custom error types.
+- Shared state MUST use proper synchronization or garbage-collected types.
+- Memory leaks MUST be minimized; GC cycles should complete in reasonable time.
+
+Rationale: Rust's primary advantage is memory safety without garbage collection. The framework must honor this contract while providing ergonomic APIs.
+
+## Additional Constraints
+
+### Technology Stack
+
+- Language: Rust 2021 Edition (minimum 1.75+)
+- Rendering: Vello for GPU-accelerated 2D vector graphics
+- Layout: Taffy for CSS-like Flexbox and Grid layouts
+- Garbage Collection: rudo-gc for hybrid GC implementation
+- Edition: 2021 for async/await and other modern Rust features
+
+### Dependency Management
+
+- External dependencies MUST be reviewed for security, maintenance status, and performance impact.
+- Prefer well-maintained crates with good documentation and test coverage.
+- New dependencies require justification in pull request description.
+
+## Development Workflow
+
+### Code Review Requirements
+
+- All changes MUST be reviewed before merging to main branch.
+- Reviewers MUST verify compliance with constitution principles.
+- Clippy warnings MUST be addressed (use `cargo clippy --fix`).
+- Code MUST be formatted with `cargo fmt` before submission.
+
+### Quality Gates
+
+- `cargo build` MUST succeed without errors.
+- `cargo test -- --test-threads=1` MUST pass all tests.
+- `cargo clippy` MUST report no warnings (or be justified in PR).
+- `cargo fmt --check` MUST show no formatting deviations.
+
+### Commit Practices
+
+- Commits SHOULD be atomic and describe a complete change.
+- Commit messages SHOULD follow conventional commit format.
+- Each commit SHOULD leave the codebase in a working state.
 
 ## Governance
-This Constitution is the supreme authority for development practices in the Jun project. Amendments require a version bump and propagation to all dependent templates. Compliance review is part of the PR process.
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-17
+This constitution supersedes all other development practices and guidelines. All team members and contributors MUST adhere to these principles.
+
+### Amendment Procedure
+
+1. Proposed amendments MUST be documented with rationale and impact analysis.
+2. Amendments MUST be reviewed and approved by core maintainers.
+3. Breaking changes to existing principles require MAJOR version bump.
+4. New principles or expanded guidance require MINOR version bump.
+5. Clarifications, wording fixes, or non-semantic refinements require PATCH version bump.
+
+### Compliance Review
+
+- All pull requests MUST include a self-review against constitution principles.
+- Reviewers MUST verify each applicable principle is satisfied.
+- Violations MUST be justified in the PR with complexity tracking documentation.
+
+### Runtime Guidance
+
+For day-to-day development guidance, refer to `AGENTS.md` which contains:
+- Build commands and testing procedures
+- Code style guidelines and naming conventions
+- Common patterns for signals, effects, and components
+- Project structure documentation
+
+**Version**: 1.0.0 | **Ratified**: 2026-01-27 | **Last Amended**: 2026-01-27

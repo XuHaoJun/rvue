@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.cursor/commands/speckit.plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
@@ -31,11 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [ ] **I. Code Quality**: Does the design avoid technical debt and promote readability?
-- [ ] **II. Testing**: Are automated tests (unit/integration/contract) planned for all new logic?
-- [ ] **III. UX Consistency**: Does the interface follow the unified design language?
-- [ ] **IV. Performance**: Have latency and resource constraints been defined and met?
-- [ ] **V. Maintainability**: Is the solution modular and documented via Spec-Plan-Task?
+[Gates determined based on constitution file]
 
 ## Project Structure
 
