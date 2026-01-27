@@ -2,25 +2,34 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
-use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
+use crate::view::View;
+use crate::widget::{with_current_ctx, BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 
 /// Show widget builder for conditionally rendering content
 #[derive(Clone)]
-pub struct Show {
+pub struct Show<CF> {
     when: ReactiveValue<bool>,
+    children_fn: CF,
 }
 
-unsafe impl Trace for Show {
+unsafe impl<CF> Trace for Show<CF>
+where
+    CF: Trace,
+{
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.when.trace(visitor);
+        self.children_fn.trace(visitor);
     }
 }
 
-impl Show {
-    /// Create a new Show widget with a boolean condition
-    pub fn new(when: impl crate::widget::IntoReactiveValue<bool>) -> Self {
-        Self { when: when.into_reactive() }
+impl<CF> Show<CF>
+where
+    CF: Clone + 'static,
+{
+    /// Create a new Show widget with a boolean condition and children builder
+    pub fn new(when: impl crate::widget::IntoReactiveValue<bool>, children_fn: CF) -> Self {
+        Self { when: when.into_reactive(), children_fn }
     }
 }
 
@@ -59,7 +68,10 @@ impl Mountable for ShowState {
     }
 }
 
-impl Widget for Show {
+impl<CF> Widget for Show<CF>
+where
+    CF: Fn() -> crate::ViewStruct + Clone + 'static,
+{
     type State = ShowState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
@@ -68,6 +80,12 @@ impl Widget for Show {
 
         let component =
             Component::new(id, ComponentType::Show, ComponentProps::Show { when: initial_when });
+
+        // Build children using the same context
+        let view = with_current_ctx(ctx.id_counter, || (self.children_fn)());
+        let child_component = view.into_component();
+        child_component.set_parent(Some(Gc::clone(&component)));
+        component.add_child(child_component);
 
         // Setup reactive update if when is reactive
         let when_effect = if self.when.is_reactive() {
@@ -89,7 +107,6 @@ impl Widget for Show {
     fn rebuild(self, state: &mut Self::State) {
         // Update when if it changed
         if self.when.is_reactive() {
-            // When is reactive, effect will handle updates
             if state.when_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let when = self.when.clone();
@@ -101,7 +118,6 @@ impl Widget for Show {
                 state.when_effect = Some(effect);
             }
         } else {
-            // Static when - update directly
             let new_when = self.when.get();
             state.component.set_show_when(new_when);
         }

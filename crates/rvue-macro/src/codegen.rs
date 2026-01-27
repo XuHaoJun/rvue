@@ -123,6 +123,46 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                 }
             }
         }
+        WidgetType::Show => {
+            let when_value = el
+                .attributes
+                .iter()
+                .find_map(|a| {
+                    if let RvueAttribute::Static { name, value, .. } = a {
+                        if name == "when" {
+                            return Some(value.clone());
+                        }
+                    }
+                    if let RvueAttribute::Dynamic { name, expr, .. } = a {
+                        if name == "when" {
+                            return Some(expr.clone());
+                        }
+                    }
+                    None
+                })
+                .unwrap_or_else(|| quote! { false });
+
+            let children_code = if el.children.is_empty() {
+                quote! { view! {} }
+            } else {
+                let child_code = generate_children_code_for_show(&el.children, ctx_ident);
+                quote! { move || { #child_code } }
+            };
+
+            let events_code = generate_event_handlers_for_element(&component_ident, el);
+
+            quote! {
+                {
+                    let widget = rvue::widgets::Show::new(#when_value, #children_code);
+                    let state = widget.build(&mut #ctx_ident);
+                    let #component_ident = state.component().clone();
+
+                    #events_code
+
+                    #component_ident
+                }
+            }
+        }
         _ => {
             let widget_code =
                 generate_widget_builder_code(&el.widget_type, &el.attributes, el.span);
@@ -326,6 +366,54 @@ fn generate_children_code(
     }
 }
 
+fn generate_children_code_for_show(children: &[RvueNode], ctx_ident: &Ident) -> TokenStream {
+    let child_vars = children.iter().map(|child| match child {
+        RvueNode::Element(el) => {
+            let child_code = generate_element_code(el, ctx_ident);
+            quote! {
+                {
+                    let child = #child_code;
+                    child
+                }
+            }
+        }
+        RvueNode::Text(text) => {
+            let text_code = generate_text_node_code(text, ctx_ident);
+            quote! {
+                {
+                    let child = #text_code;
+                    child
+                }
+            }
+        }
+        RvueNode::Block(expr, span) => {
+            let block_code = generate_block_node_code(expr, *span, ctx_ident);
+            quote! {
+                {
+                    let child = #block_code;
+                    child
+                }
+            }
+        }
+        RvueNode::Fragment(nodes) => {
+            let fragment_children = nodes.iter().map(|node| {
+                let child_code = generate_node_code(node, ctx_ident);
+                quote! {
+                    {
+                        let child = #child_code;
+                        child
+                    }
+                }
+            });
+            quote! { #(#fragment_children)* }
+        }
+    });
+
+    quote! {
+        #(#child_vars)*
+    }
+}
+
 fn generate_event_handlers_for_element(component_id: &Ident, el: &RvueElement) -> TokenStream {
     let events = el
         .events()
@@ -463,7 +551,7 @@ fn generate_widget_builder_code(
             let PropValue { value: when_value, .. } = props.value("when", || quote! { false });
             let widget_ident = Ident::new("Show", span);
             quote! {
-                rvue::widgets::#widget_ident::new(#when_value)
+                rvue::widgets::#widget_ident::new(#when_value, || view! {})
             }
         }
         WidgetType::For => {

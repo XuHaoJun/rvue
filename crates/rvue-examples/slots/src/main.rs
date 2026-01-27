@@ -9,6 +9,9 @@
 
 use rvue::prelude::*;
 use rvue_macro::{component, slot, view};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
 #[slot]
 struct TableHeadSlot {
@@ -34,7 +37,7 @@ fn Table(head: TableHeadSlot) -> impl View {
     let head_view = head.children.run();
 
     let root = Component::new(
-        0,
+        NEXT_ID.fetch_add(1, Ordering::SeqCst),
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "column".to_string(),
@@ -54,7 +57,7 @@ fn TableRow(slot: TableRowSlot) -> impl View {
     let cells_view = slot.children.run();
 
     let root = Component::new(
-        0,
+        NEXT_ID.fetch_add(1, Ordering::SeqCst),
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "row".to_string(),
@@ -74,7 +77,7 @@ fn TableCell(slot: TableCellSlot) -> impl View {
     let cell_view = slot.children.run();
 
     let root = Component::new(
-        0,
+        NEXT_ID.fetch_add(1, Ordering::SeqCst),
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "row".to_string(),
@@ -94,7 +97,7 @@ fn App() -> impl View {
     let headers = TableHeadSlot::new(
         (|| {
             ViewStruct::from_component(Component::new(
-                0,
+                NEXT_ID.fetch_add(1, Ordering::SeqCst),
                 ComponentType::Text,
                 ComponentProps::Text {
                     content: "Table Header".to_string(),
@@ -108,7 +111,7 @@ fn App() -> impl View {
 
     let cell1_content: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
-            0,
+            NEXT_ID.fetch_add(1, Ordering::SeqCst),
             ComponentType::Text,
             ComponentProps::Text { content: "Header 1".to_string(), font_size: None, color: None },
         ))
@@ -117,7 +120,7 @@ fn App() -> impl View {
 
     let cell2_content: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
-            0,
+            NEXT_ID.fetch_add(1, Ordering::SeqCst),
             ComponentType::Text,
             ComponentProps::Text { content: "Header 2".to_string(), font_size: None, color: None },
         ))
@@ -126,7 +129,7 @@ fn App() -> impl View {
 
     let cell3_content: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
-            0,
+            NEXT_ID.fetch_add(1, Ordering::SeqCst),
             ComponentType::Text,
             ComponentProps::Text { content: "Header 3".to_string(), font_size: None, color: None },
         ))
@@ -141,7 +144,7 @@ fn App() -> impl View {
 
     let row1_cells: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
-            0,
+            NEXT_ID.fetch_add(1, Ordering::SeqCst),
             ComponentType::Flex,
             ComponentProps::Flex {
                 direction: "row".to_string(),
@@ -157,7 +160,7 @@ fn App() -> impl View {
 
     let data_cells1: ChildrenFn = (|| {
         ViewStruct::from_component(Component::new(
-            0,
+            NEXT_ID.fetch_add(1, Ordering::SeqCst),
             ComponentType::Text,
             ComponentProps::Text { content: "Data 1".to_string(), font_size: None, color: None },
         ))
