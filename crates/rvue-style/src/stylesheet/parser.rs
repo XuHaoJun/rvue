@@ -10,7 +10,6 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
     let mut position = 0;
 
     while position < css.len() {
-        // Skip whitespace
         while position < css.len() && css[position..].starts_with(|c: char| c.is_whitespace()) {
             position += 1;
         }
@@ -19,7 +18,6 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             break;
         }
 
-        // Skip comments
         if css[position..].starts_with("/*") {
             if let Some(end) = css[position..].find("*/") {
                 position += end + 2;
@@ -29,7 +27,6 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             }
         }
 
-        // Parse selector
         let selector_start = position;
         while position < css.len() && !css[position..].starts_with('{') {
             position += 1;
@@ -40,17 +37,14 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             return Err(());
         }
 
-        // Expect opening brace
         if position >= css.len() || !css[position..].starts_with('{') {
             return Err(());
         }
         position += 1;
 
-        // Parse properties
         let mut properties = Properties::new();
 
         while position < css.len() {
-            // Skip whitespace
             while position < css.len() && css[position..].starts_with(|c: char| c.is_whitespace()) {
                 position += 1;
             }
@@ -59,13 +53,11 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
                 return Err(());
             }
 
-            // Check for closing brace
             if css[position..].starts_with('}') {
                 position += 1;
                 break;
             }
 
-            // Skip comments
             if css[position..].starts_with("/*") {
                 if let Some(end) = css[position..].find("*/") {
                     position += end + 2;
@@ -75,7 +67,6 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
                 }
             }
 
-            // Parse property name
             let name_start = position;
             while position < css.len()
                 && !css[position..].starts_with(|c: char| c.is_whitespace() || c == ':')
@@ -88,23 +79,19 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
                 return Err(());
             }
 
-            // Skip whitespace
             while position < css.len() && css[position..].starts_with(|c: char| c.is_whitespace()) {
                 position += 1;
             }
 
-            // Expect colon
             if position >= css.len() || !css[position..].starts_with(':') {
                 return Err(());
             }
             position += 1;
 
-            // Skip whitespace
             while position < css.len() && css[position..].starts_with(|c: char| c.is_whitespace()) {
                 position += 1;
             }
 
-            // Parse value
             let value_start = position;
             while position < css.len()
                 && !css[position..].starts_with(|c: char| c.is_whitespace() || c == ';' || c == '}')
@@ -113,12 +100,10 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             }
             let value = css[value_start..position].trim();
 
-            // Skip optional semicolon
             if position < css.len() && css[position..].starts_with(';') {
                 position += 1;
             }
 
-            // Create property
             add_property(&mut properties, name, value);
         }
 
@@ -128,7 +113,6 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
     Ok(stylesheet)
 }
 
-/// Adds a property to the properties container based on name and value.
 fn add_property(properties: &mut Properties, name: &str, value: &str) {
     match name {
         "background-color" | "bg" => {
@@ -165,7 +149,6 @@ fn add_property(properties: &mut Properties, name: &str, value: &str) {
     }
 }
 
-/// Parses a color value.
 fn parse_color(value: &str) -> Option<Color> {
     let value = value.trim();
 
@@ -197,7 +180,6 @@ fn parse_color(value: &str) -> Option<Color> {
     }
 }
 
-/// Parses a length value.
 fn parse_length(value: &str) -> Option<f32> {
     let value = value.trim();
     if value == "auto" {
@@ -207,7 +189,6 @@ fn parse_length(value: &str) -> Option<f32> {
     Some(num)
 }
 
-/// Parses a size value.
 fn parse_size(value: &str) -> Option<Size> {
     let value = value.trim();
     match value {
@@ -223,5 +204,57 @@ fn parse_size(value: &str) -> Option<Size> {
             Some(Size::Percent(num))
         }
         _ => Some(Size::Auto),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_stylesheet() {
+        let css = r#"
+            button {
+                background-color: #ff0000;
+                color: white;
+            }
+        "#;
+
+        let stylesheet = parse_stylesheet(css).unwrap();
+        assert!(!stylesheet.is_empty());
+    }
+
+    #[test]
+    fn test_parse_multiple_rules() {
+        let css = r#"
+            button {
+                background-color: blue;
+            }
+
+            .primary {
+                background-color: green;
+            }
+
+            #submit-btn {
+                background-color: orange;
+            }
+        "#;
+
+        let stylesheet = parse_stylesheet(css).unwrap();
+        assert_eq!(stylesheet.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_with_comments() {
+        let css = r#"
+            /* This is a comment */
+            button {
+                /* Another comment */
+                background-color: red;
+            }
+        "#;
+
+        let stylesheet = parse_stylesheet(css).unwrap();
+        assert!(!stylesheet.is_empty());
     }
 }

@@ -109,14 +109,7 @@ impl StyleResolver {
 
     /// Matches pseudo-class selectors.
     fn matches_pseudo_class(&self, element: &RvueElement, pseudo_class: &str) -> bool {
-        match pseudo_class {
-            "hover" => element.is_in_state(crate::selectors::ElementState::HOVER),
-            "focus" => element.is_in_state(crate::selectors::ElementState::FOCUS),
-            "active" => element.is_in_state(crate::selectors::ElementState::ACTIVE),
-            "disabled" => element.is_in_state(crate::selectors::ElementState::DISABLED),
-            "checked" => element.is_in_state(crate::selectors::ElementState::CHECKED),
-            _ => false,
-        }
+        element.state.matches_pseudo_class(pseudo_class)
     }
 }
 

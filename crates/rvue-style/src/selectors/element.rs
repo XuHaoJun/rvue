@@ -2,16 +2,17 @@
 
 use crate::selectors::ElementState;
 use rudo_gc::Trace;
+use std::borrow::Cow;
 
 /// Represents a styled element for selector matching.
 #[derive(Clone, Debug, Default)]
 pub struct RvueElement {
     /// Element tag name
-    pub tag_name: String,
+    pub tag_name: Cow<'static, str>,
     /// Element classes
-    pub classes: Vec<String>,
+    pub classes: Vec<Cow<'static, str>>,
     /// Element ID
-    pub id: Option<String>,
+    pub id: Option<Cow<'static, str>>,
     /// Element state for pseudo-class matching
     pub state: ElementState,
     /// Parent element reference
@@ -28,7 +29,19 @@ impl RvueElement {
     /// Creates a new element with the given tag name.
     pub fn new(tag_name: &str) -> Self {
         Self {
-            tag_name: tag_name.to_string(),
+            tag_name: Cow::Owned(tag_name.to_string()),
+            classes: Vec::new(),
+            id: None,
+            state: ElementState::empty(),
+            parent: None,
+            children: Vec::new(),
+        }
+    }
+
+    /// Creates a new element with static tag name.
+    pub fn with_static_name(tag_name: &'static str) -> Self {
+        Self {
+            tag_name: Cow::Borrowed(tag_name),
             classes: Vec::new(),
             id: None,
             state: ElementState::empty(),
@@ -39,13 +52,25 @@ impl RvueElement {
 
     /// Adds a class to the element.
     pub fn with_class(mut self, class: &str) -> Self {
-        self.classes.push(class.to_string());
+        self.classes.push(Cow::Owned(class.to_string()));
+        self
+    }
+
+    /// Adds a static class to the element.
+    pub fn with_static_class(mut self, class: &'static str) -> Self {
+        self.classes.push(Cow::Borrowed(class));
         self
     }
 
     /// Sets the element ID.
     pub fn with_id(mut self, id: &str) -> Self {
-        self.id = Some(id.to_string());
+        self.id = Some(Cow::Owned(id.to_string()));
+        self
+    }
+
+    /// Sets the element ID with a static string.
+    pub fn with_static_id(mut self, id: &'static str) -> Self {
+        self.id = Some(Cow::Borrowed(id));
         self
     }
 

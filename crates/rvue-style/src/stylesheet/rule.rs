@@ -17,6 +17,11 @@ impl StyleRule {
         let specificity = Specificity::from_selector(&selector);
         Self { selector, specificity, properties }
     }
+
+    #[inline]
+    pub fn parse(selector: &str, properties: Properties) -> Self {
+        Self::new(selector.to_string(), properties)
+    }
 }
 
 /// Specificity of a CSS selector.

@@ -96,8 +96,8 @@ description: "Task list for rvue-style library implementation"
 
 ### Core Components for US1
 
-- [ ] T029 [P] [US1] Create `RvueElement<'a>` struct in `crates/rvue-style/src/selectors/element.rs`
-- [ ] T030 [P] [US1] Implement `selectors::Element` trait for `RvueElement<'a>`:
+- [x] T029 [P] [US1] Create `RvueElement<'a>` struct in `crates/rvue-style/src/selectors/element.rs`
+- [x] T030 [P] [US1] Implement `selectors::Element` trait for `RvueElement<'a>`:
   - `parent_element()`
   - `is_root()`
   - `has_local_name()`
@@ -106,16 +106,16 @@ description: "Task list for rvue-style library implementation"
   - `attr_matches()`
   - `match_pseudo_element()` (returns false for now)
   - `match_non_ts_pseudo_class()` (returns false for now - US2)
-- [ ] T031 [US1] Define `RvueSelectorImpl` struct for selector implementation in `crates/rvue-style/src/selectors/mod.rs`
-- [ ] T032 [US1] Implement `SelectorImpl` for `RvueSelectorImpl` in `crates/rvue-style/src/selectors/mod.rs`
+- [x] T031 [US1] Define `RvueSelectorImpl` struct for selector implementation in `crates/rvue-style/src/selectors/mod.rs`
+- [x] T032 [US1] Implement `SelectorImpl` for `RvueSelectorImpl` in `crates/rvue-style/src/selectors/mod.rs`
 
 ### Stylesheet Components for US1
 
-- [ ] T033 [P] [US1] Create `StyleRule` struct in `crates/rvue-style/src/stylesheet/rule.rs`
-- [ ] T034 [P] [US1] Create `Stylesheet` struct in `crates/rvue-style/src/stylesheet/mod.rs`
-- [ ] T035 [US1] Implement `Stylesheet::new()`, `Stylesheet::add_rule()` methods
-- [ ] T036 [US1] Implement CSS selector parsing using `selectors` crate in `Stylesheet::add_rule()`
-- [ ] T037 [US1] Implement CSS property parsing using `cssparser` in `Stylesheet::add_rule()`
+- [x] T033 [P] [US1] Create `StyleRule` struct in `crates/rvue-style/src/stylesheet/rule.rs`
+- [x] T034 [P] [US1] Create `Stylesheet` struct in `crates/rvue-style/src/stylesheet/mod.rs`
+- [x] T035 [US1] Implement `Stylesheet::new()`, `Stylesheet::add_rule()` methods
+- [x] T036 [US1] Implement CSS selector parsing using `selectors` crate in `Stylesheet::add_rule()`
+- [x] T037 [US1] Implement CSS property parsing using `cssparser` in `Stylesheet::add_rule()`
 
 ### ComputedStyles for US1
 
@@ -128,18 +128,18 @@ description: "Task list for rvue-style library implementation"
 - [x] T044 [P] [US1] Implement `BackgroundColor` property in `crates/rvue-style/src/properties/background.rs`
 - [x] T045 [P] [US1] Implement `TextColor` property in `crates/rvue-style/src/properties/color.rs`
 - [x] T046 [P] [US1] Implement `FontSize` property in `crates/rvue-style/src/properties/font.rs`
-- [ ] T047 [P] [US1] Implement `Padding` property in `crates/rvue-style/src/properties/spacing.rs`
-- [ ] T048 [P] [US1] Implement `Margin` property in `crates/rvue-style/src/properties/spacing.rs`
-- [ ] T049 [P] [US1] Implement `Width` and `Height` properties in `crates/rvue-style/src/properties/sizing.rs`
-- [ ] T050 [P] [US1] Implement `Display`, `FlexDirection`, `JustifyContent`, `AlignItems` in `crates/rvue-style/src/properties/layout.rs`
+- [x] T047 [P] [US1] Implement `Padding` property in `crates/rvue-style/src/properties/spacing.rs`
+- [x] T048 [P] [US1] Implement `Margin` property in `crates/rvue-style/src/properties/spacing.rs`
+- [x] T049 [P] [US1] Implement `Width` and `Height` properties in `crates/rvue-style/src/properties/sizing.rs`
+- [x] T050 [P] [US1] Implement `Display`, `FlexDirection`, `JustifyContent`, `AlignItems` in `crates/rvue-style/src/properties/layout.rs`
 
 ### Tests for US1 (Implementation Verification)
 
-- [ ] T051 [P] [US1] Add unit tests for `Properties` container in `crates/rvue-style/tests/property_test.rs`
-- [ ] T052 [P] [US1] Add unit tests for `Color` parsing in `crates/rvue-style/tests/property_test.rs`
-- [ ] T053 [P] [US1] Add unit tests for `ElementState` in `crates/rvue-style/tests/selector_test.rs`
-- [ ] T054 [P] [US1] Add integration test for CSS parsing in `crates/rvue-style/tests/stylesheet_test.rs`
-- [ ] T055 [P] [US1] Add integration test for `StyleResolver` in `crates/rvue-style/tests/stylesheet_test.rs`
+- [x] T051 [P] [US1] Add unit tests for `Properties` container in `crates/rvue-style/tests/property_test.rs`
+- [x] T052 [P] [US1] Add unit tests for `Color` parsing in `crates/rvue-style/tests/property_test.rs`
+- [x] T053 [P] [US1] Add unit tests for `ElementState` in `crates/rvue-style/tests/selector_test.rs`
+- [x] T054 [P] [US1] Add integration test for CSS parsing in `crates/rvue-style/tests/stylesheet_test.rs`
+- [x] T055 [P] [US1] Add integration test for `StyleResolver` in `crates/rvue-style/tests/stylesheet_test.rs`
 
 **Checkpoint**: User Story 1 complete - CSS-based styling works independently
 
@@ -153,29 +153,29 @@ description: "Task list for rvue-style library implementation"
 
 ### State-Based Pseudo-Classes
 
-- [ ] T056 [P] [US2] Extend `RvueElement::match_non_ts_pseudo_class()` in `crates/rvue-style/src/selectors/element.rs`:
+- [x] T056 [P] [US2] Extend `RvueElement::match_non_ts_pseudo_class()` in `crates/rvue-style/src/selectors/element.rs`:
   - Support `:hover`, `:focus`, `:active`, `:disabled`, `:checked`
   - Call `ElementState::matches_pseudo_class()` for state matching
-- [ ] T057 [US2] Connect widget state to `ElementState` tracking in `RvueElement`
+- [x] T057 [US2] Connect widget state to `ElementState` tracking in `RvueElement`
 
 ### Extended Property Support for US2
 
-- [ ] T058 [P] [US2] Implement `Cursor` property in `crates/rvue-style/src/properties/mod.rs`
-- [ ] T059 [P] [US2] Implement `Opacity` property in `crates/rvue-style/src/properties/visibility.rs`
-- [ ] T060 [P] [US2] Implement `Visibility` enum in `crates/rvue-style/src/properties/visibility.rs`
-- [ ] T061 [P] [US2] Implement `BorderColor`, `BorderWidth`, `BorderRadius`, `BorderStyle` in `crates/rvue-style/src/properties/border.rs`
+- [x] T058 [P] [US2] Implement `Cursor` property in `crates/rvue-style/src/properties/mod.rs`
+- [x] T059 [P] [US2] Implement `Opacity` property in `crates/rvue-style/src/properties/visibility.rs`
+- [x] T060 [P] [US2] Implement `Visibility` enum in `crates/rvue-style/src/properties/visibility.rs`
+- [x] T061 [P] [US2] Implement `BorderColor`, `BorderWidth`, `BorderRadius`, `BorderStyle` in `crates/rvue-style/src/properties/border.rs`
 
 ### CSS Value Parsing for US2
 
-- [ ] T062 [US2] Implement CSS length parsing in `crates/rvue-style/src/css/value_parser.rs` (px, %, em, rem)
-- [ ] T063 [US2] Implement CSS color value parsing (rgba, hsla, named colors) in `crates/rvue-style/src/css/value_parser.rs`
-- [ ] T064 [US2] Implement CSS border value parsing in `crates/rvue-style/src/css/properties.rs`
+- [x] T062 [US2] Implement CSS length parsing in `crates/rvue-style/src/css/value_parser.rs` (px, %, em, rem)
+- [x] T063 [US2] Implement CSS color value parsing (rgba, hsla, named colors) in `crates/rvue-style/src/css/value_parser.rs`
+- [x] T064 [US2] Implement CSS border value parsing in `crates/rvue-style/src/css/properties.rs`
 
 ### Tests for US2
 
-- [ ] T065 [P] [US2] Add unit tests for pseudo-class matching in `crates/rvue-style/tests/selector_test.rs`
-- [ ] T066 [P] [US2] Add unit tests for border properties in `crates/rvue-style/tests/property_test.rs`
-- [ ] T067 [P] [US2] Add integration test for state-based styling in `crates/rvue-style/tests/stylesheet_test.rs`
+- [x] T065 [P] [US2] Add unit tests for pseudo-class matching in `crates/rvue-style/tests/selector_test.rs`
+- [x] T066 [P] [US2] Add unit tests for border properties in `crates/rvue-style/tests/property_test.rs`
+- [x] T067 [P] [US2] Add integration test for state-based styling in `crates/rvue-style/tests/stylesheet_test.rs`
 
 **Checkpoint**: User Story 2 complete - state-based styling works alongside US1
 

@@ -134,3 +134,30 @@ fn test_parse_optional_semicolon() {
     let result = parse_stylesheet(css);
     assert!(result.is_ok());
 }
+
+#[test]
+fn test_parse_pseudo_class_selectors() {
+    let css = r#"
+        button:hover { background-color: red; }
+        button:focus { outline: none; }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.5; }
+        input:checked { border-color: blue; }
+    "#;
+    let result = parse_stylesheet(css);
+    assert!(result.is_ok());
+    let stylesheet = result.unwrap();
+    assert_eq!(stylesheet.len(), 5);
+}
+
+#[test]
+fn test_parse_complex_selectors() {
+    let css = r#"
+        .parent .child { background-color: blue; }
+        button.primary { background-color: red; }
+    "#;
+    let result = parse_stylesheet(css);
+    assert!(result.is_ok());
+    let stylesheet = result.unwrap();
+    assert_eq!(stylesheet.len(), 2);
+}
