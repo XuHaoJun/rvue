@@ -2,8 +2,9 @@
 
 use rvue_style::{
     BackgroundColor, Color, Display, FontSize, Height, Margin, Padding, Properties, Property, Size,
-    Width,
+    TextColor, Width,
 };
+use rvue_style::{StyledWidget, StyledWidgetExt, WidgetStyles};
 
 #[test]
 fn test_properties_new() {
@@ -96,4 +97,112 @@ fn test_property_traits() {
     let _ = BackgroundColor(Color::rgb(0, 0, 0));
     let _ = Display::Flex;
     let _ = FontSize(16.0);
+}
+
+#[derive(Default)]
+struct MockWidget {
+    properties: Properties,
+}
+
+impl StyledWidget for MockWidget {
+    fn style(&self) -> &Properties {
+        &self.properties
+    }
+
+    fn style_mut(&mut self) -> &mut Properties {
+        &mut self.properties
+    }
+
+    fn set_style(&mut self, properties: Properties) {
+        self.properties = properties;
+    }
+}
+
+impl StyledWidgetExt for MockWidget {
+    fn properties(&self) -> &Properties {
+        &self.properties
+    }
+
+    fn properties_mut(&mut self) -> &mut Properties {
+        &mut self.properties
+    }
+}
+
+#[test]
+fn test_styled_widget_ext_basic() {
+    let widget = MockWidget::default()
+        .style_background(Color::rgb(255, 0, 0))
+        .style_color(Color::rgb(255, 255, 255))
+        .style_padding(12.0)
+        .style_margin(8.0);
+
+    assert!(widget.properties.contains::<BackgroundColor>());
+    assert!(widget.properties.contains::<TextColor>());
+    assert!(widget.properties.contains::<Padding>());
+    assert!(widget.properties.contains::<Margin>());
+}
+
+#[test]
+fn test_styled_widget_ext_builder_chain() {
+    let widget = MockWidget::default()
+        .style_background(Color::rgb(0, 120, 215))
+        .style_color(Color::rgb(255, 255, 255))
+        .style_padding(12.0)
+        .style_margin(8.0)
+        .style_font_size(16.0)
+        .style_display(Display::Flex);
+
+    assert_eq!(widget.properties.len(), 6);
+}
+
+#[test]
+fn test_styled_widget_ext_width_height() {
+    let widget = MockWidget::default()
+        .style_width(Width(Size::pixels(200.0)))
+        .style_height(Height(Size::pixels(100.0)));
+
+    assert!(widget.properties.contains::<Width>());
+    assert!(widget.properties.contains::<Height>());
+}
+
+#[test]
+fn test_widget_styles_new() {
+    let styles = WidgetStyles::new();
+    assert!(styles.to_properties().is_empty());
+}
+
+#[test]
+fn test_widget_styles_with() {
+    let styles =
+        WidgetStyles::new().with_background_color(Color::rgb(255, 0, 0)).with_padding(10.0);
+
+    let props = styles.to_properties();
+    assert_eq!(props.len(), 2);
+    assert!(props.contains::<BackgroundColor>());
+    assert!(props.contains::<Padding>());
+}
+
+#[test]
+fn test_widget_styles_fluent_api() {
+    let styles = WidgetStyles::new()
+        .with_background_color(Color::rgb(0, 120, 215))
+        .with_color(Color::rgb(255, 255, 255))
+        .with_padding(12.0)
+        .with_margin(8.0)
+        .with_font_size(16.0)
+        .with_display(Display::Flex);
+
+    let props = styles.to_properties();
+    assert_eq!(props.len(), 6);
+}
+
+#[test]
+fn test_widget_styles_width_height() {
+    let styles = WidgetStyles::new()
+        .with_width(Width(Size::pixels(200.0)))
+        .with_height(Height(Size::pixels(100.0)));
+
+    let props = styles.to_properties();
+    assert!(props.contains::<Width>());
+    assert!(props.contains::<Height>());
 }

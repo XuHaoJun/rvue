@@ -9,8 +9,10 @@
 
 pub mod properties;
 pub mod property;
+pub mod reactive;
 pub mod selectors;
 pub mod stylesheet;
+pub mod widget;
 
 pub use properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
@@ -19,5 +21,10 @@ pub use properties::{
     TextColor, Visibility, Width, ZIndex,
 };
 pub use property::{Properties, Property};
+pub use reactive::{
+    create_reactive_signal, create_style_effect, on_style_cleanup, ReactiveProperty,
+    ReactiveReadSignal, ReactiveSignal, ReactiveSignalWrite, ReactiveStyles,
+};
 pub use selectors::{ElementState, RvueElement};
 pub use stylesheet::{StyleResolver, StyleRule, Stylesheet};
+pub use widget::{StyledWidget, StyledWidgetExt, WidgetStyles};
