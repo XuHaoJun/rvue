@@ -1,0 +1,56 @@
+//! Basic styling example for rvue-style.
+
+use rvue_style::{
+    selectors::ElementState,
+    stylesheet::{parser::parse_stylesheet, Stylesheet},
+    Color, Margin, Padding, Properties, Property,
+};
+
+fn main() {
+    // Create properties manually
+    let mut props = Properties::new();
+    props.insert(Property::Color(Color::rgb(255, 0, 0)));
+    props.insert(Property::Padding(Padding(16.0)));
+    props.insert(Property::Margin(Margin(8.0)));
+
+    // Access properties
+    if let Some(color) = props.color() {
+        println!("Color: r={}, g={}, b={}", color.0.r, color.0.g, color.0.b);
+    }
+    if let Some(padding) = props.padding() {
+        println!("Padding: {:?}", padding.0);
+    }
+
+    // Parse a stylesheet from CSS
+    let css = r#"
+        button {
+            background-color: red;
+            color: white;
+            padding: 10px;
+            margin: 5px;
+        }
+    "#;
+
+    match parse_stylesheet(css) {
+        Ok(stylesheet) => {
+            println!("Parsed stylesheet with {} rules", stylesheet.len());
+            for rule in stylesheet.rules() {
+                println!("Selector: {}, Specificity: {:?}", rule.selector, rule.specificity);
+            }
+        }
+        Err(()) => {
+            println!("Failed to parse stylesheet");
+        }
+    }
+
+    // Element state for pseudo-class matching
+    let mut state = ElementState::empty();
+    state.insert(ElementState::HOVER);
+    state.insert(ElementState::FOCUS);
+
+    println!("Element state: {:?}", state);
+    println!("Has HOVER: {}", state.contains(ElementState::HOVER));
+    println!("Has ACTIVE: {}", state.contains(ElementState::ACTIVE));
+
+    println!("\nBasic styling example completed!");
+}

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/rvue",
+    "crates/rvue-style",
     "crates/rvue-macro",
     "crates/rvue-examples/counter",
     "crates/rvue-examples/list",

@@ -1,0 +1,33 @@
+[package]
+name = "rvue-style"
+version = "0.1.0"
+edition = "2021"
+description = "GPU-accelerated GUI framework with CSS-like styling and fine-grained reactivity"
+
+[dependencies]
+# CSS selector parsing and matching
+selectors = "0.35"
+
+# CSS value parsing
+cssparser = "0.36"
+
+# State bitflags for pseudo-class matching
+bitflags = "2"
+
+# GC for memory management
+rudo-gc = "0.2"
+
+[dev-dependencies]
+# Add dev dependencies as needed
+
+[features]
+default = []
+# Add feature flags as needed
+
+[lib]
+path = "src/lib.rs"
+
+# Example binaries
+[[example]]
+name = "basic_styling"
+path = "examples/basic_styling.rs"
