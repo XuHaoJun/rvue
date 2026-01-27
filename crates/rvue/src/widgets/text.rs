@@ -76,7 +76,7 @@ impl Mountable for TextState {
 impl Widget for Text {
     type State = TextState;
 
-    fn build(self, ctx: &mut BuildContext) -> Self::State {
+    fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_content = self.content.get();
 

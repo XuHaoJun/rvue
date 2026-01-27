@@ -124,7 +124,7 @@ impl Mountable for FlexState {
 impl Widget for Flex {
     type State = FlexState;
 
-    fn build(self, ctx: &mut BuildContext) -> Self::State {
+    fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let direction = self.direction.get();
         let gap = self.gap.get();

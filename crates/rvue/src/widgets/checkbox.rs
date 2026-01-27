@@ -62,7 +62,7 @@ impl Mountable for CheckboxState {
 impl Widget for Checkbox {
     type State = CheckboxState;
 
-    fn build(self, ctx: &mut BuildContext) -> Self::State {
+    fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_checked = self.checked.get();
 
