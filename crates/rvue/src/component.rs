@@ -157,7 +157,7 @@ impl Clone for Component {
             props: GcCell::new(self.props.borrow().clone()),
             is_dirty: AtomicBool::new(self.is_dirty.load(Ordering::SeqCst)),
             is_updating: AtomicBool::new(false),
-            user_data: GcCell::new(None), // Can't clone Box<dyn Any>
+            user_data: GcCell::new(None),
             layout_node: GcCell::new(self.layout_node.borrow().clone()),
             flags: GcCell::new(*self.flags.borrow()),
             is_hovered: GcCell::new(*self.is_hovered.borrow()),
@@ -168,9 +168,9 @@ impl Clone for Component {
             has_focus_target: GcCell::new(*self.has_focus_target.borrow()),
             event_handlers: GcCell::new(self.event_handlers.borrow().clone()),
             vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
-            contexts: GcCell::new(Vec::new()), // Can't clone Box<dyn Any>
+            contexts: GcCell::new(Vec::new()),
             context_gc_ptrs: GcCell::new(Vec::new()),
-            cleanups: GcCell::new(Vec::new()), // Can't clone closures
+            cleanups: GcCell::new(Vec::new()),
         }
     }
 }

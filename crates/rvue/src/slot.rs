@@ -27,6 +27,16 @@ use rudo_gc::{Gc, Trace};
 /// of slot prop values.
 pub trait SlotProps: Trace + Clone + 'static {}
 
+/// Internal lazy view structure.
+///
+/// SAFETY: Closures stored here must NOT capture any GC-tracked types
+/// (Gc, GcCell, ReadSignal, WriteSignal, etc.). The closure can only
+/// capture non-GC types like primitives, Strings, or Arc. If a closure
+/// needs to reference GC-tracked data, that data must be stored separately
+/// (e.g., via GcCell) and the closure must not capture it directly.
+///
+/// Violating this constraint will cause use-after-free or memory corruption
+/// during garbage collection because the Trace impl cannot trace dyn Fn captures.
 pub(crate) struct LazyView {
     closure: Box<dyn Fn(&mut BuildContext) -> ViewStruct>,
 }
@@ -37,8 +47,12 @@ impl LazyView {
     }
 }
 
+/// SAFETY: LazyView requires closure to not capture GC-tracked types.
+/// See struct-level documentation for safety requirements.
 unsafe impl Trace for LazyView {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
+        // Cannot trace dyn Fn captures - caller must ensure no GC types are captured
+    }
 }
 
 /// A function that renders slot content, can be called multiple times.
