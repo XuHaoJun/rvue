@@ -1,6 +1,9 @@
 //! rvue-style - GPU-accelerated GUI styling system
 //!
-//! A simple CSS-compatible styling system for rvue.
+//! This crate provides a CSS-compatible styling system for rvue, combining:
+//! - Type-safe property system with `Property` trait
+//! - CSS selector parsing and matching
+//! - rudo-gc integration for memory management
 
 #![warn(missing_docs)]
 
@@ -9,5 +12,12 @@ pub mod property;
 pub mod selectors;
 pub mod stylesheet;
 
-pub use properties::{Color, ElementState, Margin, Padding, Size};
+pub use properties::{
+    AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
+    Color, ComputedStyles, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink,
+    FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding, Size,
+    TextColor, Visibility, Width, ZIndex,
+};
 pub use property::{Properties, Property};
+pub use selectors::{ElementState, RvueElement};
+pub use stylesheet::{StyleResolver, StyleRule, Stylesheet};

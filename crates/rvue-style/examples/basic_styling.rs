@@ -3,21 +3,21 @@
 use rvue_style::{
     selectors::ElementState,
     stylesheet::{parser::parse_stylesheet, Stylesheet},
-    Color, Margin, Padding, Properties, Property,
+    BackgroundColor, Color, Height, Margin, Padding, Properties, Property, Width,
 };
 
 fn main() {
-    // Create properties manually
+    // Create properties manually using Property trait
     let mut props = Properties::new();
-    props.insert(Property::Color(Color::rgb(255, 0, 0)));
-    props.insert(Property::Padding(Padding(16.0)));
-    props.insert(Property::Margin(Margin(8.0)));
+    props.insert(Color::rgb(255, 0, 0));
+    props.insert(Padding(16.0));
+    props.insert(Margin(8.0));
 
-    // Access properties
-    if let Some(color) = props.color() {
+    // Access properties by type
+    if let Some(color) = props.get::<Color>() {
         println!("Color: r={}, g={}, b={}", color.0.r, color.0.g, color.0.b);
     }
-    if let Some(padding) = props.padding() {
+    if let Some(padding) = props.get::<Padding>() {
         println!("Padding: {:?}", padding.0);
     }
 

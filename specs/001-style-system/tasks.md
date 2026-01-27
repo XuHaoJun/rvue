@@ -119,25 +119,15 @@ description: "Task list for rvue-style library implementation"
 
 ### ComputedStyles for US1
 
-- [ ] T038 [P] [US1] Create `ComputedStyles` struct in `crates/rvue-style/src/properties/mod.rs`
-- [ ] T039 [US1] Implement `ComputedStyles::merge()` method for property cascade
-- [ ] T040 [US1] Add property fields to `ComputedStyles`: `background_color`, `color`, `font_size`, `padding`, `margin`, `width`, `height`, `display`
-
-### StyleResolver for US1
-
-- [ ] T041 [US1] Create `StyleResolver` struct in `crates/rvue-style/src/stylesheet/mod.rs`
-- [ ] T042 [US1] Implement `StyleResolver::new()` constructor
-- [ ] T043 [US1] Implement `StyleResolver::resolve()` method:
-  - Create `MatchingContext`
-  - Sort rules by specificity
-  - Match selectors using `matches_selector()`
-  - Merge properties into `ComputedStyles`
+- [x] T038 [P] [US1] Create `ComputedStyles` struct in `crates/rvue-style/src/properties/computed_styles.rs`
+- [x] T039 [US1] Implement `ComputedStyles::merge()` method for property cascade
+- [x] T040 [US1] Add property fields to `ComputedStyles`: `background_color`, `color`, `font_size`, `padding`, `margin`, `width`, `height`, `display`
 
 ### Basic Property Implementations for US1
 
-- [ ] T044 [P] [US1] Implement `BackgroundColor` property in `crates/rvue-style/src/properties/background.rs`
-- [ ] T045 [P] [US1] Implement `TextColor` property in `crates/rvue-style/src/properties/color.rs`
-- [ ] T046 [P] [US1] Implement `FontSize` property in `crates/rvue-style/src/properties/font.rs`
+- [x] T044 [P] [US1] Implement `BackgroundColor` property in `crates/rvue-style/src/properties/background.rs`
+- [x] T045 [P] [US1] Implement `TextColor` property in `crates/rvue-style/src/properties/color.rs`
+- [x] T046 [P] [US1] Implement `FontSize` property in `crates/rvue-style/src/properties/font.rs`
 - [ ] T047 [P] [US1] Implement `Padding` property in `crates/rvue-style/src/properties/spacing.rs`
 - [ ] T048 [P] [US1] Implement `Margin` property in `crates/rvue-style/src/properties/spacing.rs`
 - [ ] T049 [P] [US1] Implement `Width` and `Height` properties in `crates/rvue-style/src/properties/sizing.rs`

@@ -1,7 +1,7 @@
 //! CSS stylesheet parsing.
 
 use crate::properties::{Color, Height, Margin, Padding, Size, Width};
-use crate::property::{Properties, Property};
+use crate::property::Properties;
 use crate::stylesheet::rule::{StyleRule, Stylesheet};
 
 /// Parses a CSS stylesheet from a string.
@@ -119,9 +119,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             }
 
             // Create property
-            if let Some(prop) = create_property(name, value) {
-                properties.insert(prop);
-            }
+            add_property(&mut properties, name, value);
         }
 
         stylesheet.add_rule(StyleRule::new(selector.to_string(), properties));
@@ -130,15 +128,40 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
     Ok(stylesheet)
 }
 
-/// Creates a property from a name-value pair.
-fn create_property(name: &str, value: &str) -> Option<Property> {
+/// Adds a property to the properties container based on name and value.
+fn add_property(properties: &mut Properties, name: &str, value: &str) {
     match name {
-        "background-color" | "bg" | "color" => parse_color(value).map(Property::Color),
-        "padding" => parse_length(value).map(|p| Property::Padding(Padding(p))),
-        "margin" => parse_length(value).map(|m| Property::Margin(Margin(m))),
-        "width" => parse_size(value).map(|s| Property::Width(Width(s))),
-        "height" => parse_size(value).map(|s| Property::Height(Height(s))),
-        _ => None,
+        "background-color" | "bg" => {
+            if let Some(color) = parse_color(value) {
+                properties.insert(color);
+            }
+        }
+        "color" => {
+            if let Some(color) = parse_color(value) {
+                properties.insert(color);
+            }
+        }
+        "padding" => {
+            if let Some(p) = parse_length(value) {
+                properties.insert(Padding(p));
+            }
+        }
+        "margin" => {
+            if let Some(m) = parse_length(value) {
+                properties.insert(Margin(m));
+            }
+        }
+        "width" => {
+            if let Some(s) = parse_size(value) {
+                properties.insert(Width(s));
+            }
+        }
+        "height" => {
+            if let Some(s) = parse_size(value) {
+                properties.insert(Height(s));
+            }
+        }
+        _ => {}
     }
 }
 
@@ -168,12 +191,6 @@ fn parse_color(value: &str) -> Option<Color> {
             "white" => Some(Color::rgb(255, 255, 255)),
             "black" => Some(Color::rgb(0, 0, 0)),
             "orange" => Some(Color::rgb(255, 165, 0)),
-            "darkblue" | "dark" => Some(Color::rgb(0, 0, 139)),
-            "gray" | "grey" => Some(Color::rgb(128, 128, 128)),
-            "yellow" => Some(Color::rgb(255, 255, 0)),
-            "purple" => Some(Color::rgb(128, 0, 128)),
-            "pink" => Some(Color::rgb(255, 192, 203)),
-            "brown" => Some(Color::rgb(165, 42, 42)),
             "transparent" => Some(Color::rgb(0, 0, 0)),
             _ => Some(Color::rgb(0, 0, 0)),
         }

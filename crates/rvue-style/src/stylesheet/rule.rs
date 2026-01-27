@@ -4,7 +4,7 @@ use crate::property::Properties;
 use std::cmp::Ordering;
 
 /// A style rule consisting of a selector and properties.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct StyleRule {
     pub selector: String,
     pub specificity: Specificity,
@@ -112,7 +112,7 @@ impl Ord for Specificity {
 }
 
 /// A collection of style rules.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug)]
 pub struct Stylesheet {
     rules: Vec<StyleRule>,
 }

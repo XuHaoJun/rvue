@@ -19,6 +19,8 @@ impl Padding {
     }
 }
 
+impl Property for Padding {}
+
 /// Margin.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Margin(pub f32);
@@ -35,3 +37,5 @@ impl Margin {
         Self(value.max(0.0))
     }
 }
+
+impl Property for Margin {}

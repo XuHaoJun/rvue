@@ -44,3 +44,17 @@ impl Color {
         Ok(Self::rgb(r, g, b))
     }
 }
+
+impl Property for Color {}
+
+/// Text/foreground color property.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TextColor(pub Color);
+
+impl Default for TextColor {
+    fn default() -> Self {
+        Self(Color::rgb(0, 0, 0))
+    }
+}
+
+impl Property for TextColor {}
