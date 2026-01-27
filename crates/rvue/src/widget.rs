@@ -188,21 +188,13 @@ impl<'a> BuildContext<'a> {
         Self { taffy, text_context, id_counter }
     }
 
-    /// Allocate a new component ID
-    pub fn next_id(&mut self) -> crate::component::ComponentId {
-        let id = *self.id_counter;
-        *self.id_counter += 1;
-        id
-    }
-
     /// Create a new component with a unique ID
     pub fn create_component(
         &mut self,
         component_type: crate::component::ComponentType,
         props: crate::component::ComponentProps,
     ) -> Gc<Component> {
-        let id = self.next_id();
-        Component::new(id, component_type, props)
+        Component::with_global_id(component_type, props)
     }
 }
 

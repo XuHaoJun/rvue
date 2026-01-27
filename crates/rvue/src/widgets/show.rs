@@ -66,7 +66,7 @@ impl Widget for Show {
     type State = ShowState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_when = self.when.get();
 
         let component =

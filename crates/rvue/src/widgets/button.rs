@@ -62,7 +62,7 @@ impl Widget for Button {
     type State = ButtonState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_label = self.label.get();
 
         let component = Component::new(

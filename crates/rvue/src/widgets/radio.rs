@@ -64,7 +64,7 @@ impl Widget for Radio {
     type State = RadioState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_checked = self.checked.get();
 
         let component = Component::new(

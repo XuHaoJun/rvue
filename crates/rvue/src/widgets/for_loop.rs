@@ -257,7 +257,7 @@ where
     type State = ForState<T, K, KF, VF>;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_items = self.items.get();
         let initial_count = initial_items.len();
 

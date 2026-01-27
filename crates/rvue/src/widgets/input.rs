@@ -63,7 +63,7 @@ impl Widget for TextInput {
     type State = TextInputState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_value = self.value.get();
 
         let component = Component::new(
@@ -169,7 +169,7 @@ impl Widget for NumberInput {
     type State = NumberInputState;
 
     fn build(self, ctx: &mut BuildContext) -> Self::State {
-        let id = ctx.next_id();
+        let id = crate::component::next_component_id();
         let initial_value = self.value.get();
 
         let component = Component::new(

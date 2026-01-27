@@ -23,10 +23,8 @@ fn parse_keyed_attribute(attr: &KeyedAttribute) -> Result<RvueAttribute, Attribu
     let name = attr.key.to_string();
     let span = attr.key.span();
 
-    // All slot attributes (slot, slot:name) are treated as props
-    // Slot content is passed as regular content to the element
-    if name == "slot" || name.starts_with("slot:") {
-        return parse_prop_attr(attr, &name, span);
+    if let Some(slot_name) = name.strip_prefix("slot:") {
+        return parse_slot_attr(attr, Some(slot_name.to_string()), span);
     }
 
     if let Some(event_name) = name.strip_prefix("on_") {
@@ -77,6 +75,17 @@ fn parse_prop_attr(
 /// Parse handler expression from attribute value
 fn parse_handler_expression(expr: &Expr, _span: Span) -> Result<Expr, AttributeError> {
     Ok(expr.clone())
+}
+
+/// Parse a slot attribute
+fn parse_slot_attr(
+    attr: &KeyedAttribute,
+    name: Option<String>,
+    span: Span,
+) -> Result<RvueAttribute, AttributeError> {
+    let content = attr.value().ok_or(AttributeError::NoValue)?;
+    let content_tokens = quote::quote! { #content };
+    Ok(RvueAttribute::Slot { name, content: content_tokens, span })
 }
 
 /// Extract value from expression
