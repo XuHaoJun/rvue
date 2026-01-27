@@ -61,6 +61,7 @@ impl Scene {
             if let Some(ref mut scene) = self.vello_scene {
                 scene.reset();
             }
+            self.taffy.clear();
         }
 
         let mut already_appended = FxHashSet::default();

@@ -116,11 +116,6 @@ impl LayoutNode {
 
         style.size = Size { width: length(width), height: length(height) };
 
-        // Remove existing node if any
-        if let Some(existing_node) = component.layout_node().and_then(|ln| ln.taffy_node()) {
-            let _ = taffy.remove(existing_node);
-        }
-
         let taffy_node = taffy.new_leaf(style).ok();
 
         Self { taffy_node, is_dirty: true, layout_result: None }
