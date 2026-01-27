@@ -29,20 +29,20 @@ fn ChildComp(value: String) -> impl View {
 #[test]
 fn test_block_expansion_reactivity() {
     let (count, set_count) = create_signal("0".to_string());
-    with_build_context(|_ctx| {
-        let view = view! {
+    let view = with_build_context(|_ctx| {
+        view! {
             <Flex>
                 {count.clone()}
             </Flex>
-        };
-        let root = view.root_component;
-
-        let initial_children = root.children.borrow().len();
-        assert!(initial_children >= 1);
-
-        set_count.set("1".to_string());
-        root.update();
+        }
     });
+    let root = view.root_component;
+
+    let initial_children = root.children.borrow().len();
+    assert!(initial_children >= 1);
+
+    set_count.set("1".to_string());
+    root.update();
 }
 
 #[test]

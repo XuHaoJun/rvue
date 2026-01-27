@@ -4,6 +4,7 @@ use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
+use rustc_hash::FxHashSet;
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect};
 use vello::peniko::Color;
 
@@ -11,10 +12,12 @@ pub fn render_component(
     component: &Gc<Component>,
     scene: &mut vello::Scene,
     transform: Affine,
+    already_appended: &mut FxHashSet<u64>,
 ) -> bool {
+    let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
 
-    if cache_was_none {
+    if is_dirty || cache_was_none {
         let mut local_scene = vello::Scene::new();
 
         match &component.component_type {
@@ -46,35 +49,45 @@ pub fn render_component(
         component.clear_dirty();
     }
 
-    if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
-        scene.append(local_scene, Some(transform));
-    }
-
-    if cache_was_none {
-        match &component.component_type {
-            ComponentType::Show => {
-                if let ComponentProps::Show { when } = &*component.props.borrow() {
-                    if *when {
-                        render_children(component, scene, transform);
-                    }
-                }
-            }
-            ComponentType::For => {
-                render_children(component, scene, transform);
-            }
-            ComponentType::Flex => {
-                render_children(component, scene, transform);
-            }
-            _ => {
-                render_children(component, scene, transform);
-            }
+    if !already_appended.contains(&component.id) {
+        if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
+            scene.append(local_scene, Some(transform));
+            already_appended.insert(component.id);
         }
     }
 
-    cache_was_none
+    let should_render_children = match &component.component_type {
+        ComponentType::Show => {
+            if let ComponentProps::Show { when } = &*component.props.borrow() {
+                *when
+            } else {
+                false
+            }
+        }
+        ComponentType::For => true,
+        ComponentType::Flex => true,
+        _ => !component.children.borrow().is_empty(),
+    };
+
+    let force_render_children = matches!(
+        &component.component_type,
+        ComponentType::For | ComponentType::Flex | ComponentType::Show
+    );
+
+    if should_render_children {
+        render_children(component, scene, transform, already_appended, force_render_children);
+    }
+
+    is_dirty || cache_was_none
 }
 
-fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transform: Affine) {
+fn render_children(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    already_appended: &mut FxHashSet<u64>,
+    force_render_children: bool,
+) {
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
@@ -85,11 +98,13 @@ fn render_children(component: &Gc<Component>, scene: &mut vello::Scene, transfor
         } else {
             Affine::IDENTITY
         };
-        // Clear child cache and mark dirty when parent is being re-rendered
-        // This ensures children are re-evaluated when parent state changes (e.g., Show when)
-        *child.vello_cache.borrow_mut() = None;
-        child.is_dirty.store(true, std::sync::atomic::Ordering::SeqCst);
-        render_component(child, scene, transform * child_transform);
+
+        let is_dirty = child.is_dirty();
+        let cache_was_none = child.vello_cache.borrow().is_none();
+
+        if force_render_children || is_dirty || cache_was_none {
+            render_component(child, scene, transform * child_transform, already_appended);
+        }
     }
 }
 

@@ -146,7 +146,11 @@ fn test_text_input_widget_builder() {
 #[test]
 fn test_show_widget_builder() {
     with_build_context(|ctx| {
-        let widget = Show::new(true);
+        let widget = Show::new(true, |_ctx| {
+            let flex = Flex::new();
+            let state = flex.build(_ctx);
+            state.component().clone()
+        });
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Show);

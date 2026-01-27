@@ -9,7 +9,34 @@ use crate::effect::Effect;
 use crate::signal::ReadSignal;
 use crate::text::TextContext;
 use rudo_gc::{Gc, Trace};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use taffy::TaffyTree;
+
+type CtxMap = Arc<Mutex<HashMap<std::thread::ThreadId, usize>>>;
+
+pub(crate) static CURRENT_CTX: std::sync::LazyLock<CtxMap, fn() -> CtxMap> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+#[doc(hidden)]
+pub fn with_current_ctx<F, R>(ctx: &mut u64, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let thread_id = std::thread::current().id();
+    let ctx_addr = ctx as *mut u64 as usize;
+
+    CURRENT_CTX.lock().unwrap().insert(thread_id, ctx_addr);
+    let result = f();
+    CURRENT_CTX.lock().unwrap().remove(&thread_id);
+    result
+}
+
+#[doc(hidden)]
+pub fn get_current_ctx() -> Option<*mut u64> {
+    let thread_id = std::thread::current().id();
+    CURRENT_CTX.lock().unwrap().get(&thread_id).map(|&addr| addr as *mut u64)
+}
 
 /// Reactive value that can be either static or derived from a signal
 ///
@@ -161,21 +188,13 @@ impl<'a> BuildContext<'a> {
         Self { taffy, text_context, id_counter }
     }
 
-    /// Allocate a new component ID
-    pub fn next_id(&mut self) -> crate::component::ComponentId {
-        let id = *self.id_counter;
-        *self.id_counter += 1;
-        id
-    }
-
     /// Create a new component with a unique ID
     pub fn create_component(
         &mut self,
         component_type: crate::component::ComponentType,
         props: crate::component::ComponentProps,
     ) -> Gc<Component> {
-        let id = self.next_id();
-        Component::new(id, component_type, props)
+        Component::with_global_id(component_type, props)
     }
 }
 

@@ -6,7 +6,6 @@
 use crate::ast::{RvueAttribute, WidgetType};
 use proc_macro2::Span;
 use proc_macro_error2::abort;
-use quote::ToTokens;
 use rstml::node::{KeyedAttribute, NodeAttribute};
 use syn::spanned::Spanned;
 use syn::{Expr, ExprLit, Lit};
@@ -26,14 +25,6 @@ fn parse_keyed_attribute(attr: &KeyedAttribute) -> Result<RvueAttribute, Attribu
 
     if let Some(slot_name) = name.strip_prefix("slot:") {
         return parse_slot_attr(attr, Some(slot_name.to_string()), span);
-    } else if name == "slot" {
-        if let Some(expr) = attr.value() {
-            if is_slot_content_expression(expr) {
-                return parse_slot_attr(attr, None, span);
-            } else {
-                return parse_prop_attr(attr, &name, span);
-            }
-        }
     }
 
     if let Some(event_name) = name.strip_prefix("on_") {
@@ -47,27 +38,6 @@ fn parse_keyed_attribute(attr: &KeyedAttribute) -> Result<RvueAttribute, Attribu
     } else {
         parse_prop_attr(attr, &name, span)
     }
-}
-
-/// Check if an expression represents slot content (vs prop passing)
-fn is_slot_content_expression(expr: &Expr) -> bool {
-    match expr {
-        Expr::Block(block) => !block.block.stmts.is_empty(),
-        Expr::Macro(_) => true,
-        Expr::Struct(_) => false,
-        _ => false,
-    }
-}
-
-/// Parse a slot attribute
-fn parse_slot_attr(
-    attr: &KeyedAttribute,
-    slot_name: Option<String>,
-    span: Span,
-) -> Result<RvueAttribute, AttributeError> {
-    let value = attr.value().ok_or(AttributeError::NoValue)?;
-    let tokens = value.to_token_stream();
-    Ok(RvueAttribute::Slot { name: slot_name, content: tokens, span })
 }
 
 /// Parse an event attribute (on_click, on_key_down, etc.)
@@ -105,6 +75,17 @@ fn parse_prop_attr(
 /// Parse handler expression from attribute value
 fn parse_handler_expression(expr: &Expr, _span: Span) -> Result<Expr, AttributeError> {
     Ok(expr.clone())
+}
+
+/// Parse a slot attribute
+fn parse_slot_attr(
+    attr: &KeyedAttribute,
+    name: Option<String>,
+    span: Span,
+) -> Result<RvueAttribute, AttributeError> {
+    let content = attr.value().ok_or(AttributeError::NoValue)?;
+    let content_tokens = quote::quote! { #content };
+    Ok(RvueAttribute::Slot { name, content: content_tokens, span })
 }
 
 /// Extract value from expression

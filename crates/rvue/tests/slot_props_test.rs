@@ -4,6 +4,9 @@
 
 use rudo_gc::Gc;
 use rvue::prelude::*;
+use rvue::text::TextContext;
+use rvue::widget::BuildContext;
+use rvue::TaffyTree;
 use rvue_macro::slot;
 
 #[slot]
@@ -27,7 +30,7 @@ fn create_test_view(id: u64) -> ViewStruct {
 
 #[test]
 fn test_slot_with_prop() {
-    let children: ChildrenFn = (|| create_test_view(1)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(1)).to_children();
 
     let slot = ItemSlot::new(children).item("test_item".to_string());
 
@@ -36,7 +39,7 @@ fn test_slot_with_prop() {
 
 #[test]
 fn test_slot_clone() {
-    let children: ChildrenFn = (|| create_test_view(3)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(3)).to_children();
 
     let slot1 = ItemSlot::new(children.clone()).item("item1".to_string());
     let slot2 = slot1.clone();
@@ -47,7 +50,7 @@ fn test_slot_clone() {
 
 #[test]
 fn test_slot_into_vec() {
-    let children: ChildrenFn = (|| create_test_view(4)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(4)).to_children();
 
     let slot = ItemSlot::new(children).item("item".to_string());
 
@@ -57,11 +60,16 @@ fn test_slot_into_vec() {
 
 #[test]
 fn test_slot_children_run() {
-    let children: ChildrenFn = (|| create_test_view(5)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(5)).to_children();
 
     let slot = ItemSlot::new(children).item("test".to_string());
 
-    let view = slot.children.run();
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let mut id_counter: u64 = 0;
+    let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+
+    let view = slot.children.run(&mut ctx);
     assert_eq!(view.root_component.id, 5);
 }
 
@@ -73,7 +81,7 @@ struct OptionalSlot {
 
 #[test]
 fn test_optional_slot_with_value() {
-    let children: ChildrenFn = (|| create_test_view(7)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(7)).to_children();
 
     let slot = OptionalSlot::new(children).label(Some("My Label".to_string()));
 
@@ -83,7 +91,7 @@ fn test_optional_slot_with_value() {
 
 #[test]
 fn test_optional_slot_without_value() {
-    let children: ChildrenFn = (|| create_test_view(8)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(8)).to_children();
 
     let slot = OptionalSlot::new(children);
 
@@ -100,7 +108,7 @@ struct MultiPropSlot {
 
 #[test]
 fn test_multi_prop_slot() {
-    let children: ChildrenFn = (|| create_test_view(9)).to_children();
+    let children: ChildrenFn = (|_: &mut BuildContext| create_test_view(9)).to_children();
 
     let slot = MultiPropSlot::new(children)
         .name("Test Name".to_string())

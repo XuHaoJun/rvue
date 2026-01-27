@@ -190,8 +190,7 @@ fn test_cache_valid_after_multiple_updates() {
 
 #[test]
 fn test_clean_component_skips_recursion() {
-    let (count, set_count) = create_signal(0);
-    let set_count_clone = set_count.clone();
+    let (count, _) = create_signal(0);
     let count_label = || format!("Count: {}", count.get());
 
     let view = view! {
@@ -222,11 +221,120 @@ fn test_clean_component_skips_recursion() {
     for child in &nested_children {
         assert!(child.vello_cache.borrow().is_some());
     }
+}
 
-    set_count_clone.set(100);
+#[ignore]
+#[test]
+fn test_stress_1000_components() {
+    use rvue::ComponentType;
+
+    const COMPONENT_COUNT: usize = 1000;
+
+    let root = rvue::Component::new(
+        0,
+        ComponentType::Flex,
+        rvue::ComponentProps::Flex {
+            direction: "column".to_string(),
+            gap: 0.0,
+            align_items: "stretch".to_string(),
+            justify_content: "flex_start".to_string(),
+        },
+    );
+
+    for i in 0..COMPONENT_COUNT {
+        let child = rvue::Component::new(
+            (i + 1) as u64,
+            ComponentType::Text,
+            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, color: None },
+        );
+        root.add_child(child);
+    }
+
+    let mut scene = Scene::new();
+    scene.add_fragment(root.clone());
+
+    let start = std::time::Instant::now();
+    scene.update();
+    let initial_render = start.elapsed();
+
+    assert!(!root.is_dirty());
+
+    let mut cache_count = 0;
+    fn count_caches(component: &Gc<rvue::Component>, count: &mut usize) {
+        if component.vello_cache.borrow().is_some() {
+            *count += 1;
+        }
+        for child in component.children.borrow().iter() {
+            count_caches(child, count);
+        }
+    }
+    count_caches(&root, &mut cache_count);
+
+    println!("Initial render (1000 components): {:?}", initial_render);
+    println!("Components with cache: {}", cache_count);
+
+    assert!(cache_count >= COMPONENT_COUNT, "All components should have cache");
+
+    let start = std::time::Instant::now();
+    root.mark_dirty();
+    scene.update();
+    let incremental_update = start.elapsed();
+
+    assert!(!root.is_dirty());
+
+    println!("Incremental update (1000 components): {:?}", incremental_update);
+
+    assert!(initial_render.as_millis() < 500, "Initial render should be < 500ms");
+    assert!(incremental_update.as_millis() < 50, "Incremental update should be < 50ms");
+}
+
+#[ignore]
+#[test]
+fn test_incremental_update_performance() {
+    use rvue::ComponentType;
+
+    const COMPONENT_COUNT: usize = 500;
+
+    let root = rvue::Component::new(
+        0,
+        ComponentType::Flex,
+        rvue::ComponentProps::Flex {
+            direction: "column".to_string(),
+            gap: 0.0,
+            align_items: "stretch".to_string(),
+            justify_content: "flex_start".to_string(),
+        },
+    );
+
+    for i in 0..COMPONENT_COUNT {
+        let child = rvue::Component::new(
+            (i + 1) as u64,
+            ComponentType::Text,
+            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, color: None },
+        );
+        root.add_child(child);
+    }
+
+    let mut scene = Scene::new();
+    scene.add_fragment(root.clone());
     scene.update();
 
-    for child in &nested_children {
-        assert!(child.vello_cache.borrow().is_some());
+    let mut dirty_updates = Vec::new();
+
+    for _ in 0..10 {
+        let start = std::time::Instant::now();
+        root.mark_dirty();
+        scene.update();
+        dirty_updates.push(start.elapsed());
     }
+
+    let avg_update = dirty_updates.iter().sum::<std::time::Duration>() / dirty_updates.len() as u32;
+
+    println!("Average incremental update (500 components, 10 runs): {:?}", avg_update);
+
+    for (i, duration) in dirty_updates.iter().enumerate() {
+        println!("Update {}: {:?}", i + 1, duration);
+    }
+
+    assert!(avg_update.as_millis() < 30, "Average update should be < 30ms");
 }

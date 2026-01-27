@@ -5,13 +5,14 @@ use crate::component::Component;
 use crate::render::widget::render_component;
 use crate::text::TextContext;
 use rudo_gc::Gc;
+use rustc_hash::FxHashSet;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 use vello::kurbo::Affine;
 
 /// Scene structure for managing Vello rendering
 pub struct Scene {
-    pub vello_scene: Option<vello::Scene>, // Lazy initialization
+    pub vello_scene: Option<vello::Scene>,
     pub root_components: Vec<Gc<Component>>,
     pub is_dirty: bool,
     pub renderer_initialized: bool,
@@ -23,7 +24,7 @@ impl Scene {
     /// Create a new scene with lazy renderer initialization
     pub fn new() -> Self {
         Self {
-            vello_scene: None, // Defer scene creation until first render
+            vello_scene: None,
             root_components: Vec::new(),
             is_dirty: true,
             renderer_initialized: false,
@@ -56,23 +57,21 @@ impl Scene {
 
         self.ensure_initialized();
 
-        // Only reset scene if structural changes (new/removed components)
-        // Per-component dirty state only requires re-appending cached fragments
         if self.is_dirty {
             if let Some(ref mut scene) = self.vello_scene {
                 scene.reset();
             }
+            self.taffy.clear();
         }
 
+        let mut already_appended = FxHashSet::default();
+
         for component in &self.root_components {
-            // Defer effect execution until after parent chain is set up
             crate::effect::set_defer_effect_run(true);
 
-            // 1. Layout Pass (shared tree) - needed for positioning of all components
             let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
             component.set_layout_node(layout.clone());
 
-            // Flush pending effects now that parent chain is established
             crate::effect::flush_pending_effects();
             crate::effect::set_defer_effect_run(false);
 
@@ -82,19 +81,16 @@ impl Scene {
                 }
             }
 
-            // Propagate results back
             crate::component::propagate_layout_results(component, &self.taffy);
 
-            // 2. Render Pass - only re-render dirty components
-            if component.is_dirty() {
-                *component.vello_cache.borrow_mut() = None;
-                if let Some(ref mut scene) = self.vello_scene {
-                    render_component(component, scene, Affine::IDENTITY);
-                }
-            } else if let Some(ref cached) = *component.vello_cache.borrow() {
-                // Append cached fragment - children are already encoded inside
-                if let Some(ref mut scene) = self.vello_scene {
+            if let Some(ref mut scene) = self.vello_scene {
+                if component.is_dirty() {
+                    *component.vello_cache.borrow_mut() = None;
+                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
+                } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
+                } else {
+                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
                 }
             }
         }
