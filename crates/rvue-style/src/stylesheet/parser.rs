@@ -175,7 +175,7 @@ fn parse_color(value: &str) -> Option<Color> {
             "black" => Some(Color::rgb(0, 0, 0)),
             "orange" => Some(Color::rgb(255, 165, 0)),
             "transparent" => Some(Color::rgb(0, 0, 0)),
-            _ => Some(Color::rgb(0, 0, 0)),
+            _ => None,
         }
     }
 }
@@ -183,7 +183,7 @@ fn parse_color(value: &str) -> Option<Color> {
 fn parse_length(value: &str) -> Option<f32> {
     let value = value.trim();
     if value == "auto" {
-        return Some(0.0);
+        return None;
     }
     let num: f32 = value.parse().ok()?;
     Some(num)
