@@ -4,7 +4,7 @@
 //! and build reactive style objects that can be computed on demand.
 
 use rvue_style::{
-    reactive::{create_reactive_signal, create_style_effect, ReactiveStyles},
+    reactive::{create_reactive_signal, ReactiveStyles},
     BackgroundColor, Color, ComputedStyles, Padding,
 };
 
@@ -103,7 +103,7 @@ fn main() {
 
     fn create_button_styles(bg_color: &Color) -> ComputedStyles {
         let mut computed = ComputedStyles::new();
-        computed.background_color = Some(BackgroundColor(bg_color.clone()));
+        computed.background_color = Some(BackgroundColor(*bg_color));
         computed.color = Some(Color::rgb(255, 255, 255));
         computed.padding = Some(Padding(12.0));
         computed

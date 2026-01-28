@@ -93,14 +93,11 @@ impl StyleResolver {
             return true;
         }
 
-        if selector.starts_with('.') {
-            let class = &selector[1..];
+        if let Some(class) = selector.strip_prefix('.') {
             element.has_class(class)
-        } else if selector.starts_with('#') {
-            let id = &selector[1..];
+        } else if let Some(id) = selector.strip_prefix('#') {
             element.has_id(id)
-        } else if selector.starts_with(':') {
-            let state_name = &selector[1..];
+        } else if let Some(state_name) = selector.strip_prefix(':') {
             self.matches_pseudo_class(element, state_name)
         } else {
             element.has_tag_name(selector)

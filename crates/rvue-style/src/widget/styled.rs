@@ -300,19 +300,19 @@ impl WidgetStyles {
     pub fn to_properties(&self) -> Properties {
         let mut props = Properties::new();
         if let Some(ref p) = self.background_color {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.color {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.padding {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.margin {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.font_size {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.width {
             props.insert(p.clone());
@@ -321,40 +321,40 @@ impl WidgetStyles {
             props.insert(p.clone());
         }
         if let Some(ref p) = self.display {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.flex_direction {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.justify_content {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.align_items {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.border_color {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.border_width {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.border_radius {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.opacity {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.visibility {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.cursor {
             props.insert(p.clone());
         }
         if let Some(ref p) = self.z_index {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         if let Some(ref p) = self.gap {
-            props.insert(p.clone());
+            props.insert(*p);
         }
         props
     }

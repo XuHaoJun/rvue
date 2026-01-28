@@ -4,8 +4,9 @@ use super::color::Color;
 use crate::property::Property;
 
 /// Border style.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum BorderStyle {
+    #[default]
     None,
     Solid,
     Dashed,
@@ -15,12 +16,6 @@ pub enum BorderStyle {
     Ridge,
     Inset,
     Outset,
-}
-
-impl Default for BorderStyle {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl Property for BorderStyle {}

@@ -1,8 +1,8 @@
 //! Basic styling example for rvue-style.
 
 use rvue_style::{
-    selectors::ElementState, stylesheet::parser::parse_stylesheet, Color, Height, Margin, Padding,
-    Properties, Width,
+    selectors::ElementState, stylesheet::parser::parse_stylesheet, Color, Margin, Padding,
+    Properties,
 };
 
 fn main() {
@@ -31,13 +31,13 @@ fn main() {
     "#;
 
     match parse_stylesheet(css) {
-        Ok(stylesheet) => {
+        Some(stylesheet) => {
             println!("Parsed stylesheet with {} rules", stylesheet.len());
             for rule in stylesheet.rules() {
                 println!("Selector: {}, Specificity: {:?}", rule.selector, rule.specificity);
             }
         }
-        Err(()) => {
+        None => {
             println!("Failed to parse stylesheet");
         }
     }

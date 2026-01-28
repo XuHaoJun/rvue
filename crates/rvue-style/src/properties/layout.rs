@@ -3,8 +3,9 @@
 use crate::property::Property;
 
 /// Display type for a widget.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Display {
+    #[default]
     Flex,
     Grid,
     Block,
@@ -13,34 +14,24 @@ pub enum Display {
     None,
 }
 
-impl Default for Display {
-    fn default() -> Self {
-        Self::Flex
-    }
-}
-
 impl Property for Display {}
 
 /// Flex direction.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum FlexDirection {
+    #[default]
     Row,
     RowReverse,
     Column,
     ColumnReverse,
 }
 
-impl Default for FlexDirection {
-    fn default() -> Self {
-        Self::Row
-    }
-}
-
 impl Property for FlexDirection {}
 
 /// Justify content (main axis alignment).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum JustifyContent {
+    #[default]
     FlexStart,
     FlexEnd,
     Center,
@@ -49,17 +40,12 @@ pub enum JustifyContent {
     SpaceEvenly,
 }
 
-impl Default for JustifyContent {
-    fn default() -> Self {
-        Self::FlexStart
-    }
-}
-
 impl Property for JustifyContent {}
 
 /// Align items (cross axis alignment for flex container).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum AlignItems {
+    #[default]
     Stretch,
     FlexStart,
     FlexEnd,
@@ -67,29 +53,18 @@ pub enum AlignItems {
     Baseline,
 }
 
-impl Default for AlignItems {
-    fn default() -> Self {
-        Self::Stretch
-    }
-}
-
 impl Property for AlignItems {}
 
 /// Align self (cross axis alignment for flex item).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum AlignSelf {
+    #[default]
     Auto,
     Stretch,
     FlexStart,
     FlexEnd,
     Center,
     Baseline,
-}
-
-impl Default for AlignSelf {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl Property for AlignSelf {}

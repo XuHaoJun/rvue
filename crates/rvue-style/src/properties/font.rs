@@ -34,23 +34,18 @@ impl Default for FontSize {
 impl Property for FontSize {}
 
 /// Font weight property.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum FontWeight {
     Thin = 100,
     ExtraLight = 200,
     Light = 300,
+    #[default]
     Normal = 400,
     Medium = 500,
     SemiBold = 600,
     Bold = 700,
     ExtraBold = 800,
     Black = 900,
-}
-
-impl Default for FontWeight {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 impl Property for FontWeight {}

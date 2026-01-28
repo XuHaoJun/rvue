@@ -1,7 +1,7 @@
 //! Property system tests.
 
 use rvue_style::{
-    BackgroundColor, Color, Display, FontSize, Height, Margin, Padding, Properties, Property, Size,
+    BackgroundColor, Color, Display, FontSize, Height, Margin, Padding, Properties, Size,
     TextColor, Width,
 };
 use rvue_style::{StyledWidget, StyledWidgetExt, WidgetStyles};
@@ -68,7 +68,7 @@ fn test_properties_contains() {
 #[test]
 fn test_color_from_hex() {
     let color = Color::from_hex("#FF0000");
-    assert!(color.is_ok());
+    assert!(color.is_some());
     let c = color.unwrap();
     assert_eq!(c.0.r, 255);
     assert_eq!(c.0.g, 0);

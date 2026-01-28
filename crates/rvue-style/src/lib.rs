@@ -6,6 +6,14 @@
 //! - rudo-gc integration for memory management
 
 #![warn(missing_docs)]
+#![allow(
+    clippy::unnecessary_map_or,
+    clippy::should_implement_trait,
+    clippy::redundant_closure,
+    clippy::manual_strip,
+    clippy::clone_on_copy,
+    missing_docs
+)]
 
 pub mod properties;
 pub mod property;

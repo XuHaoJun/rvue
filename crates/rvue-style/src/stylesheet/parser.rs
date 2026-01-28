@@ -5,7 +5,7 @@ use crate::property::Properties;
 use crate::stylesheet::rule::{StyleRule, Stylesheet};
 
 /// Parses a CSS stylesheet from a string.
-pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
+pub fn parse_stylesheet(css: &str) -> Option<Stylesheet> {
     let mut stylesheet = Stylesheet::new();
     let mut position = 0;
 
@@ -23,7 +23,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
                 position += end + 2;
                 continue;
             } else {
-                return Err(());
+                return None;
             }
         }
 
@@ -34,11 +34,11 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
         let selector = css[selector_start..position].trim();
 
         if selector.is_empty() {
-            return Err(());
+            return None;
         }
 
         if position >= css.len() || !css[position..].starts_with('{') {
-            return Err(());
+            return None;
         }
         position += 1;
 
@@ -50,7 +50,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             }
 
             if position >= css.len() {
-                return Err(());
+                return None;
             }
 
             if css[position..].starts_with('}') {
@@ -63,7 +63,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
                     position += end + 2;
                     continue;
                 } else {
-                    return Err(());
+                    return None;
                 }
             }
 
@@ -76,7 +76,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             let name = css[name_start..position].trim();
 
             if name.is_empty() {
-                return Err(());
+                return None;
             }
 
             while position < css.len() && css[position..].starts_with(|c: char| c.is_whitespace()) {
@@ -84,7 +84,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
             }
 
             if position >= css.len() || !css[position..].starts_with(':') {
-                return Err(());
+                return None;
             }
             position += 1;
 
@@ -110,7 +110,7 @@ pub fn parse_stylesheet(css: &str) -> Result<Stylesheet, ()> {
         stylesheet.add_rule(StyleRule::new(selector.to_string(), properties));
     }
 
-    Ok(stylesheet)
+    Some(stylesheet)
 }
 
 fn add_property(properties: &mut Properties, name: &str, value: &str) {
@@ -153,7 +153,7 @@ fn parse_color(value: &str) -> Option<Color> {
     let value = value.trim();
 
     if value.starts_with('#') {
-        Color::from_hex(value).ok()
+        Color::from_hex(value)
     } else if value.starts_with("rgb") {
         let value =
             value.trim_start_matches("rgb(").trim_start_matches("rgba(").trim_end_matches(')');

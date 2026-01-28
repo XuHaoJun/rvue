@@ -4,19 +4,14 @@ use crate::property::Property;
 use std::fmt;
 
 /// Size value.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum Size {
+    #[default]
     Auto,
     Pixels(f32),
     Percent(f32),
     MinContent,
     MaxContent,
-}
-
-impl Default for Size {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl Size {

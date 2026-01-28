@@ -5,7 +5,7 @@ use rvue_style::stylesheet::parser::parse_stylesheet;
 #[test]
 fn test_parse_empty_stylesheet() {
     let result = parse_stylesheet("");
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert!(stylesheet.is_empty());
 }
@@ -14,7 +14,7 @@ fn test_parse_empty_stylesheet() {
 fn test_parse_single_rule() {
     let css = "button { background-color: red; }";
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 1);
 }
@@ -27,7 +27,7 @@ fn test_parse_multiple_rules() {
         #header { font-size: 16px; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 3);
 }
@@ -41,7 +41,7 @@ fn test_parse_named_colors() {
         .black { color: black; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 4);
 }
@@ -53,7 +53,7 @@ fn test_parse_length_values() {
         .p2 { margin: 20; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn test_parse_size_values() {
         .w3 { width: 50%; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn test_parse_comments() {
         }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 1);
 }
@@ -86,7 +86,7 @@ fn test_parse_comments() {
 fn test_parse_whitespace_variations() {
     let css = "button { background-color: red; }";
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 1);
 }
@@ -104,7 +104,7 @@ fn test_parse_multiple_properties() {
         }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 1);
 }
@@ -118,7 +118,7 @@ fn test_parse_selectors() {
         button.class { }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 4);
 }
@@ -132,7 +132,7 @@ fn test_parse_optional_semicolon() {
         }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn test_parse_pseudo_class_selectors() {
         input:checked { border-color: blue; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 5);
 }
@@ -157,7 +157,7 @@ fn test_parse_complex_selectors() {
         button.primary { background-color: red; }
     "#;
     let result = parse_stylesheet(css);
-    assert!(result.is_ok());
+    assert!(result.is_some());
     let stylesheet = result.unwrap();
     assert_eq!(stylesheet.len(), 2);
 }

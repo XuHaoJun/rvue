@@ -33,15 +33,15 @@ impl Color {
         Self(RgbColor::rgb(r, g, b))
     }
 
-    pub fn from_hex(hex: &str) -> Result<Self, ()> {
+    pub fn from_hex(hex: &str) -> Option<Self> {
         let hex = hex.trim_start_matches('#');
         if hex.len() != 6 {
-            return Err(());
+            return None;
         }
-        let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| ())?;
-        let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| ())?;
-        let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| ())?;
-        Ok(Self::rgb(r, g, b))
+        let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+        Some(Self::rgb(r, g, b))
     }
 }
 

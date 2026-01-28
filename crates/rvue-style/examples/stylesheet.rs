@@ -6,7 +6,7 @@
 use rvue_style::{
     selectors::{ElementState, RvueElement},
     stylesheet::{parser::parse_stylesheet, resolver::StyleResolver, StyleRule, Stylesheet},
-    BackgroundColor, Color, Height, Padding, Properties, Property, Width,
+    BackgroundColor, Color, Height, Padding, Properties, Width,
 };
 
 fn main() {
@@ -56,7 +56,7 @@ fn main() {
     "#;
 
     match parse_stylesheet(css) {
-        Ok(stylesheet) => {
+        Some(stylesheet) => {
             println!("Parsed {} style rules:\n", stylesheet.len());
 
             // Display all parsed rules (rules() returns an iterator directly)
@@ -67,7 +67,7 @@ fn main() {
                 println!();
             }
         }
-        Err(()) => {
+        None => {
             println!("Failed to parse stylesheet");
             return;
         }

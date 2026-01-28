@@ -43,7 +43,10 @@ impl<T: Clone + 'static> ReactiveReadSignal<T> {
 }
 
 impl<T: Clone + 'static> ReactiveSignalData<T> {
-    fn notify_subscribers(&self) {}
+    fn notify_subscribers(&self) {
+        // Note: Full subscriber tracking would require T: Trace constraint
+        // For now, this is a placeholder for potential future implementation
+    }
 }
 
 #[derive(Clone)]
@@ -78,7 +81,7 @@ pub fn create_reactive_signal<T: Clone + 'static>(
     (ReactiveReadSignal { data: Gc::clone(&data) }, ReactiveWriteSignal { data })
 }
 
-pub(crate) struct StyleEffect {
+pub struct StyleEffect {
     closure: Rc<dyn Fn()>,
     is_dirty: AtomicU64,
     is_running: std::sync::atomic::AtomicBool,

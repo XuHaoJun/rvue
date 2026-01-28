@@ -98,7 +98,7 @@ impl RvueElement {
 
     /// Checks if element has a specific ID.
     pub fn has_id(&self, id: &str) -> bool {
-        self.id.as_ref().map_or(false, |i| i.eq_ignore_ascii_case(id))
+        self.id.as_ref().is_some_and(|i| i.eq_ignore_ascii_case(id))
     }
 
     /// Checks if element is in a specific state.

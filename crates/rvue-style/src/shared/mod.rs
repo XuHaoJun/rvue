@@ -30,11 +30,6 @@ impl SharedComputedStyles {
         Self::new(computed)
     }
 
-    /// Returns a reference to the underlying computed styles.
-    pub fn as_ref(&self) -> &ComputedStyles {
-        &self.0
-    }
-
     /// Gets the background color, if set.
     pub fn background_color(&self) -> Option<BackgroundColor> {
         self.0.background_color
@@ -187,7 +182,7 @@ pub struct WeakSharedComputedStyles(Weak<ComputedStyles>);
 impl WeakSharedComputedStyles {
     /// Attempts to upgrade the weak reference to a strong one.
     pub fn upgrade(&self) -> Option<SharedComputedStyles> {
-        self.0.upgrade().map(|gc| SharedComputedStyles(gc))
+        self.0.upgrade().map(SharedComputedStyles)
     }
 
     /// Returns true if the strong count is zero.
