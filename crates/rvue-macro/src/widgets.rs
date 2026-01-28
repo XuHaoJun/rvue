@@ -253,7 +253,7 @@ fn generate_show_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             rvue::widgets::Show::new(#when, |_ctx: &mut BuildContext| {
                 let flex = rvue::widgets::Flex::new();
                 let state = flex.build(_ctx);
-                state.component().clone()
+                rvue::Gc::clone(state.component())
             })
         }
     }

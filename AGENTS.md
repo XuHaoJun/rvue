@@ -153,3 +153,10 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - Tests run single-threaded (`[test] threads = 1`)
 - Minimum Rust version: 1.75 (from `clippy.toml`)
 - Project is in MVP stage - expect evolving APIs
+
+## Active Technologies
+- Rust 2021 Edition (minimum 1.75+) + `selectors = "0.35"` (Stylo), `cssparser = "0.36"`, `bitflags = "2"`, `rudo-gc` (001-style-system)
+- N/A (in-memory style computation) (001-style-system)
+
+## Recent Changes
+- 001-style-system: Added Rust 2021 Edition (minimum 1.75+) + `selectors = "0.35"` (Stylo), `cssparser = "0.36"`, `bitflags = "2"`, `rudo-gc`

@@ -275,6 +275,12 @@ impl Component {
 
     /// Add a child component
     pub fn add_child(&self, child: Gc<Component>) {
+        // Prevent infinite recursion from component adding itself
+        // This can happen if Component::clone() is used instead of Gc::clone()
+        if std::ptr::eq(&*child, self) {
+            // Silently ignore self-addition to prevent infinite recursion
+            return;
+        }
         self.children.borrow_mut().push(Gc::clone(&child));
     }
 
