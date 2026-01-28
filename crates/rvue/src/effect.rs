@@ -1,7 +1,7 @@
 //! Reactive effect implementation for automatic dependency tracking
 
 use crate::component::Component;
-use crate::signal::SignalData;
+use crate::signal::SignalDataInner;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -71,11 +71,11 @@ unsafe impl Trace for Effect {
             }
 
             // Trace the signal data using conservative scanning
-            // SAFETY: The pointer is a valid SignalData pointer that was stored when
+            // SAFETY: The pointer is a valid SignalDataInner pointer that was stored when
             // the effect subscribed to the signal.
             unsafe {
                 let signal_ptr_u8 = *signal_ptr as *const u8;
-                let size = std::mem::size_of::<SignalData<()>>();
+                let size = std::mem::size_of::<SignalDataInner<()>>();
                 visitor.visit_region(signal_ptr_u8, size);
             }
         }
@@ -204,7 +204,7 @@ impl Effect {
     fn unsubscribe_all(&self) {
         let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut());
         for (signal_ptr, weak_effect) in subscriptions {
-            SignalData::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
+            SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
         }
     }
 }

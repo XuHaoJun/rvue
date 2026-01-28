@@ -2436,6 +2436,7 @@ dependencies = [
  "rudo-gc",
  "rustc-hash 2.1.1",
  "rvue-macro",
+ "rvue-signals",
  "smallvec",
  "taffy",
  "thiserror 2.0.17",
@@ -2462,12 +2463,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rvue-signals"
+version = "0.1.0"
+dependencies = [
+ "rudo-gc",
+]
+
+[[package]]
 name = "rvue-style"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.10.0",
  "cssparser",
  "rudo-gc",
+ "rvue-signals",
  "selectors",
 ]
 

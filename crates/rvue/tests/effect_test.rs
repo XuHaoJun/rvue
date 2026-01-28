@@ -1,6 +1,6 @@
 //! Unit tests for Effect implementation
 
-use rvue::{create_effect, create_signal, Effect, SignalRead, SignalWrite};
+use rvue::{create_effect, create_signal, Effect};
 use std::cell::Cell;
 use std::rc::Rc;
 

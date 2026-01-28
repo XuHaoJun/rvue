@@ -17,6 +17,9 @@ bitflags = "2"
 # GC for memory management
 rudo-gc = "0.2"
 
+# Shared signal types
+rvue-signals = { path = "../rvue-signals" }
+
 [dev-dependencies]
 # Add dev dependencies as needed
 

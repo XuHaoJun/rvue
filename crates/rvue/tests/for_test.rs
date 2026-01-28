@@ -1,6 +1,6 @@
 //! Integration test for For component
 
-use rvue::{create_signal, SignalRead, SignalWrite};
+use rvue::create_signal;
 use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]

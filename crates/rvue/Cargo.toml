@@ -9,6 +9,7 @@ repository = "https://github.com/your-org/rvue"
 
 [dependencies]
 rudo-gc = "0.2"
+rvue-signals = { path = "../rvue-signals" }
 vello = "0.7"
 wgpu = "27"
 winit = "0.30"

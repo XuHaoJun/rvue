@@ -1,6 +1,6 @@
 //! Unit tests for Signal implementation
 
-use rvue::{create_signal, SignalRead, SignalWrite};
+use rvue::create_signal;
 
 #[test]
 fn test_create_signal() {

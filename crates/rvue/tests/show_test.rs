@@ -1,6 +1,6 @@
 //! Integration test for Show component
 
-use rvue::{create_signal, ComponentLifecycle, SignalRead, SignalWrite};
+use rvue::{create_signal, ComponentLifecycle};
 use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]

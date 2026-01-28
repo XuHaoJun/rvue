@@ -1,7 +1,6 @@
 //! Reactive style signal types
 //!
-//! This module provides types for reactive styling that can work with
-//! rvue's signal system or be used standalone.
+//! This module provides types for reactive styling built on top of rvue-signals core types.
 
 use crate::properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
@@ -10,6 +9,7 @@ use crate::properties::{
     TextColor, Visibility, Width, ZIndex,
 };
 use rudo_gc::{Gc, GcCell, Trace};
+use rvue_signals::{create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,67 +18,13 @@ thread_local! {
     static CURRENT_STYLE_EFFECT: RefCell<Option<Gc<StyleEffect>>> = const { RefCell::new(None) };
 }
 
-struct ReactiveSignalData<T: Clone + 'static> {
-    value: GcCell<T>,
-    version: AtomicU64,
-}
-
-unsafe impl<T: Clone + 'static> Trace for ReactiveSignalData<T> {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
-}
-
-#[derive(Clone)]
-pub struct ReactiveReadSignal<T: Clone + 'static> {
-    data: Gc<ReactiveSignalData<T>>,
-}
-
-impl<T: Clone + 'static> ReactiveReadSignal<T> {
-    pub fn get(&self) -> T {
-        self.data.value.borrow().clone()
-    }
-
-    pub fn get_untracked(&self) -> T {
-        self.data.value.borrow().clone()
-    }
-}
-
-impl<T: Clone + 'static> ReactiveSignalData<T> {
-    fn notify_subscribers(&self) {
-        // Note: Full subscriber tracking would require T: Trace constraint
-        // For now, this is a placeholder for potential future implementation
-    }
-}
-
-#[derive(Clone)]
-pub struct ReactiveWriteSignal<T: Clone + 'static> {
-    data: Gc<ReactiveSignalData<T>>,
-}
-
-impl<T: Clone + 'static> ReactiveWriteSignal<T> {
-    pub fn set(&self, value: T) {
-        *self.data.value.borrow_mut() = value;
-        self.data.version.fetch_add(1, Ordering::SeqCst);
-        self.data.notify_subscribers();
-    }
-
-    pub fn update<F>(&self, f: F)
-    where
-        F: FnOnce(&mut T),
-    {
-        f(&mut *self.data.value.borrow_mut());
-        self.data.version.fetch_add(1, Ordering::SeqCst);
-        self.data.notify_subscribers();
-    }
-}
+pub type ReactiveReadSignal<T> = ReadSignal<T>;
+pub type ReactiveWriteSignal<T> = WriteSignal<T>;
 
 pub fn create_reactive_signal<T: Clone + 'static>(
     initial_value: T,
 ) -> (ReactiveReadSignal<T>, ReactiveWriteSignal<T>) {
-    let data = Gc::new(ReactiveSignalData {
-        value: GcCell::new(initial_value),
-        version: AtomicU64::new(0),
-    });
-    (ReactiveReadSignal { data: Gc::clone(&data) }, ReactiveWriteSignal { data })
+    create_signal(initial_value)
 }
 
 pub struct StyleEffect {
@@ -171,26 +117,24 @@ pub trait ReactiveSignalWrite<T: Clone + 'static> {
 
 impl<T: Clone + 'static> ReactiveSignal<T> for ReactiveReadSignal<T> {
     fn get(&self) -> T {
-        self.data.value.borrow().clone()
+        SignalRead::get(self)
     }
 
     fn get_untracked(&self) -> T {
-        self.data.value.borrow().clone()
+        SignalRead::get_untracked(self)
     }
 }
 
 impl<T: Clone + 'static> ReactiveSignalWrite<T> for ReactiveWriteSignal<T> {
     fn set(&self, value: T) {
-        *self.data.value.borrow_mut() = value;
-        self.data.version.fetch_add(1, Ordering::SeqCst);
+        SignalWrite::set(self, value);
     }
 
     fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.value.borrow_mut());
-        self.data.version.fetch_add(1, Ordering::SeqCst);
+        SignalWrite::update(self, f);
     }
 }
 

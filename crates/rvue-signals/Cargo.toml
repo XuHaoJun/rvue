@@ -1,0 +1,10 @@
+[package]
+name = "rvue-signals"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core signal types for Rvue reactive system"
+
+[dependencies]
+rudo-gc = { workspace = true }

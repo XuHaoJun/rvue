@@ -5,7 +5,6 @@ use std::cell::RefCell;
 use rvue::{
     component::Component,
     event::{status::FocusEvent, types::PointerButton},
-    signal::SignalWrite,
     ComponentProps, ComponentType,
 };
 

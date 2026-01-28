@@ -1,5 +1,5 @@
 use rudo_gc::{Gc, Trace};
-use rvue::{create_effect, create_signal, on_cleanup, SignalRead, SignalWrite};
+use rvue::{create_effect, create_signal, on_cleanup};
 use std::cell::Cell;
 
 // A simple structure to track if it has been dropped
