@@ -11,6 +11,7 @@ pub mod properties;
 pub mod property;
 pub mod reactive;
 pub mod selectors;
+pub mod shared;
 pub mod stylesheet;
 pub mod widget;
 
@@ -26,5 +27,10 @@ pub use reactive::{
     ReactiveReadSignal, ReactiveSignal, ReactiveSignalWrite, ReactiveStyles,
 };
 pub use selectors::{ElementState, RvueElement};
+pub use shared::{
+    shared_background_color, shared_centered_flex, shared_flex_container, shared_margin,
+    shared_padding, shared_text_color, SharedComputedStyles, SharedStyleBuilder,
+    WeakSharedComputedStyles,
+};
 pub use stylesheet::{StyleResolver, StyleRule, Stylesheet};
 pub use widget::{StyledWidget, StyledWidgetExt, WidgetStyles};

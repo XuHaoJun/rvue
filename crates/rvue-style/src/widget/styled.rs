@@ -7,7 +7,6 @@ use crate::properties::{
 };
 use crate::property::{Properties, Property};
 use rudo_gc::{Gc, Trace};
-use std::marker::PhantomData;
 
 /// Extension trait for adding styles to widgets.
 ///
@@ -368,20 +367,4 @@ impl WidgetStyles {
 
 unsafe impl Trace for WidgetStyles {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
-}
-
-/// Helper type for widgets that support styling.
-///
-/// This struct wraps a widget and provides access to its properties
-/// through the `StyledWidget` trait.
-pub struct StyledWidgetWrapper<'a, W> {
-    widget: &'a mut W,
-    _marker: PhantomData<W>,
-}
-
-impl<'a, W> StyledWidgetWrapper<'a, W> {
-    /// Creates a new styled widget wrapper.
-    pub fn new(widget: &'a mut W) -> Self {
-        Self { widget, _marker: PhantomData }
-    }
 }

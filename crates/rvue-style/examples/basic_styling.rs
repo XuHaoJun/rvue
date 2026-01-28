@@ -1,9 +1,8 @@
 //! Basic styling example for rvue-style.
 
 use rvue_style::{
-    selectors::ElementState,
-    stylesheet::{parser::parse_stylesheet, Stylesheet},
-    BackgroundColor, Color, Height, Margin, Padding, Properties, Property, Width,
+    selectors::ElementState, stylesheet::parser::parse_stylesheet, Color, Height, Margin, Padding,
+    Properties, Width,
 };
 
 fn main() {

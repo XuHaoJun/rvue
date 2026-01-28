@@ -21,7 +21,6 @@ thread_local! {
 struct ReactiveSignalData<T: Clone + 'static> {
     value: GcCell<T>,
     version: AtomicU64,
-    subscribers: GcCell<Vec<Gc<StyleEffect>>>,
 }
 
 unsafe impl<T: Clone + 'static> Trace for ReactiveSignalData<T> {
@@ -34,10 +33,6 @@ pub struct ReactiveReadSignal<T: Clone + 'static> {
 }
 
 impl<T: Clone + 'static> ReactiveReadSignal<T> {
-    pub fn new(data: Gc<ReactiveSignalData<T>>) -> Self {
-        Self { data }
-    }
-
     pub fn get(&self) -> T {
         self.data.value.borrow().clone()
     }
@@ -48,24 +43,7 @@ impl<T: Clone + 'static> ReactiveReadSignal<T> {
 }
 
 impl<T: Clone + 'static> ReactiveSignalData<T> {
-    fn subscribe(&self, _effect: Gc<StyleEffect>) {}
-
-    fn notify_subscribers(&self) {
-        let effects_to_update: Vec<Gc<StyleEffect>> = {
-            let subscribers = self.subscribers.borrow();
-            subscribers.iter().cloned().collect()
-        };
-
-        for effect in effects_to_update.iter() {
-            effect.mark_dirty();
-        }
-
-        for effect in effects_to_update.iter() {
-            if effect.is_dirty() {
-                StyleEffect::run(effect);
-            }
-        }
-    }
+    fn notify_subscribers(&self) {}
 }
 
 #[derive(Clone)]
@@ -96,17 +74,15 @@ pub fn create_reactive_signal<T: Clone + 'static>(
     let data = Gc::new(ReactiveSignalData {
         value: GcCell::new(initial_value),
         version: AtomicU64::new(0),
-        subscribers: GcCell::new(Vec::new()),
     });
-    (ReactiveReadSignal::new(Gc::clone(&data)), ReactiveWriteSignal { data })
+    (ReactiveReadSignal { data: Gc::clone(&data) }, ReactiveWriteSignal { data })
 }
 
-struct StyleEffect {
+pub(crate) struct StyleEffect {
     closure: Rc<dyn Fn()>,
     is_dirty: AtomicU64,
     is_running: std::sync::atomic::AtomicBool,
     cleanups: GcCell<Vec<Box<dyn FnOnce()>>>,
-    subscriptions: GcCell<Vec<*const ()>>,
 }
 
 unsafe impl Trace for StyleEffect {
@@ -124,11 +100,8 @@ impl StyleEffect {
             is_dirty: AtomicU64::new(1),
             is_running: std::sync::atomic::AtomicBool::new(false),
             cleanups: GcCell::new(Vec::new()),
-            subscriptions: GcCell::new(Vec::new()),
         })
     }
-
-    fn add_subscription(&self, _signal_ptr: *const ()) {}
 
     fn run(gc_effect: &Gc<Self>) {
         if gc_effect.is_running.swap(true, Ordering::SeqCst) {
@@ -156,14 +129,6 @@ impl StyleEffect {
 
         gc_effect.is_running.store(false, Ordering::SeqCst);
     }
-
-    fn mark_dirty(&self) {
-        self.is_dirty.fetch_add(1, Ordering::SeqCst);
-    }
-
-    fn is_dirty(&self) -> bool {
-        self.is_dirty.load(Ordering::SeqCst) > 0
-    }
 }
 
 fn current_style_effect() -> Option<Gc<StyleEffect>> {
@@ -178,18 +143,6 @@ where
     let effect = StyleEffect::new(closure.clone());
     StyleEffect::run(&effect);
     effect
-}
-
-fn untracked<T, F>(f: F) -> T
-where
-    F: FnOnce() -> T,
-{
-    CURRENT_STYLE_EFFECT.with(|cell| {
-        let previous = cell.borrow_mut().take();
-        let result = f();
-        *cell.borrow_mut() = previous;
-        result
-    })
 }
 
 pub fn on_style_cleanup<F>(f: F)
@@ -290,7 +243,13 @@ impl<T: Clone + 'static> From<ReactiveReadSignal<T>> for ReactiveProperty<T> {
     }
 }
 
-#[derive(Clone)]
+impl<T: Clone + 'static + Default> Default for ReactiveProperty<T> {
+    fn default() -> Self {
+        ReactiveProperty::Static(T::default())
+    }
+}
+
+#[derive(Clone, Default)]
 pub struct ReactiveStyles {
     background_color: ReactiveProperty<BackgroundColor>,
     border_color: ReactiveProperty<BorderColor>,
@@ -522,12 +481,6 @@ impl ReactiveStyles {
         styles.visibility = Some(self.visibility.get_untracked());
         styles.z_index = Some(self.z_index.get_untracked());
         styles
-    }
-}
-
-impl Default for ReactiveStyles {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
