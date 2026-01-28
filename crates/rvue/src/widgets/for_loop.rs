@@ -171,12 +171,12 @@ where
                         Some(crate::widgets::keyed_state::ItemEntry {
                             key: key.clone(),
                             item: item.clone(),
-                            component: child_component.clone(),
+                            component: Gc::clone(&child_component),
                             mounted: false,
                         });
                     child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                     child_component.mount(None);
-                    keyed_state.marker.add_child(child_component.clone());
+                    keyed_state.marker.add_child(Gc::clone(&child_component));
                 }
             }
 
@@ -284,13 +284,13 @@ where
             keyed_state.rendered_items.push(Some(crate::widgets::keyed_state::ItemEntry {
                 key: key.clone(),
                 item: item.clone(),
-                component: child_component.clone(),
+                component: Gc::clone(&child_component),
                 mounted: false,
             }));
 
             child_component.set_parent(Some(Gc::clone(&component)));
             child_component.mount(None);
-            component.add_child(child_component.clone());
+            component.add_child(Gc::clone(&child_component));
         }
 
         let keyed_state_gc = GcCell::new(keyed_state);

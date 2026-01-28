@@ -10,6 +10,8 @@ members = [
     "crates/rvue-examples/benchmark",
     "crates/rvue-examples/form",
     "crates/rvue-examples/slots",
+    "crates/rvue-examples/styles",
+    "crates/rvue-examples/minimal-test",
 ]
 resolver = "2"
 

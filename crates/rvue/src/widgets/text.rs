@@ -84,7 +84,7 @@ impl Widget for Text {
             id,
             ComponentType::Text,
             ComponentProps::Text {
-                content: initial_content,
+                content: initial_content.clone(),
                 font_size: self.font_size,
                 color: self.color,
             },

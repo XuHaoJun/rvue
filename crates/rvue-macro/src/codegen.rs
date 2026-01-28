@@ -26,6 +26,7 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
             use rvue::widget::{BuildContext, Widget, get_current_ctx};
             use rvue::text::TextContext;
             use rvue::TaffyTree;
+            use rvue::Gc;
 
             let mut taffy = TaffyTree::new();
             let mut id_counter: u64 = if let Some(ptr) = get_current_ctx() {
@@ -53,7 +54,7 @@ fn generate_empty_component(ctx_ident: &Ident) -> TokenStream {
         {
             let widget = rvue::widgets::Flex::new();
             let state = widget.build(&mut #ctx_ident);
-            state.component().clone()
+            Gc::clone(state.component())
         }
     }
 }
@@ -110,7 +111,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                         rvue::component::ComponentProps::Custom { data: String::new() }
                     );
 
-                    let view = rvue::runtime::with_owner(#component_ident.clone(), || #widget_name(props));
+                    let view = rvue::runtime::with_owner(rvue::Gc::clone(&#component_ident), || #widget_name(props));
 
                     let inner_comp = rvue::prelude::View::into_component(view);
                     #component_ident.add_child(inner_comp);
@@ -143,7 +144,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                 .unwrap_or_else(|| quote! { false });
 
             let children_code = if el.children.is_empty() {
-                quote! { |_ctx: &mut BuildContext| rvue::ViewStruct::new(rvue::widgets::Flex::new().build(_ctx).component().clone()) }
+                quote! { |_ctx: &mut BuildContext| { let state = rvue::widgets::Flex::new().build(_ctx); rvue::ViewStruct::new(rvue::Gc::clone(state.component())) } }
             } else {
                 let child_code = generate_children_code_for_show(&el.children);
                 quote! { |ctx: &mut BuildContext| { #child_code } }
@@ -155,7 +156,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                 {
                     let widget = rvue::widgets::Show::new(#when_value, #children_code);
                     let state = widget.build(&mut ctx);
-                    let #component_ident = state.component().clone();
+                    let #component_ident = Gc::clone(state.component());
 
                     #events_code
 
@@ -175,7 +176,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
                 {
                     let widget = #widget_code;
                     let state = widget.build(&mut #ctx_ident);
-                    let #component_ident = state.component().clone();
+                    let #component_ident = Gc::clone(state.component());
 
                     #children_code
                     #events_code
@@ -206,7 +207,7 @@ fn generate_slot_injection(slot_attrs: &[&RvueAttribute], component_ident: &Iden
             quote! {
                 {
                     let #slot_var = rvue::slot::ToChildren::to_children(move || {
-                        rvue::runtime::with_owner(#component_ident.clone(), || #content)
+                        rvue::runtime::with_owner(rvue::Gc::clone(&#component_ident), || #content)
                     });
                     let slot_view = #slot_var.run();
                     let inner_comp = rvue::prelude::View::into_component(slot_view);
@@ -246,7 +247,7 @@ fn generate_text_node_code(text: &RvueText, ctx_ident: &Ident) -> TokenStream {
         {
             let widget = rvue::widgets::Text::new(#content.to_string());
             let state = widget.build(&mut #ctx_ident);
-            state.component().clone()
+            rvue::Gc::clone(state.component())
         }
     }
 }
@@ -260,7 +261,7 @@ fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> Token
                 {
                     let widget = rvue::widgets::Text::new((#expr).to_string());
                     let state = widget.build(&mut #ctx_ident);
-                    state.component().clone()
+                    Gc::clone(state.component())
                 }
             }
         }
@@ -271,7 +272,7 @@ fn generate_block_node_code(expr: &Expr, span: Span, ctx_ident: &Ident) -> Token
                     // The widget will call .get() internally when building
                     let widget = rvue::widgets::Text::new(#expr);
                     let state = widget.build(&mut #ctx_ident);
-                    state.component().clone()
+                    Gc::clone(state.component())
                 }
             }
         }
@@ -303,7 +304,7 @@ fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStrea
                         .align_items(rvue::style::AlignItems::Start)
                         .justify_content(rvue::style::JustifyContent::Start);
                     let root_state = root_widget.build(&mut #ctx_ident);
-                    let #root_id = root_state.component().clone();
+                    let #root_id = Gc::clone(root_state.component());
 
                     #children_code
 
@@ -420,7 +421,7 @@ fn generate_element_code_for_show(el: &RvueElement) -> TokenStream {
         {
             let widget = #widget_code;
             let state = widget.build(ctx);
-            let child = state.component().clone();
+            let child = Gc::clone(state.component());
 
             #events_code
 
@@ -436,7 +437,7 @@ fn generate_text_node_code_for_show(text: &RvueText) -> TokenStream {
         {
             let widget = rvue::widgets::Text::new(#content.to_string());
             let state = widget.build(ctx);
-            state.component().clone()
+            Gc::clone(state.component())
         }
     }
 }
@@ -450,7 +451,7 @@ fn generate_block_node_code_for_show(expr: &Expr, span: Span) -> TokenStream {
                 {
                     let widget = rvue::widgets::Text::new((#expr).to_string());
                     let state = widget.build(ctx);
-                    state.component().clone()
+                    Gc::clone(state.component())
                 }
             }
         }
@@ -459,7 +460,7 @@ fn generate_block_node_code_for_show(expr: &Expr, span: Span) -> TokenStream {
                 {
                     let widget = rvue::widgets::Text::new(#expr);
                     let state = widget.build(ctx);
-                    state.component().clone()
+                    Gc::clone(state.component())
                 }
             }
         }

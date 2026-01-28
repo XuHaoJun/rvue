@@ -1,0 +1,10 @@
+[package]
+name = "styles-example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+rvue = { path = "../../rvue" }
+rvue-macro = { path = "../../rvue-macro" }

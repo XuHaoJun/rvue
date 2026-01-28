@@ -578,12 +578,16 @@ pub fn run_app<F>(view_fn: F) -> Result<(), AppError>
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
+    eprintln!("[run_app] 1");
     let view = view_fn();
+    eprintln!("[run_app] 2");
 
     let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    eprintln!("[run_app] 3");
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
+    eprintln!("[run_app] 4");
 
     event_loop
         .run_app(&mut app_state)
