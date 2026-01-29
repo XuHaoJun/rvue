@@ -25,9 +25,146 @@ pub type ComponentId = u64;
 
 pub struct ContextEntry {
     pub type_id: TypeId,
-    pub value: Box<dyn std::any::Any>,
-    pub gc_ptr: *const u8,
-    pub gc_size: usize,
+    pub value: ContextValueEnum,
+}
+
+unsafe impl Trace for ContextEntry {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.value.trace(visitor);
+    }
+}
+
+#[derive(Clone)]
+pub enum ContextValueEnum {
+    I32(Gc<i32>),
+    I64(Gc<i64>),
+    F64(Gc<f64>),
+    Bool(Gc<bool>),
+    GcString(Gc<String>),
+    GcVecString(Gc<Vec<String>>),
+}
+
+impl ContextValueEnum {
+    pub fn from_value<T: Clone + 'static>(value: T) -> Self
+    where
+        T: Trace,
+    {
+        let type_id = TypeId::of::<T>();
+        let gc = Gc::new(value);
+        let ptr = Gc::internal_ptr(&gc);
+        unsafe {
+            std::mem::forget(gc);
+        }
+        if type_id == TypeId::of::<i32>() {
+            let gc_i32: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+            return Self::I32(gc_i32);
+        }
+        if type_id == TypeId::of::<i64>() {
+            let gc_i64: Gc<i64> = unsafe { Gc::from_raw(ptr) };
+            return Self::I64(gc_i64);
+        }
+        if type_id == TypeId::of::<f64>() {
+            let gc_f64: Gc<f64> = unsafe { Gc::from_raw(ptr) };
+            return Self::F64(gc_f64);
+        }
+        if type_id == TypeId::of::<bool>() {
+            let gc_bool: Gc<bool> = unsafe { Gc::from_raw(ptr) };
+            return Self::Bool(gc_bool);
+        }
+        if type_id == TypeId::of::<String>() {
+            let gc_string: Gc<String> = unsafe { Gc::from_raw(ptr) };
+            return Self::GcString(gc_string);
+        }
+        if type_id == TypeId::of::<Vec<String>>() {
+            let gc_vec: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
+            return Self::GcVecString(gc_vec);
+        }
+        panic!("Unsupported context type");
+    }
+
+    pub fn to_gc<T: 'static>(&self) -> Option<Gc<T>>
+    where
+        T: Trace,
+    {
+        match self {
+            ContextValueEnum::I32(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<i32>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::I64(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<i64>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::F64(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<f64>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::Bool(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<bool>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::GcString(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<String>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::GcVecString(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<Vec<String>>() {
+                    let clone = Gc::clone(gc);
+                    let ptr = Gc::internal_ptr(&clone);
+                    Some(unsafe { Gc::from_raw(ptr) })
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+struct Tracer;
+
+impl rudo_gc::Visitor for Tracer {
+    fn visit<U: rudo_gc::Trace>(&mut self, _gc: &rudo_gc::Gc<U>) {
+        // Just mark the GC as visited - don't recursively trace
+    }
+    unsafe fn visit_region(&mut self, _ptr: *const u8, _len: usize) {}
+}
+
+unsafe impl Trace for ContextValueEnum {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        match self {
+            ContextValueEnum::I32(gc) => gc.trace(visitor),
+            ContextValueEnum::I64(gc) => gc.trace(visitor),
+            ContextValueEnum::F64(gc) => gc.trace(visitor),
+            ContextValueEnum::Bool(gc) => gc.trace(visitor),
+            ContextValueEnum::GcString(gc) => gc.trace(visitor),
+            ContextValueEnum::GcVecString(gc) => gc.trace(visitor),
+        }
+    }
 }
 
 /// Wrapper for vello::Scene to implement Trace
@@ -113,7 +250,6 @@ pub struct Component {
     pub event_handlers: GcCell<EventHandlers>,
     pub vello_cache: GcCell<Option<SceneWrapper>>,
     pub contexts: GcCell<Vec<ContextEntry>>,
-    pub context_gc_ptrs: GcCell<Vec<*const u8>>,
     pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
 }
 
@@ -135,14 +271,8 @@ unsafe impl Trace for Component {
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
-        // Trace context values by conservatively scanning the GcBox region
-        for entry in self.contexts.borrow().iter() {
-            if !entry.gc_ptr.is_null() && entry.gc_size > 0 {
-                unsafe {
-                    visitor.visit_region(entry.gc_ptr, entry.gc_size);
-                }
-            }
-        }
+        // Trace context values by directly visiting Gc pointers
+        self.contexts.trace(visitor);
     }
 }
 
@@ -169,7 +299,6 @@ impl Clone for Component {
             event_handlers: GcCell::new(self.event_handlers.borrow().clone()),
             vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
             contexts: GcCell::new(Vec::new()),
-            context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
         }
     }
@@ -231,7 +360,6 @@ impl Component {
             event_handlers: GcCell::new(EventHandlers::default()),
             vello_cache: GcCell::new(None),
             contexts: GcCell::new(Vec::new()),
-            context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
         })
     }
@@ -913,28 +1041,26 @@ impl Component {
     }
 
     /// Provide context to this component and its descendants
-    pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
-        let gc_value: Gc<T> = Gc::new(value);
-        let gc_ptr = Gc::internal_ptr(&gc_value);
-        self.contexts.borrow_mut().push(ContextEntry {
-            type_id: TypeId::of::<T>(),
-            value: Box::new(gc_value),
-            gc_ptr,
-            // Use the size of the GcBox allocation for conservative scanning
-            // GcBox<T> has a minimum size that includes the header plus T
-            gc_size: std::mem::size_of::<Gc<T>>(),
-        });
-        self.context_gc_ptrs.borrow_mut().push(gc_ptr);
+    pub fn provide_context<T: Clone + 'static>(&self, value: T)
+    where
+        T: Trace,
+    {
+        let type_id = TypeId::of::<T>();
+        let context_value = ContextValueEnum::from_value(value);
+        self.contexts.borrow_mut().push(ContextEntry { type_id, value: context_value });
     }
 
     /// Find context of type T in this component or its ancestors
-    pub fn find_context<T: Any + Trace>(&self) -> Option<Gc<T>> {
+    pub fn find_context<T: 'static>(&self) -> Option<Gc<T>>
+    where
+        T: Trace + Clone,
+    {
         let type_id = TypeId::of::<T>();
         let contexts = self.contexts.borrow();
         for entry in contexts.iter().rev() {
             if entry.type_id == type_id {
-                if let Some(gc_val) = entry.value.downcast_ref::<Gc<T>>() {
-                    return Some(Gc::clone(gc_val));
+                if let Some(value) = entry.value.to_gc::<T>() {
+                    return Some(value);
                 }
             }
         }

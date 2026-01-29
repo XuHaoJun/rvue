@@ -3,8 +3,16 @@ use rvue::context::{inject, provide_context};
 use rvue::prelude::*;
 use rvue::{text::TextContext, widget::BuildContext, TaffyTree};
 
+fn aggressive_gc_cleanup() {
+    for _ in 0..5 {
+        collect_full();
+    }
+}
+
 #[test]
 fn test_context_trace_size_correct() {
+    aggressive_gc_cleanup();
+
     use std::mem::size_of;
 
     let gc_i32 = Gc::new(42i32);
@@ -20,10 +28,16 @@ fn test_context_trace_size_correct() {
 
     assert!(!gc_string_ptr.is_null());
     assert!(gc_string_size >= gc_size, "Gc<String> should be >= Gc<i32> size");
+
+    drop(gc_i32);
+    drop(gc_string);
+    aggressive_gc_cleanup();
 }
 
 #[test]
 fn test_context_gc_on_unmount_with_i32() {
+    aggressive_gc_cleanup();
+
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
     let mut id_counter = 0u64;
@@ -57,16 +71,20 @@ fn test_context_gc_on_unmount_with_i32() {
     });
 
     assert!(injected_value.is_some(), "Context should be available");
-    assert_eq!(*injected_value.unwrap(), 42);
+    let value = **injected_value.as_ref().unwrap();
+    assert_eq!(value, 42);
 
+    drop(injected_value);
     drop(root);
     drop(child_comp);
 
-    collect_full();
+    aggressive_gc_cleanup();
 }
 
 #[test]
 fn test_context_nested_injection() {
+    aggressive_gc_cleanup();
+
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
     let mut id_counter = 0u64;
@@ -118,5 +136,5 @@ fn test_context_nested_injection() {
     drop(mid_comp);
     drop(root);
 
-    collect_full();
+    aggressive_gc_cleanup();
 }
