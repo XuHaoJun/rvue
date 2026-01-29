@@ -29,7 +29,7 @@ pub use properties::{
     FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding, Size,
     TextColor, Visibility, Width, ZIndex,
 };
-pub use property::{Properties, Property};
+pub use property::{Properties, Property, StyleStore};
 pub use reactive::{
     create_reactive_signal, create_style_effect, on_style_cleanup, ReactiveProperty,
     ReactiveReadSignal, ReactiveSignal, ReactiveSignalWrite, ReactiveStyles,
@@ -41,4 +41,5 @@ pub use shared::{
     WeakSharedComputedStyles,
 };
 pub use stylesheet::{StyleResolver, StyleRule, Stylesheet};
-pub use widget::{StyledWidget, StyledWidgetExt, WidgetStyles};
+pub use widget::styled::{StyleData, WidgetStyles};
+pub use widget::{StyledWidget, StyledWidgetExt};

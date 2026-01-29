@@ -485,10 +485,10 @@ pub fn shared_centered_flex() -> SharedComputedStyles {
         .build()
 }
 
-/// Converts a WidgetStyles into SharedComputedStyles.
-impl From<&crate::widget::WidgetStyles> for SharedComputedStyles {
-    fn from(widget_styles: &crate::widget::WidgetStyles) -> Self {
-        let props = widget_styles.to_properties();
+/// Converts a StyleData into SharedComputedStyles.
+impl From<&crate::widget::StyleData> for SharedComputedStyles {
+    fn from(style_data: &crate::widget::StyleData) -> Self {
+        let props: crate::Properties = style_data.clone().into();
         Self::from_properties(&props)
     }
 }

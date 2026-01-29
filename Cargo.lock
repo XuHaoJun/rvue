@@ -1498,14 +1498,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-test"
-version = "0.1.0"
-dependencies = [
- "rvue",
- "rvue-macro",
-]
-
-[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2353,9 +2345,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.2.3"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e2cccea09284b5384a792fe0d06ca5e84fe8dd9f6c1264a06cbb87058d5493"
+checksum = "a78bdf0b2e864886695db9107db367796b7fd21580a06da4dcb5826a985d0342"
 dependencies = [
  "libc",
  "rudo-gc-derive",
@@ -2365,9 +2357,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc-derive"
-version = "0.2.2"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d153c0018e89289df8ed1fd09674f72b0d364badda3a4312679946c812282d39"
+checksum = "477da027d80dcf6081d4536cd640fc610de784aa1e1007f9847eb464cc5e9670"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2818,9 +2810,9 @@ dependencies = [
 
 [[package]]
 name = "sys_alloc"
-version = "0.2.2"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50c819dcc26ece384e0aaeab7918a99a718b3e8964af4783739a1a7320da5623"
+checksum = "b89caea18ee293265db2beee1bab90f03c9d4ffa038e0682402e2dcf675114a4"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",

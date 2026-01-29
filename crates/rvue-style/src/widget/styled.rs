@@ -1,11 +1,12 @@
 //! Type-safe widget styling extension.
 
 use crate::properties::{
-    AlignItems, BackgroundColor, BorderColor, BorderRadius, BorderWidth, Color, Cursor, Display,
-    FlexDirection, FontSize, Gap, Height, JustifyContent, Margin, Opacity, Padding, TextColor,
-    Visibility, Width, ZIndex,
+    AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
+    Color, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize,
+    FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding, Size, TextColor, Visibility,
+    Width, ZIndex,
 };
-use crate::property::{Properties, Property};
+use crate::property::{Properties, Property, StyleStore};
 use rudo_gc::{Gc, Trace};
 
 /// Extension trait for adding styles to widgets.
@@ -149,222 +150,389 @@ pub trait StyledWidget {
     fn set_style(&mut self, properties: Properties);
 }
 
-/// Shared styles that can be efficiently shared across multiple widgets.
+/// Unified style storage with zero-cost property access.
 ///
-/// Using `Gc<WidgetStyles>` allows multiple widgets to reference the same
-/// style definition without copying.
-#[derive(Debug, Default)]
-pub struct WidgetStyles {
-    background_color: Option<BackgroundColor>,
-    color: Option<TextColor>,
-    padding: Option<Padding>,
-    margin: Option<Margin>,
-    font_size: Option<FontSize>,
-    width: Option<Width>,
-    height: Option<Height>,
-    display: Option<Display>,
-    flex_direction: Option<FlexDirection>,
-    justify_content: Option<JustifyContent>,
-    align_items: Option<AlignItems>,
-    border_color: Option<BorderColor>,
-    border_width: Option<BorderWidth>,
-    border_radius: Option<BorderRadius>,
-    opacity: Option<Opacity>,
-    visibility: Option<Visibility>,
-    cursor: Option<Cursor>,
-    z_index: Option<ZIndex>,
-    gap: Option<Gap>,
+/// This struct provides type-safe style storage without the runtime
+/// overhead of type erasure. Each property is stored as an optional
+/// direct field, enabling O(1) access without hashing or downcasting.
+#[derive(Debug, Default, Clone)]
+pub struct StyleData {
+    pub background_color: Option<BackgroundColor>,
+    pub color: Option<TextColor>,
+    pub padding: Option<Padding>,
+    pub margin: Option<Margin>,
+    pub font_size: Option<FontSize>,
+    pub font_family: Option<FontFamily>,
+    pub font_weight: Option<FontWeight>,
+    pub width: Option<Width>,
+    pub height: Option<Height>,
+    pub display: Option<Display>,
+    pub flex_direction: Option<FlexDirection>,
+    pub justify_content: Option<JustifyContent>,
+    pub align_items: Option<AlignItems>,
+    pub align_self: Option<AlignSelf>,
+    pub flex_grow: Option<FlexGrow>,
+    pub flex_shrink: Option<FlexShrink>,
+    pub flex_basis: Option<FlexBasis>,
+    pub border_color: Option<BorderColor>,
+    pub border_width: Option<BorderWidth>,
+    pub border_radius: Option<BorderRadius>,
+    pub border_style: Option<BorderStyle>,
+    pub opacity: Option<Opacity>,
+    pub visibility: Option<Visibility>,
+    pub cursor: Option<Cursor>,
+    pub z_index: Option<ZIndex>,
+    pub gap: Option<Gap>,
 }
 
-impl WidgetStyles {
-    /// Creates a new empty style.
+impl StyleData {
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Sets the background color.
     pub fn with_background_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.background_color = Some(BackgroundColor(color.into()));
         self
     }
 
-    /// Sets the text color.
     pub fn with_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.color = Some(TextColor(color.into()));
         self
     }
 
-    /// Sets the padding.
     pub fn with_padding(mut self, padding: f32) -> Self {
         self.padding = Some(Padding(padding));
         self
     }
 
-    /// Sets the margin.
     pub fn with_margin(mut self, margin: f32) -> Self {
         self.margin = Some(Margin(margin));
         self
     }
 
-    /// Sets the font size.
     pub fn with_font_size(mut self, size: f32) -> Self {
         self.font_size = Some(FontSize(size));
         self
     }
 
-    /// Sets the width.
+    pub fn with_font_family(mut self, family: FontFamily) -> Self {
+        self.font_family = Some(family);
+        self
+    }
+
+    pub fn with_font_weight(mut self, weight: FontWeight) -> Self {
+        self.font_weight = Some(weight);
+        self
+    }
+
     pub fn with_width(mut self, width: Width) -> Self {
         self.width = Some(width);
         self
     }
 
-    /// Sets the height.
     pub fn with_height(mut self, height: Height) -> Self {
         self.height = Some(height);
         self
     }
 
-    /// Sets the display property.
+    pub fn with_size(mut self, size: Size) -> Self {
+        self.width = Some(Width(size.clone()));
+        self.height = Some(Height(size));
+        self
+    }
+
     pub fn with_display(mut self, display: Display) -> Self {
         self.display = Some(display);
         self
     }
 
-    /// Sets the flex direction.
     pub fn with_flex_direction(mut self, direction: FlexDirection) -> Self {
         self.flex_direction = Some(direction);
         self
     }
 
-    /// Sets the justify content property.
     pub fn with_justify_content(mut self, justify: JustifyContent) -> Self {
         self.justify_content = Some(justify);
         self
     }
 
-    /// Sets the align items property.
     pub fn with_align_items(mut self, align: AlignItems) -> Self {
         self.align_items = Some(align);
         self
     }
 
-    /// Sets the border color.
+    pub fn with_align_self(mut self, align: AlignSelf) -> Self {
+        self.align_self = Some(align);
+        self
+    }
+
+    pub fn with_flex_grow(mut self, grow: FlexGrow) -> Self {
+        self.flex_grow = Some(grow);
+        self
+    }
+
+    pub fn with_flex_shrink(mut self, shrink: FlexShrink) -> Self {
+        self.flex_shrink = Some(shrink);
+        self
+    }
+
+    pub fn with_flex_basis(mut self, basis: FlexBasis) -> Self {
+        self.flex_basis = Some(basis);
+        self
+    }
+
     pub fn with_border_color<C: Into<Color>>(mut self, color: C) -> Self {
         self.border_color = Some(BorderColor(color.into()));
         self
     }
 
-    /// Sets the border width.
     pub fn with_border_width(mut self, width: f32) -> Self {
         self.border_width = Some(BorderWidth(width));
         self
     }
 
-    /// Sets the border radius.
+    pub fn with_border_style(mut self, style: BorderStyle) -> Self {
+        self.border_style = Some(style);
+        self
+    }
+
     pub fn with_border_radius(mut self, radius: f32) -> Self {
         self.border_radius = Some(BorderRadius(radius));
         self
     }
 
-    /// Sets the opacity.
     pub fn with_opacity(mut self, opacity: f32) -> Self {
         self.opacity = Some(Opacity(opacity));
         self
     }
 
-    /// Sets the visibility.
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
         self.visibility = Some(visibility);
         self
     }
 
-    /// Sets the cursor.
     pub fn with_cursor(mut self, cursor: Cursor) -> Self {
         self.cursor = Some(cursor);
         self
     }
 
-    /// Sets the z-index.
     pub fn with_z_index(mut self, z_index: i32) -> Self {
         self.z_index = Some(ZIndex(z_index));
         self
     }
 
-    /// Sets the gap.
     pub fn with_gap(mut self, gap: f32) -> Self {
         self.gap = Some(Gap(gap));
         self
     }
 
-    /// Converts to a Properties container.
     pub fn to_properties(&self) -> Properties {
-        let mut props = Properties::new();
-        if let Some(ref p) = self.background_color {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.color {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.padding {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.margin {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.font_size {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.width {
-            props.insert(p.clone());
-        }
-        if let Some(ref p) = self.height {
-            props.insert(p.clone());
-        }
-        if let Some(ref p) = self.display {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.flex_direction {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.justify_content {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.align_items {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.border_color {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.border_width {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.border_radius {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.opacity {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.visibility {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.cursor {
-            props.insert(p.clone());
-        }
-        if let Some(ref p) = self.z_index {
-            props.insert(*p);
-        }
-        if let Some(ref p) = self.gap {
-            props.insert(*p);
-        }
-        props
+        self.clone().into()
     }
 
-    /// Creates a garbage-collected reference to these styles.
     pub fn shared(self) -> Gc<Self> {
         Gc::new(self)
     }
 }
 
-unsafe impl Trace for WidgetStyles {
+impl StyleStore for StyleData {
+    fn background_color(&self) -> Option<&BackgroundColor> {
+        self.background_color.as_ref()
+    }
+
+    fn color(&self) -> Option<&TextColor> {
+        self.color.as_ref()
+    }
+
+    fn padding(&self) -> Option<&Padding> {
+        self.padding.as_ref()
+    }
+
+    fn margin(&self) -> Option<&Margin> {
+        self.margin.as_ref()
+    }
+
+    fn font_size(&self) -> Option<&FontSize> {
+        self.font_size.as_ref()
+    }
+
+    fn font_family(&self) -> Option<&FontFamily> {
+        self.font_family.as_ref()
+    }
+
+    fn font_weight(&self) -> Option<&FontWeight> {
+        self.font_weight.as_ref()
+    }
+
+    fn width(&self) -> Option<&Width> {
+        self.width.as_ref()
+    }
+
+    fn height(&self) -> Option<&Height> {
+        self.height.as_ref()
+    }
+
+    fn display(&self) -> Option<&Display> {
+        self.display.as_ref()
+    }
+
+    fn flex_direction(&self) -> Option<&FlexDirection> {
+        self.flex_direction.as_ref()
+    }
+
+    fn justify_content(&self) -> Option<&JustifyContent> {
+        self.justify_content.as_ref()
+    }
+
+    fn align_items(&self) -> Option<&AlignItems> {
+        self.align_items.as_ref()
+    }
+
+    fn align_self(&self) -> Option<&AlignSelf> {
+        self.align_self.as_ref()
+    }
+
+    fn flex_grow(&self) -> Option<&FlexGrow> {
+        self.flex_grow.as_ref()
+    }
+
+    fn flex_shrink(&self) -> Option<&FlexShrink> {
+        self.flex_shrink.as_ref()
+    }
+
+    fn flex_basis(&self) -> Option<&FlexBasis> {
+        self.flex_basis.as_ref()
+    }
+
+    fn border_color(&self) -> Option<&BorderColor> {
+        self.border_color.as_ref()
+    }
+
+    fn border_width(&self) -> Option<&BorderWidth> {
+        self.border_width.as_ref()
+    }
+
+    fn border_radius(&self) -> Option<&BorderRadius> {
+        self.border_radius.as_ref()
+    }
+
+    fn border_style(&self) -> Option<&BorderStyle> {
+        self.border_style.as_ref()
+    }
+
+    fn opacity(&self) -> Option<&Opacity> {
+        self.opacity.as_ref()
+    }
+
+    fn visibility(&self) -> Option<&Visibility> {
+        self.visibility.as_ref()
+    }
+
+    fn cursor(&self) -> Option<&Cursor> {
+        self.cursor.as_ref()
+    }
+
+    fn z_index(&self) -> Option<&ZIndex> {
+        self.z_index.as_ref()
+    }
+
+    fn gap(&self) -> Option<&Gap> {
+        self.gap.as_ref()
+    }
+
+    fn size(&self) -> Option<&Size> {
+        None
+    }
+}
+
+impl From<StyleData> for Properties {
+    fn from(style: StyleData) -> Self {
+        let mut props = Properties::new();
+        if let Some(p) = style.background_color {
+            props.insert(p);
+        }
+        if let Some(p) = style.color {
+            props.insert(p);
+        }
+        if let Some(p) = style.padding {
+            props.insert(p);
+        }
+        if let Some(p) = style.margin {
+            props.insert(p);
+        }
+        if let Some(p) = style.font_size {
+            props.insert(p);
+        }
+        if let Some(p) = style.font_family {
+            props.insert(p);
+        }
+        if let Some(p) = style.font_weight {
+            props.insert(p);
+        }
+        if let Some(p) = style.width {
+            props.insert(p);
+        }
+        if let Some(p) = style.height {
+            props.insert(p);
+        }
+        if let Some(p) = style.display {
+            props.insert(p);
+        }
+        if let Some(p) = style.flex_direction {
+            props.insert(p);
+        }
+        if let Some(p) = style.justify_content {
+            props.insert(p);
+        }
+        if let Some(p) = style.align_items {
+            props.insert(p);
+        }
+        if let Some(p) = style.align_self {
+            props.insert(p);
+        }
+        if let Some(p) = style.flex_grow {
+            props.insert(p);
+        }
+        if let Some(p) = style.flex_shrink {
+            props.insert(p);
+        }
+        if let Some(p) = style.flex_basis {
+            props.insert(p);
+        }
+        if let Some(p) = style.border_color {
+            props.insert(p);
+        }
+        if let Some(p) = style.border_width {
+            props.insert(p);
+        }
+        if let Some(p) = style.border_radius {
+            props.insert(p);
+        }
+        if let Some(p) = style.border_style {
+            props.insert(p);
+        }
+        if let Some(p) = style.opacity {
+            props.insert(p);
+        }
+        if let Some(p) = style.visibility {
+            props.insert(p);
+        }
+        if let Some(p) = style.cursor {
+            props.insert(p);
+        }
+        if let Some(p) = style.z_index {
+            props.insert(p);
+        }
+        if let Some(p) = style.gap {
+            props.insert(p);
+        }
+        props
+    }
+}
+
+unsafe impl Trace for StyleData {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
 }
+
+#[doc(hidden)]
+pub type WidgetStyles = StyleData;

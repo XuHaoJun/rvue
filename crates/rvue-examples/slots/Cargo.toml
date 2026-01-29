@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 rvue = { path = "../../rvue" }
 rvue-macro = { path = "../../rvue-macro" }
-rudo-gc = "0.2"
+rudo-gc = "0.3"

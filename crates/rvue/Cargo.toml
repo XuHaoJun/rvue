@@ -8,7 +8,7 @@ description = "Rust GUI framework with Vue-like syntax and GC-managed memory"
 repository = "https://github.com/your-org/rvue"
 
 [dependencies]
-rudo-gc = "0.2"
+rudo-gc = "0.3"
 rvue-signals = { path = "../rvue-signals" }
 vello = "0.7"
 wgpu = "27"

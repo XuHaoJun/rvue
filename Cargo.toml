@@ -11,7 +11,6 @@ members = [
     "crates/rvue-examples/form",
     "crates/rvue-examples/slots",
     "crates/rvue-examples/styles",
-    "crates/rvue-examples/minimal-test",
 ]
 resolver = "2"
 
@@ -22,5 +21,5 @@ authors = ["Rvue Contributors"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-rudo-gc = "0.2"
+rudo-gc = "0.3"
 
