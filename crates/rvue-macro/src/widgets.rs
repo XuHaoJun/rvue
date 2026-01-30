@@ -172,9 +172,12 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
     let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
 
+    // Extract style attribute and generate .styles() call
+    let style_call = extract_style_for_flex(attrs);
+
     quote! {
         {
-            use rvue::style::{FlexDirection, AlignItems, JustifyContent};
+            use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
             let direction_str = #direction.to_string();
             let direction_enum = match direction_str.as_str() {
                 "row" => FlexDirection::Row,
@@ -185,8 +188,8 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             };
             let align_str = #align_items.to_string();
             let align_enum = match align_str.as_str() {
-                "start" => AlignItems::Start,
-                "end" => AlignItems::End,
+                "start" => AlignItems::FlexStart,
+                "end" => AlignItems::FlexEnd,
                 "center" => AlignItems::Center,
                 "stretch" => AlignItems::Stretch,
                 "baseline" => AlignItems::Baseline,
@@ -194,19 +197,24 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             };
             let justify_str = #justify_content.to_string();
             let justify_enum = match justify_str.as_str() {
-                "start" => JustifyContent::Start,
-                "end" => JustifyContent::End,
+                "start" => JustifyContent::FlexStart,
+                "end" => JustifyContent::FlexEnd,
                 "center" => JustifyContent::Center,
                 "space-between" => JustifyContent::SpaceBetween,
                 "space-around" => JustifyContent::SpaceAround,
                 "space-evenly" => JustifyContent::SpaceEvenly,
-                _ => JustifyContent::Start,
+                _ => JustifyContent::FlexStart,
             };
-            rvue::widgets::Flex::new()
+            let gap_val = #gap;
+
+            let flex = rvue::widgets::Flex::new()
                 .direction(direction_enum)
-                .gap(#gap)
+                .gap(Gap(gap_val))
                 .align_items(align_enum)
                 .justify_content(justify_enum)
+                #style_call;
+
+            flex
         }
     }
 }
@@ -308,6 +316,15 @@ fn extract_optional_prop(attrs: &[RvueAttribute], name: &str) -> TokenStream {
             quote! { Some(#value) }
         })
         .unwrap_or_else(|| quote! { None })
+}
+
+fn extract_style_for_flex(attrs: &[RvueAttribute]) -> TokenStream {
+    if let Some(attr) = attrs.iter().find(|a| a.name() == "style") {
+        let value = extract_attr_value(attr);
+        quote! { .styles(#value) }
+    } else {
+        quote! {}
+    }
 }
 
 fn extract_attr_value(attr: &RvueAttribute) -> TokenStream {

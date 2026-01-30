@@ -1,9 +1,10 @@
 //! Color property.
 
 use crate::property::Property;
+use rudo_gc::Trace;
 
 /// RGB color.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct RgbColor {
     pub r: u8,
     pub g: u8,
@@ -18,14 +19,8 @@ impl RgbColor {
 }
 
 /// Color property value.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct Color(pub RgbColor);
-
-impl Default for Color {
-    fn default() -> Self {
-        Self(RgbColor::rgb(0, 0, 0))
-    }
-}
 
 impl Color {
     #[inline]
@@ -48,13 +43,7 @@ impl Color {
 impl Property for Color {}
 
 /// Text/foreground color property.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct TextColor(pub Color);
-
-impl Default for TextColor {
-    fn default() -> Self {
-        Self(Color::rgb(0, 0, 0))
-    }
-}
 
 impl Property for TextColor {}

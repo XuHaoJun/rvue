@@ -658,6 +658,7 @@ version = "0.1.0"
 dependencies = [
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -989,6 +990,7 @@ version = "0.1.0"
 dependencies = [
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -1361,6 +1363,7 @@ version = "0.1.0"
 dependencies = [
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -1420,6 +1423,7 @@ version = "0.1.0"
 dependencies = [
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -2345,9 +2349,7 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a78bdf0b2e864886695db9107db367796b7fd21580a06da4dcb5826a985d0342"
+version = "0.1.0"
 dependencies = [
  "libc",
  "rudo-gc-derive",
@@ -2437,6 +2439,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "rvue-macro",
  "rvue-signals",
+ "rvue-style",
  "smallvec",
  "taffy",
  "thiserror 2.0.17",
@@ -2681,6 +2684,7 @@ dependencies = [
  "rudo-gc",
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -2764,8 +2768,10 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 name = "styles-example"
 version = "0.1.0"
 dependencies = [
+ "rudo-gc",
  "rvue",
  "rvue-macro",
+ "rvue-style",
 ]
 
 [[package]]
@@ -2810,9 +2816,9 @@ dependencies = [
 
 [[package]]
 name = "sys_alloc"
-version = "0.3.2"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b89caea18ee293265db2beee1bab90f03c9d4ffa038e0682402e2dcf675114a4"
+checksum = "ac8367d776cbb132ec7d5e8d03d28d00fa65df0642809bb9de1de81cedaa6cae"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",

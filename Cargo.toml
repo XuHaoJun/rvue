@@ -19,7 +19,17 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Rvue Contributors"]
 license = "MIT OR Apache-2.0"
+rust-version = "1.75"
+repository = "https://github.com/anomalyco/rvue"
 
 [workspace.dependencies]
-rudo-gc = "0.3"
+rudo-gc = { path = "learn-projects/rudo/crates/rudo-gc", features = ["test-util"] }
+rudo-gc-derive = "0.3"
+sys_alloc = "0.1"
+libc = "0.2"
+windows-sys = "0.52"
+
+[workspace.lints.clippy]
+pedantic = "warn"
+nursery = "warn"
 

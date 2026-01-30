@@ -20,7 +20,6 @@ pub mod render;
 pub mod runtime;
 pub mod signal;
 pub mod slot;
-pub mod style;
 pub mod text;
 pub mod vello_util;
 pub mod view;
@@ -40,10 +39,6 @@ pub use rudo_gc::Gc;
 pub use signal::{
     create_memo, create_memo_with_equality, create_signal, ReadSignal, SignalRead, SignalWrite,
     WriteSignal,
-};
-pub use style::{
-    AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
-    Spacing, Style,
 };
 pub use taffy::TaffyTree;
 pub use text::TextContext;

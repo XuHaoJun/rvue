@@ -298,11 +298,12 @@ fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStrea
 
             quote! {
                 {
+                    use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
                     let root_widget = rvue::widgets::Flex::new()
-                        .direction(rvue::style::FlexDirection::Row)
-                        .gap(0.0)
-                        .align_items(rvue::style::AlignItems::Start)
-                        .justify_content(rvue::style::JustifyContent::Start);
+                        .direction(FlexDirection::Row)
+                        .gap(Gap(0.0))
+                        .align_items(AlignItems::Start)
+                        .justify_content(JustifyContent::Start);
                     let root_state = root_widget.build(&mut #ctx_ident);
                     let #root_id = Gc::clone(root_state.component());
 
@@ -540,7 +541,7 @@ fn generate_widget_builder_code(
 
             quote! {
                 {
-                    use rvue::style::{FlexDirection, AlignItems, JustifyContent};
+                    use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
                     let direction_str = #direction_value.to_string();
                     let direction_enum = match direction_str.as_str() {
                         "row" => FlexDirection::Row,
@@ -551,8 +552,8 @@ fn generate_widget_builder_code(
                     };
                     let align_str = #align_items_value.to_string();
                     let align_enum = match align_str.as_str() {
-                        "start" => AlignItems::Start,
-                        "end" => AlignItems::End,
+                        "start" => AlignItems::FlexStart,
+                        "end" => AlignItems::FlexEnd,
                         "center" => AlignItems::Center,
                         "stretch" => AlignItems::Stretch,
                         "baseline" => AlignItems::Baseline,
@@ -560,17 +561,17 @@ fn generate_widget_builder_code(
                     };
                     let justify_str = #justify_content_value.to_string();
                     let justify_enum = match justify_str.as_str() {
-                        "start" => JustifyContent::Start,
-                        "end" => JustifyContent::End,
+                        "start" => JustifyContent::FlexStart,
+                        "end" => JustifyContent::FlexEnd,
                         "center" => JustifyContent::Center,
                         "space-between" => JustifyContent::SpaceBetween,
                         "space-around" => JustifyContent::SpaceAround,
                         "space-evenly" => JustifyContent::SpaceEvenly,
-                        _ => JustifyContent::Start,
+                        _ => JustifyContent::FlexStart,
                     };
                     rvue::widgets::#widget_ident::new()
                         .direction(direction_enum)
-                        .gap(#gap_value)
+                        .gap(Gap(#gap_value))
                         .align_items(align_enum)
                         .justify_content(justify_enum)
                 }

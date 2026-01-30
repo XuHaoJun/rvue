@@ -52,9 +52,7 @@ impl ContextValueEnum {
         let type_id = TypeId::of::<T>();
         let gc = Gc::new(value);
         let ptr = Gc::internal_ptr(&gc);
-        unsafe {
-            std::mem::forget(gc);
-        }
+        std::mem::forget(gc);
         if type_id == TypeId::of::<i32>() {
             let gc_i32: Gc<i32> = unsafe { Gc::from_raw(ptr) };
             return Self::I32(gc_i32);
@@ -89,69 +87,72 @@ impl ContextValueEnum {
         match self {
             ContextValueEnum::I32(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<i32>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
             ContextValueEnum::I64(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<i64>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<i64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
             ContextValueEnum::F64(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<f64>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<f64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
             ContextValueEnum::Bool(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<bool>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<bool> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
             ContextValueEnum::GcString(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<String>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<String> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
             ContextValueEnum::GcVecString(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<Vec<String>>() {
-                    let clone = Gc::clone(gc);
-                    let ptr = Gc::internal_ptr(&clone);
-                    Some(unsafe { Gc::from_raw(ptr) })
+                    let ptr = Gc::internal_ptr(gc);
+                    let new_gc: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(Gc::clone(gc));
+                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    Some(result)
                 } else {
                     None
                 }
             }
         }
     }
-}
-
-struct Tracer;
-
-impl rudo_gc::Visitor for Tracer {
-    fn visit<U: rudo_gc::Trace>(&mut self, _gc: &rudo_gc::Gc<U>) {
-        // Just mark the GC as visited - don't recursively trace
-    }
-    unsafe fn visit_region(&mut self, _ptr: *const u8, _len: usize) {}
 }
 
 unsafe impl Trace for ContextValueEnum {
@@ -165,6 +166,15 @@ unsafe impl Trace for ContextValueEnum {
             ContextValueEnum::GcVecString(gc) => gc.trace(visitor),
         }
     }
+}
+
+struct Tracer;
+
+impl rudo_gc::Visitor for Tracer {
+    fn visit<U: rudo_gc::Trace>(&mut self, _gc: &rudo_gc::Gc<U>) {
+        // Just mark the GC as visited - don't recursively trace
+    }
+    unsafe fn visit_region(&mut self, _ptr: *const u8, _len: usize) {}
 }
 
 /// Wrapper for vello::Scene to implement Trace
@@ -204,21 +214,48 @@ pub enum ComponentType {
 }
 
 /// Component properties (variant type for different widget types)
-/// For MVP, we'll use a simplified approach - props are stored as strings/values
-/// and converted as needed by widget implementations
 #[derive(Debug, Clone)]
 pub enum ComponentProps {
-    Text { content: String, font_size: Option<f32>, color: Option<vello::peniko::Color> },
-    Button { label: String },
-    TextInput { value: String },
-    NumberInput { value: f64 },
-    Checkbox { checked: bool },
-    Radio { value: String, checked: bool },
-    Show { when: bool },
-    For { item_count: usize },
-    KeyedFor { item_count: usize },
-    Flex { direction: String, gap: f32, align_items: String, justify_content: String },
-    Custom { data: String },
+    Text {
+        content: String,
+        font_size: Option<f32>,
+        color: Option<vello::peniko::Color>,
+    },
+    Button {
+        label: String,
+    },
+    TextInput {
+        value: String,
+    },
+    NumberInput {
+        value: f64,
+    },
+    Checkbox {
+        checked: bool,
+    },
+    Radio {
+        value: String,
+        checked: bool,
+    },
+    Show {
+        when: bool,
+    },
+    For {
+        item_count: usize,
+    },
+    KeyedFor {
+        item_count: usize,
+    },
+    Flex {
+        direction: String,
+        gap: f32,
+        align_items: String,
+        justify_content: String,
+        styles: Option<rvue_style::ComputedStyles>,
+    },
+    Custom {
+        data: String,
+    },
 }
 
 unsafe impl Trace for ComponentProps {
@@ -546,64 +583,66 @@ impl Component {
 
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
-        let (gap, align_items, justify_content) = {
-            if let ComponentProps::Flex { gap, align_items, justify_content, .. } =
+        let (gap, align_items, justify_content, styles) = {
+            if let ComponentProps::Flex { gap, align_items, justify_content, styles, .. } =
                 &*self.props.borrow()
             {
-                (*gap, align_items.clone(), justify_content.clone())
+                (*gap, align_items.clone(), justify_content.clone(), styles.clone())
             } else {
                 return;
             }
         };
         *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
         self.mark_dirty();
     }
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
-        let (direction, align_items, justify_content) = {
-            if let ComponentProps::Flex { direction, align_items, justify_content, .. } =
-                &*self.props.borrow()
+        let (direction, align_items, justify_content, styles) = {
+            if let ComponentProps::Flex {
+                direction, align_items, justify_content, styles, ..
+            } = &*self.props.borrow()
             {
-                (direction.clone(), align_items.clone(), justify_content.clone())
+                (direction.clone(), align_items.clone(), justify_content.clone(), styles.clone())
             } else {
                 return;
             }
         };
         *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
         self.mark_dirty();
     }
 
     /// Set flex align items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
-        let (direction, gap, justify_content) = {
-            if let ComponentProps::Flex { direction, gap, justify_content, .. } =
+        let (direction, gap, justify_content, styles) = {
+            if let ComponentProps::Flex { direction, gap, justify_content, styles, .. } =
                 &*self.props.borrow()
             {
-                (direction.clone(), *gap, justify_content.clone())
+                (direction.clone(), *gap, justify_content.clone(), styles.clone())
             } else {
                 return;
             }
         };
         *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
         self.mark_dirty();
     }
 
     /// Set flex justify content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
-        let (direction, gap, align_items) = {
-            if let ComponentProps::Flex { direction, gap, align_items, .. } = &*self.props.borrow()
+        let (direction, gap, align_items, styles) = {
+            if let ComponentProps::Flex { direction, gap, align_items, styles, .. } =
+                &*self.props.borrow()
             {
-                (direction.clone(), *gap, align_items.clone())
+                (direction.clone(), *gap, align_items.clone(), styles.clone())
             } else {
                 return;
             }
         };
         *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
         self.mark_dirty();
     }
 

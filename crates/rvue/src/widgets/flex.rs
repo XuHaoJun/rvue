@@ -1,17 +1,21 @@
 //! Flex widget for flexbox layouts
 
 use crate::component::{Component, ComponentProps, ComponentType};
-use crate::style::{AlignItems, FlexDirection, JustifyContent};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
+use rvue_style::{
+    AlignItems, BackgroundColor, BorderColor, BorderRadius, FlexDirection, Gap, JustifyContent,
+    ReactiveStyles,
+};
 
 /// Flex widget builder for creating flexbox layouts
 #[derive(Clone)]
 pub struct Flex {
     direction: ReactiveValue<FlexDirection>,
-    gap: ReactiveValue<f32>,
+    gap: ReactiveValue<Gap>,
     align_items: ReactiveValue<AlignItems>,
     justify_content: ReactiveValue<JustifyContent>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for Flex {
@@ -28,9 +32,10 @@ impl Flex {
     pub fn new() -> Self {
         Self {
             direction: ReactiveValue::Static(FlexDirection::Row),
-            gap: ReactiveValue::Static(0.0),
+            gap: ReactiveValue::Static(Gap(0.0)),
             align_items: ReactiveValue::Static(AlignItems::Stretch),
-            justify_content: ReactiveValue::Static(JustifyContent::Start),
+            justify_content: ReactiveValue::Static(JustifyContent::FlexStart),
+            styles: None,
         }
     }
 
@@ -44,7 +49,7 @@ impl Flex {
     }
 
     /// Set the gap between items
-    pub fn gap(mut self, gap: impl crate::widget::IntoReactiveValue<f32>) -> Self {
+    pub fn gap(mut self, gap: impl crate::widget::IntoReactiveValue<Gap>) -> Self {
         self.gap = gap.into_reactive();
         self
     }
@@ -66,6 +71,36 @@ impl Flex {
         self.justify_content = justify_content.into_reactive();
         self
     }
+
+    /// Set the background color (supports reactive via ReactiveStyles)
+    pub fn background_color(mut self, color: BackgroundColor) -> Self {
+        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = styles.set_background_color(color);
+        self.styles = Some(styles);
+        self
+    }
+
+    /// Set the border color (supports reactive via ReactiveStyles)
+    pub fn border_color(mut self, color: BorderColor) -> Self {
+        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = styles.set_border_color(color);
+        self.styles = Some(styles);
+        self
+    }
+
+    /// Set the border radius (supports reactive via ReactiveStyles)
+    pub fn border_radius(mut self, radius: f32) -> Self {
+        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = styles.set_border_radius(BorderRadius(radius));
+        self.styles = Some(styles);
+        self
+    }
+
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
+        self
+    }
 }
 
 impl Default for Flex {
@@ -81,6 +116,7 @@ pub struct FlexState {
     gap_effect: Option<Gc<crate::effect::Effect>>,
     align_items_effect: Option<Gc<crate::effect::Effect>>,
     justify_content_effect: Option<Gc<crate::effect::Effect>>,
+    styles_effect: Option<Gc<crate::effect::Effect>>,
 }
 
 impl FlexState {
@@ -103,6 +139,9 @@ unsafe impl Trace for FlexState {
             effect.trace(visitor);
         }
         if let Some(effect) = &self.justify_content_effect {
+            effect.trace(visitor);
+        }
+        if let Some(effect) = &self.styles_effect {
             effect.trace(visitor);
         }
     }
@@ -131,14 +170,18 @@ impl Widget for Flex {
         let align_items = self.align_items.get();
         let justify_content = self.justify_content.get();
 
+        // Compute the styles if present
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
+
         let component = Component::new(
             id,
             ComponentType::Flex,
             ComponentProps::Flex {
                 direction: direction.as_str().to_string(),
-                gap,
+                gap: gap.0,
                 align_items: align_items.as_str().to_string(),
                 justify_content: justify_content.as_str().to_string(),
+                styles: computed_styles,
             },
         );
 
@@ -161,7 +204,7 @@ impl Widget for Flex {
             let gap = self.gap.clone();
             let effect = crate::effect::create_effect(move || {
                 let new_gap = gap.get();
-                comp.set_flex_gap(new_gap);
+                comp.set_flex_gap(new_gap.0);
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -195,12 +238,38 @@ impl Widget for Flex {
             None
         };
 
+        // Setup reactive styles effect
+        let styles_effect = if let Some(ref styles) = self.styles {
+            if styles.background_color.is_reactive()
+                || styles.border_color.is_reactive()
+                || styles.border_radius.is_reactive()
+            {
+                let comp = Gc::clone(&component);
+                let styles = styles.clone();
+                let effect = crate::effect::create_effect(move || {
+                    // Read all reactive style values to establish dependencies
+                    let _ = styles.background_color.get();
+                    let _ = styles.border_color.get();
+                    let _ = styles.border_radius.get();
+                    // Mark component as dirty to trigger re-render
+                    comp.mark_dirty();
+                });
+                component.add_effect(Gc::clone(&effect));
+                Some(effect)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         FlexState {
             component,
             direction_effect,
             gap_effect,
             align_items_effect,
             justify_content_effect,
+            styles_effect,
         }
     }
 
@@ -229,14 +298,14 @@ impl Widget for Flex {
                 let gap = self.gap.clone();
                 let effect = crate::effect::create_effect(move || {
                     let new_gap = gap.get();
-                    comp.set_flex_gap(new_gap);
+                    comp.set_flex_gap(new_gap.0);
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.gap_effect = Some(effect);
             }
         } else {
             let new_gap = self.gap.get();
-            state.component.set_flex_gap(new_gap);
+            state.component.set_flex_gap(new_gap.0);
         }
 
         // Update align_items if reactive

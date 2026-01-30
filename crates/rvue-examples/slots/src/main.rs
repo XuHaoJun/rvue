@@ -12,6 +12,7 @@ use rvue::text::TextContext;
 use rvue::widget::BuildContext;
 use rvue::TaffyTree;
 use rvue_macro::{component, slot, view};
+use rvue_style::{AlignItems, FlexDirection, JustifyContent};
 
 #[slot]
 struct TableHeadSlot {
@@ -115,10 +116,10 @@ fn App() -> impl View {
 
     let row1_cells: ChildrenFn = (|ctx: &mut BuildContext| {
         let widget = rvue::widgets::Flex::new()
-            .direction(rvue::style::FlexDirection::Row)
+            .direction(FlexDirection::Row)
             .gap(0.0)
-            .align_items(rvue::style::AlignItems::Center)
-            .justify_content(rvue::style::JustifyContent::Start);
+            .align_items(AlignItems::Center)
+            .justify_content(JustifyContent::Start);
         let state = rvue::widget::Widget::build(widget, ctx);
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(

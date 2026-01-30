@@ -192,7 +192,7 @@ fn render_button(component: &Component, scene: &mut vello::Scene, transform: Aff
 }
 
 fn render_flex_background(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Flex { .. } = &*component.props.borrow() {
+    if let ComponentProps::Flex { styles, .. } = &*component.props.borrow() {
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -203,7 +203,17 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene, trans
                     flex_layout.size.width as f64,
                     flex_layout.size.height as f64,
                 );
-                let bg_color = Color::from_rgba8(245, 245, 245, 255);
+
+                // Use the component's background_color if available, otherwise default
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgba8(245, 245, 245, 255));
+
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
             }
         }

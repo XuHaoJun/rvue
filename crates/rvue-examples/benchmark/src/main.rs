@@ -33,6 +33,7 @@ fn create_counter_view() -> ViewStruct {
             gap: 20.0,
             align_items: "center".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 

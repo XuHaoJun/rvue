@@ -125,8 +125,9 @@ impl LayoutNode {
     pub fn component_to_taffy_style(component: &Component) -> Style {
         match &component.component_type {
             ComponentType::Flex => {
-                if let ComponentProps::Flex { direction, gap, align_items, justify_content } =
-                    &*component.props.borrow()
+                if let ComponentProps::Flex {
+                    direction, gap, align_items, justify_content, ..
+                } = &*component.props.borrow()
                 {
                     let flex_direction = match direction.to_lowercase().replace('_', "-").as_str() {
                         "row" => taffy::prelude::FlexDirection::Row,

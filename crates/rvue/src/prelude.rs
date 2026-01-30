@@ -12,12 +12,12 @@ pub use crate::signal::{
     create_memo, create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal,
 };
 pub use crate::slot::{Children, ChildrenFn, MaybeChildren, ToChildren};
-pub use crate::style::{
-    AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
-    Spacing, Style,
-};
 pub use crate::view::{View, ViewStruct};
 pub use crate::widget::{IntoReactiveValue, IntoWidget, ReactiveValue};
+pub use rvue_style::{
+    AlignItems, BackgroundColor, BorderColor, BorderRadius, BorderStyle, Color, FlexDirection,
+    FontWeight, Gap, JustifyContent, Margin, Padding, TextColor,
+};
 
 /// Event descriptors module (Leptos-style)
 /// Use as: `component.on(ev::Click, |e| { ... })`

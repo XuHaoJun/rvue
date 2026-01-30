@@ -1,10 +1,11 @@
 //! Sizing properties.
 
 use crate::property::Property;
+use rudo_gc::Trace;
 use std::fmt;
 
 /// Size value.
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub enum Size {
     #[default]
     Auto,
@@ -46,73 +47,37 @@ impl fmt::Display for Size {
 impl Property for Size {}
 
 /// Width.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct Width(pub Size);
-
-impl Default for Width {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for Width {}
 
 /// Height.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct Height(pub Size);
-
-impl Default for Height {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for Height {}
 
 /// Minimum width property.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MinWidth(pub Size);
-
-impl Default for MinWidth {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for MinWidth {}
 
 /// Minimum height property.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MinHeight(pub Size);
-
-impl Default for MinHeight {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for MinHeight {}
 
 /// Maximum width property.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MaxWidth(pub Size);
-
-impl Default for MaxWidth {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for MaxWidth {}
 
 /// Maximum height property.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MaxHeight(pub Size);
-
-impl Default for MaxHeight {
-    fn default() -> Self {
-        Self(Size::Auto)
-    }
-}
 
 impl Property for MaxHeight {}
