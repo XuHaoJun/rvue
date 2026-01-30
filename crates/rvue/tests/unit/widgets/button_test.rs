@@ -45,9 +45,9 @@ fn test_button_widget_event_handler() {
 fn test_button_widget_multiple_buttons() {
     // Test creating multiple button widgets
     let buttons = vec![
-        Component::new(1, ComponentType::Button, ComponentProps::Button { label: "OK".to_string() }),
-        Component::new(2, ComponentType::Button, ComponentProps::Button { label: "Cancel".to_string() }),
-        Component::new(3, ComponentType::Button, ComponentProps::Button { label: "Apply".to_string() }),
+        Component::new(1, ComponentType::Button, ComponentProps::Button { label: "OK".to_string(), styles: None }),
+        Component::new(2, ComponentType::Button, ComponentProps::Button { label: "Cancel".to_string(), styles: None }),
+        Component::new(3, ComponentType::Button, ComponentProps::Button { label: "Apply".to_string(), styles: None }),
     ];
     
     assert_eq!(buttons.len(), 3);

@@ -93,7 +93,7 @@ fn test_component_types() {
     let button = Component::new(
         2,
         ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
+        ComponentProps::Button { label: "Click".to_string(), styles: None },
     );
     assert_eq!(button.component_type, ComponentType::Button);
 
@@ -123,10 +123,10 @@ fn test_component_props() {
         _ => panic!("Expected Text props"),
     }
 
-    let button_props = ComponentProps::Button { label: "Submit".to_string() };
+    let button_props = ComponentProps::Button { label: "Submit".to_string(), styles: None };
 
     match button_props {
-        ComponentProps::Button { label } => {
+        ComponentProps::Button { label, .. } => {
             assert_eq!(label, "Submit");
         }
         _ => panic!("Expected Button props"),

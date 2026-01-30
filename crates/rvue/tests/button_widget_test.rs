@@ -7,12 +7,12 @@ fn test_button_widget_creation() {
     let button = Component::new(
         1,
         ComponentType::Button,
-        ComponentProps::Button { label: "Click Me".to_string() },
+        ComponentProps::Button { label: "Click Me".to_string(), styles: None },
     );
 
     assert_eq!(button.component_type, ComponentType::Button);
     match &*button.props.borrow() {
-        ComponentProps::Button { label } => {
+        ComponentProps::Button { label, .. } => {
             assert_eq!(label, "Click Me");
         }
         _ => panic!("Expected Button props"),
@@ -26,11 +26,11 @@ fn test_button_widget_event_handler() {
     let button = Component::new(
         1,
         ComponentType::Button,
-        ComponentProps::Button { label: "Submit".to_string() },
+        ComponentProps::Button { label: "Submit".to_string(), styles: None },
     );
 
     match &*button.props.borrow() {
-        ComponentProps::Button { label } => {
+        ComponentProps::Button { label, .. } => {
             assert_eq!(label, "Submit");
         }
         _ => panic!("Expected Button props"),
@@ -44,17 +44,17 @@ fn test_button_widget_multiple_buttons() {
         Component::new(
             1,
             ComponentType::Button,
-            ComponentProps::Button { label: "OK".to_string() },
+            ComponentProps::Button { label: "OK".to_string(), styles: None },
         ),
         Component::new(
             2,
             ComponentType::Button,
-            ComponentProps::Button { label: "Cancel".to_string() },
+            ComponentProps::Button { label: "Cancel".to_string(), styles: None },
         ),
         Component::new(
             3,
             ComponentType::Button,
-            ComponentProps::Button { label: "Apply".to_string() },
+            ComponentProps::Button { label: "Apply".to_string(), styles: None },
         ),
     ];
 
@@ -63,7 +63,7 @@ fn test_button_widget_multiple_buttons() {
     for (i, button) in buttons.iter().enumerate() {
         assert_eq!(button.component_type, ComponentType::Button);
         match &*button.props.borrow() {
-            ComponentProps::Button { label } => {
+            ComponentProps::Button { label, .. } => {
                 assert_eq!(label, labels[i]);
             }
             _ => panic!("Expected Button props"),
@@ -74,10 +74,10 @@ fn test_button_widget_multiple_buttons() {
 #[test]
 fn test_button_widget_with_empty_label() {
     let button =
-        Component::new(1, ComponentType::Button, ComponentProps::Button { label: String::new() });
+        Component::new(1, ComponentType::Button, ComponentProps::Button { label: String::new(), styles: None });
 
     match &*button.props.borrow() {
-        ComponentProps::Button { label } => {
+        ComponentProps::Button { label, .. } => {
             assert_eq!(label, "");
         }
         _ => panic!("Expected Button props"),

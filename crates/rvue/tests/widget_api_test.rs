@@ -72,7 +72,7 @@ fn test_button_widget_builder() {
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::Button { label } => {
+                ComponentProps::Button { label, .. } => {
                     assert_eq!(label, "Click Me");
                 }
                 _ => panic!("Expected Button props"),
@@ -116,7 +116,7 @@ fn test_checkbox_widget_builder() {
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::Checkbox { checked } => {
+                ComponentProps::Checkbox { checked, .. } => {
                     assert!(*checked);
                 }
                 _ => panic!("Expected Checkbox props"),
@@ -135,7 +135,7 @@ fn test_text_input_widget_builder() {
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::TextInput { value } => {
+                ComponentProps::TextInput { value, .. } => {
                     assert_eq!(value, "test input");
                 }
                 _ => panic!("Expected TextInput props"),
@@ -203,7 +203,7 @@ fn test_fine_grained_button_update() {
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::Button { label } => {
+                ComponentProps::Button { label, .. } => {
                     assert_eq!(label, "Updated Label");
                 }
                 _ => panic!("Expected Button props"),

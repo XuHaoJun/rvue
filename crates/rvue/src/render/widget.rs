@@ -192,10 +192,251 @@ fn render_text_layout(
 }
 
 fn render_button(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Button { label: _ } = &*component.props.borrow() {
-        let rect = RoundedRect::new(0.0, 0.0, 120.0, 40.0, 4.0);
-        let bg_color = Color::from_rgb8(70, 130, 180);
-        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+    if let ComponentProps::Button { label: _, styles } = &*component.props.borrow() {
+        let layout_node = component.layout_node();
+
+        if let Some(layout) = layout_node {
+            if let Some(button_layout) = layout.layout() {
+                let width = button_layout.size.width as f64;
+                let height = button_layout.size.height as f64;
+                let _rect = Rect::new(0.0, 0.0, width, height);
+
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(70, 130, 180));
+
+                let border_radius = styles
+                    .as_ref()
+                    .and_then(|s| s.border_radius.as_ref())
+                    .map(|r| r.0 as f64)
+                    .unwrap_or(4.0);
+
+                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+
+                if let (Some(border), Some(bw)) = (
+                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
+                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
+                ) {
+                    let rgb = border.0 .0;
+                    let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    let border_width = bw.0;
+
+                    let inner_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                    scene.stroke(
+                        &Stroke::new(border_width as f64),
+                        transform,
+                        border_color,
+                        None,
+                        &inner_rect,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn render_text_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
+    if let ComponentProps::TextInput { value: _, styles } = &*component.props.borrow() {
+        let layout_node = component.layout_node();
+
+        if let Some(layout) = layout_node {
+            if let Some(input_layout) = layout.layout() {
+                let width = input_layout.size.width as f64;
+                let height = input_layout.size.height as f64;
+                let _rect = Rect::new(0.0, 0.0, width, height);
+
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+
+                let border_radius = styles
+                    .as_ref()
+                    .and_then(|s| s.border_radius.as_ref())
+                    .map(|r| r.0 as f64)
+                    .unwrap_or(4.0);
+
+                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+
+                if let (Some(border), Some(bw)) = (
+                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
+                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
+                ) {
+                    let rgb = border.0 .0;
+                    let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    let border_width = bw.0;
+
+                    let inner_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                    scene.stroke(
+                        &Stroke::new(border_width as f64),
+                        transform,
+                        border_color,
+                        None,
+                        &inner_rect,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn render_number_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
+    if let ComponentProps::NumberInput { value: _, styles } = &*component.props.borrow() {
+        let layout_node = component.layout_node();
+
+        if let Some(layout) = layout_node {
+            if let Some(input_layout) = layout.layout() {
+                let width = input_layout.size.width as f64;
+                let height = input_layout.size.height as f64;
+                let _rect = Rect::new(0.0, 0.0, width, height);
+
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+
+                let border_radius = styles
+                    .as_ref()
+                    .and_then(|s| s.border_radius.as_ref())
+                    .map(|r| r.0 as f64)
+                    .unwrap_or(4.0);
+
+                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+
+                if let (Some(border), Some(bw)) = (
+                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
+                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
+                ) {
+                    let rgb = border.0 .0;
+                    let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    let border_width = bw.0;
+
+                    let inner_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+                    scene.stroke(
+                        &Stroke::new(border_width as f64),
+                        transform,
+                        border_color,
+                        None,
+                        &inner_rect,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: Affine) {
+    if let ComponentProps::Checkbox { checked: _, styles } = &*component.props.borrow() {
+        let layout_node = component.layout_node();
+
+        if let Some(layout) = layout_node {
+            if let Some(checkbox_layout) = layout.layout() {
+                let width = checkbox_layout.size.width as f64;
+                let height = checkbox_layout.size.height as f64;
+
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+
+                let border_radius = styles
+                    .as_ref()
+                    .and_then(|s| s.border_radius.as_ref())
+                    .map(|r| r.0 as f64)
+                    .unwrap_or(4.0);
+
+                let _rect = Rect::new(0.0, 0.0, width.min(height), height.min(width));
+                let rounded_rect =
+                    RoundedRect::new(0.0, 0.0, width.min(height), height.min(width), border_radius);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+
+                if let (Some(border), Some(bw)) = (
+                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
+                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
+                ) {
+                    let rgb = border.0 .0;
+                    let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    let border_width = bw.0;
+
+                    scene.stroke(
+                        &Stroke::new(border_width as f64),
+                        transform,
+                        border_color,
+                        None,
+                        &rounded_rect,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affine) {
+    if let ComponentProps::Radio { value: _, checked: _, styles } = &*component.props.borrow() {
+        let layout_node = component.layout_node();
+
+        if let Some(layout) = layout_node {
+            if let Some(radio_layout) = layout.layout() {
+                let size = radio_layout.size.width.min(radio_layout.size.height) as f64;
+                let center_x = radio_layout.size.width / 2.0;
+                let center_y = radio_layout.size.height / 2.0;
+
+                let bg_color = styles
+                    .as_ref()
+                    .and_then(|s| s.background_color.as_ref())
+                    .map(|bg| {
+                        let rgb = bg.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+
+                let circle = Circle::new((center_x, center_y), size / 2.0);
+                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
+
+                let border_color = styles
+                    .as_ref()
+                    .and_then(|s| s.border_color.as_ref())
+                    .map(|border| {
+                        let rgb = border.0 .0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(100, 100, 100));
+
+                let border_width = styles
+                    .as_ref()
+                    .and_then(|s| s.border_width.as_ref())
+                    .map(|bw| bw.0)
+                    .unwrap_or(1.0);
+
+                scene.stroke(
+                    &Stroke::new(border_width as f64),
+                    transform,
+                    border_color,
+                    None,
+                    &circle,
+                );
+            }
+        }
     }
 }
 
@@ -233,45 +474,6 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene, trans
                     );
                 }
             }
-        }
-    }
-}
-
-fn render_text_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::TextInput { value: _ } = &*component.props.borrow() {
-        let rect = RoundedRect::new(0.0, 0.0, 200.0, 30.0, 2.0);
-        let bg_color = Color::from_rgb8(255, 255, 255);
-        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-    }
-}
-
-fn render_number_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::NumberInput { value: _ } = &*component.props.borrow() {
-        let rect = RoundedRect::new(0.0, 0.0, 150.0, 30.0, 2.0);
-        let bg_color = Color::from_rgb8(255, 255, 255);
-        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-    }
-}
-
-fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Checkbox { checked } = &*component.props.borrow() {
-        let rect = Rect::new(0.0, 0.0, 20.0, 20.0);
-        let bg_color =
-            if *checked { Color::from_rgb8(70, 130, 180) } else { Color::from_rgb8(255, 255, 255) };
-        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-    }
-}
-
-fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Radio { value: _, checked } = &*component.props.borrow() {
-        let circle = Circle::new((10.0, 10.0), 10.0);
-        let bg_color =
-            if *checked { Color::from_rgb8(70, 130, 180) } else { Color::from_rgb8(255, 255, 255) };
-        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
-        if *checked {
-            let inner_circle = Circle::new((10.0, 10.0), 5.0);
-            let dot_color = Color::from_rgb8(255, 255, 255);
-            scene.fill(vello::peniko::Fill::NonZero, transform, dot_color, None, &inner_circle);
         }
     }
 }

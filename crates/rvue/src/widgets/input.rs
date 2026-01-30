@@ -4,23 +4,32 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
+use rvue_style::ReactiveStyles;
 
 /// TextInput widget builder for text input
 #[derive(Clone)]
 pub struct TextInput {
     value: ReactiveValue<String>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for TextInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 
 impl TextInput {
     /// Create a new TextInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { value: value.into_reactive() }
+        Self { value: value.into_reactive(), styles: None }
+    }
+
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
+        self
     }
 }
 
@@ -65,14 +74,14 @@ impl Widget for TextInput {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_value = self.value.get();
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
         let component = Component::new(
             id,
             ComponentType::TextInput,
-            ComponentProps::TextInput { value: initial_value },
+            ComponentProps::TextInput { value: initial_value, styles: computed_styles },
         );
 
-        // Setup reactive update if value is reactive
         let value_effect = if self.value.is_reactive() {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
@@ -90,9 +99,7 @@ impl Widget for TextInput {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update value if it changed
         if self.value.is_reactive() {
-            // Value is reactive, effect will handle updates
             if state.value_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let value = self.value.clone();
@@ -104,7 +111,6 @@ impl Widget for TextInput {
                 state.value_effect = Some(effect);
             }
         } else {
-            // Static value - update directly
             let new_value = self.value.get();
             state.component.set_text_input_value(new_value);
         }
@@ -115,18 +121,26 @@ impl Widget for TextInput {
 #[derive(Clone)]
 pub struct NumberInput {
     value: ReactiveValue<f64>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for NumberInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 
 impl NumberInput {
     /// Create a new NumberInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<f64>) -> Self {
-        Self { value: value.into_reactive() }
+        Self { value: value.into_reactive(), styles: None }
+    }
+
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
+        self
     }
 }
 
@@ -171,14 +185,14 @@ impl Widget for NumberInput {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_value = self.value.get();
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
         let component = Component::new(
             id,
             ComponentType::NumberInput,
-            ComponentProps::NumberInput { value: initial_value },
+            ComponentProps::NumberInput { value: initial_value, styles: computed_styles },
         );
 
-        // Setup reactive update if value is reactive
         let value_effect = if self.value.is_reactive() {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
@@ -196,9 +210,7 @@ impl Widget for NumberInput {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update value if it changed
         if self.value.is_reactive() {
-            // Value is reactive, effect will handle updates
             if state.value_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let value = self.value.clone();
@@ -210,7 +222,6 @@ impl Widget for NumberInput {
                 state.value_effect = Some(effect);
             }
         } else {
-            // Static value - update directly
             let new_value = self.value.get();
             state.component.set_number_input_value(new_value);
         }

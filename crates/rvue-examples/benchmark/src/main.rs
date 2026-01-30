@@ -41,19 +41,22 @@ fn create_counter_view() -> ViewStruct {
     let _count_text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text {
-            content: format!("Count: {}", count.get()),
-            styles: None,
-        },
+        ComponentProps::Text { content: format!("Count: {}", count.get()), styles: None },
     );
 
     // Create increment button
-    let _inc_button =
-        Component::new(2, ComponentType::Button, ComponentProps::Button { label: "+".to_string() });
+    let _inc_button = Component::new(
+        2,
+        ComponentType::Button,
+        ComponentProps::Button { label: "+".to_string(), styles: None },
+    );
 
     // Create decrement button
-    let _dec_button =
-        Component::new(3, ComponentType::Button, ComponentProps::Button { label: "-".to_string() });
+    let _dec_button = Component::new(
+        3,
+        ComponentType::Button,
+        ComponentProps::Button { label: "-".to_string(), styles: None },
+    );
 
     // Create view
     let view = ViewStruct::new(root);

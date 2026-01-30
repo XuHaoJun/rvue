@@ -3,23 +3,32 @@
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
+use rvue_style::ReactiveStyles;
 
 /// Button widget builder for user interaction
 #[derive(Clone)]
 pub struct Button {
     label: ReactiveValue<String>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for Button {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.label.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 
 impl Button {
     /// Create a new Button widget with a label
     pub fn new(label: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { label: label.into_reactive() }
+        Self { label: label.into_reactive(), styles: None }
+    }
+
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
+        self
     }
 }
 
@@ -64,14 +73,14 @@ impl Widget for Button {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_label = self.label.get();
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
         let component = Component::new(
             id,
             ComponentType::Button,
-            ComponentProps::Button { label: initial_label },
+            ComponentProps::Button { label: initial_label, styles: computed_styles },
         );
 
-        // Setup reactive update if label is reactive
         let label_effect = if self.label.is_reactive() {
             let comp = Gc::clone(&component);
             let label = self.label.clone();
@@ -89,9 +98,7 @@ impl Widget for Button {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update label if it changed
         if self.label.is_reactive() {
-            // Label is reactive, effect will handle updates
             if state.label_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let label = self.label.clone();
@@ -103,7 +110,6 @@ impl Widget for Button {
                 state.label_effect = Some(effect);
             }
         } else {
-            // Static label - update directly
             let new_label = self.label.get();
             state.component.set_button_label(new_label);
         }

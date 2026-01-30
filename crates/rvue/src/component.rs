@@ -221,19 +221,24 @@ pub enum ComponentProps {
     },
     Button {
         label: String,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     TextInput {
         value: String,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     NumberInput {
         value: f64,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     Checkbox {
         checked: bool,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     Radio {
         value: String,
         checked: bool,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     Show {
         when: bool,
@@ -547,7 +552,14 @@ impl Component {
     /// Set button label (for Button components)
     pub fn set_button_label(&self, label: String) {
         if matches!(self.component_type, ComponentType::Button) {
-            *self.props.borrow_mut() = ComponentProps::Button { label };
+            let styles = {
+                if let ComponentProps::Button { styles, .. } = &*self.props.borrow() {
+                    styles.clone()
+                } else {
+                    return;
+                }
+            };
+            *self.props.borrow_mut() = ComponentProps::Button { label, styles };
             self.mark_dirty();
         }
     }
@@ -620,23 +632,32 @@ impl Component {
     /// Set checkbox checked state (for Checkbox components)
     pub fn set_checkbox_checked(&self, checked: bool) {
         if matches!(self.component_type, ComponentType::Checkbox) {
-            *self.props.borrow_mut() = ComponentProps::Checkbox { checked };
+            let styles = {
+                if let ComponentProps::Checkbox { styles, .. } = &*self.props.borrow() {
+                    styles.clone()
+                } else {
+                    return;
+                }
+            };
+            *self.props.borrow_mut() = ComponentProps::Checkbox { checked, styles };
             self.mark_dirty();
         }
     }
 
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
-        if let ComponentProps::Radio { value, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() = ComponentProps::Radio { value: value.clone(), checked };
+        if let ComponentProps::Radio { value, styles, .. } = &*self.props.borrow() {
+            *self.props.borrow_mut() =
+                ComponentProps::Radio { value: value.clone(), checked, styles: styles.clone() };
             self.mark_dirty();
         }
     }
 
     /// Set radio value (for Radio components)
     pub fn set_radio_value(&self, value: String) {
-        if let ComponentProps::Radio { checked, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() = ComponentProps::Radio { value, checked: *checked };
+        if let ComponentProps::Radio { checked, styles, .. } = &*self.props.borrow() {
+            *self.props.borrow_mut() =
+                ComponentProps::Radio { value, checked: *checked, styles: styles.clone() };
             self.mark_dirty();
         }
     }
@@ -644,7 +665,14 @@ impl Component {
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
         if matches!(self.component_type, ComponentType::TextInput) {
-            *self.props.borrow_mut() = ComponentProps::TextInput { value };
+            let styles = {
+                if let ComponentProps::TextInput { styles, .. } = &*self.props.borrow() {
+                    styles.clone()
+                } else {
+                    return;
+                }
+            };
+            *self.props.borrow_mut() = ComponentProps::TextInput { value, styles };
             self.mark_dirty();
         }
     }
@@ -652,7 +680,14 @@ impl Component {
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
         if matches!(self.component_type, ComponentType::NumberInput) {
-            *self.props.borrow_mut() = ComponentProps::NumberInput { value };
+            let styles = {
+                if let ComponentProps::NumberInput { styles, .. } = &*self.props.borrow() {
+                    styles.clone()
+                } else {
+                    return;
+                }
+            };
+            *self.props.borrow_mut() = ComponentProps::NumberInput { value, styles };
             self.mark_dirty();
         }
     }

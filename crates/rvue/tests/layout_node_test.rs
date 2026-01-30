@@ -78,7 +78,7 @@ fn test_layout_node_with_button_component() {
     let component = Component::new(
         1,
         ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
+        ComponentProps::Button { label: "Click".to_string(), styles: None },
     );
 
     let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);

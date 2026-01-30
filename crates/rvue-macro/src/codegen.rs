@@ -530,13 +530,25 @@ fn generate_widget_builder_code(
             let PropValue { value: label_value, is_reactive } =
                 props.value("label", || quote! { "" });
             let widget_ident = Ident::new("Button", span);
+
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             if is_reactive {
                 quote! {
-                    rvue::widgets::#widget_ident::new(#label_value)
+                    {
+                        rvue::widgets::#widget_ident::new(#label_value)
+                            #style_call
+                    }
                 }
             } else {
                 quote! {
-                    rvue::widgets::#widget_ident::new(#label_value.to_string())
+                    {
+                        rvue::widgets::#widget_ident::new(#label_value.to_string())
+                            #style_call
+                    }
                 }
             }
         }
@@ -592,23 +604,50 @@ fn generate_widget_builder_code(
         WidgetType::TextInput => {
             let PropValue { value: value_value, .. } = props.value("value", || quote! { "" });
             let widget_ident = Ident::new("TextInput", span);
+
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             quote! {
-                rvue::widgets::#widget_ident::new(#value_value.to_string())
+                {
+                    rvue::widgets::#widget_ident::new(#value_value.to_string())
+                        #style_call
+                }
             }
         }
         WidgetType::NumberInput => {
             let PropValue { value: value_value, .. } = props.value("value", || quote! { 0.0 });
             let widget_ident = Ident::new("NumberInput", span);
+
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             quote! {
-                rvue::widgets::#widget_ident::new(#value_value)
+                {
+                    rvue::widgets::#widget_ident::new(#value_value)
+                        #style_call
+                }
             }
         }
         WidgetType::Checkbox => {
             let PropValue { value: checked_value, .. } =
                 props.value("checked", || quote! { false });
             let widget_ident = Ident::new("Checkbox", span);
+
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             quote! {
-                rvue::widgets::#widget_ident::new(#checked_value)
+                {
+                    rvue::widgets::#widget_ident::new(#checked_value)
+                        #style_call
+                }
             }
         }
         WidgetType::Radio => {
@@ -616,8 +655,17 @@ fn generate_widget_builder_code(
             let PropValue { value: checked_value, .. } =
                 props.value("checked", || quote! { false });
             let widget_ident = Ident::new("Radio", span);
+
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             quote! {
-                rvue::widgets::#widget_ident::new(#value_value.to_string(), #checked_value)
+                {
+                    rvue::widgets::#widget_ident::new(#value_value.to_string(), #checked_value)
+                        #style_call
+                }
             }
         }
         WidgetType::Show => {
