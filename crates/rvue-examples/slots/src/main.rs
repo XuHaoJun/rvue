@@ -117,9 +117,9 @@ fn App() -> impl View {
     let row1_cells: ChildrenFn = (|ctx: &mut BuildContext| {
         let widget = rvue::widgets::Flex::new()
             .direction(FlexDirection::Row)
-            .gap(0.0)
+            .gap(Gap(0.0))
             .align_items(AlignItems::Center)
-            .justify_content(JustifyContent::Start);
+            .justify_content(JustifyContent::FlexStart);
         let state = rvue::widget::Widget::build(widget, ctx);
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(

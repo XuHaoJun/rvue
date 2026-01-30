@@ -13,12 +13,13 @@ fn test_flexbox_layout_creation() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
     assert_eq!(flex.component_type, ComponentType::Flex);
     match &*flex.props.borrow() {
-        ComponentProps::Flex { direction, gap, align_items, justify_content } => {
+        ComponentProps::Flex { direction, gap, align_items, justify_content, .. } => {
             assert_eq!(direction, "row");
             assert_eq!(*gap, 10.0);
             assert_eq!(align_items, "center");
@@ -39,6 +40,7 @@ fn test_flexbox_nested_layouts() {
             gap: 20.0,
             align_items: "stretch".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 
@@ -50,6 +52,7 @@ fn test_flexbox_nested_layouts() {
             gap: 5.0,
             align_items: "center".to_string(),
             justify_content: "space-between".to_string(),
+            styles: None,
         },
     );
 
@@ -68,6 +71,7 @@ fn test_flexbox_spacing() {
             gap: 15.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -98,6 +102,7 @@ fn test_flexbox_alignment() {
                 gap: 0.0,
                 align_items: align_items.to_string(),
                 justify_content: justify_content.to_string(),
+                styles: None,
             },
         );
 

@@ -1,8 +1,8 @@
 //! Complex styling showcase demonstrating Rvue's styling system
 
 use rvue::prelude::*;
-use rvue::widgets::{Flex, Text};
 use rvue_macro::view;
+#[allow(unused_imports)]
 use rvue_style::{BackgroundColor, BorderColor, BorderRadius, Color, ReactiveStyles};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_styled_view() -> ViewStruct {
-    let border_radius = 8.0;
+    let _border_radius = 8.0;
 
     view! {
         <Flex

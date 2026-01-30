@@ -18,6 +18,7 @@ fn benchmark_startup_time() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 
@@ -52,6 +53,7 @@ fn benchmark_component_tree_creation() {
             gap: 5.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 

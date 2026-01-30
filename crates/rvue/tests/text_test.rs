@@ -59,6 +59,7 @@ fn test_text_in_flex() {
             gap: 10.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 

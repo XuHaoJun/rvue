@@ -21,4 +21,5 @@ itertools = "0.12"
 [dev-dependencies]
 trybuild = "1.0"
 rvue = { path = "../rvue" }
+rvue-style = { path = "../rvue-style" }
 taffy = "0.9"

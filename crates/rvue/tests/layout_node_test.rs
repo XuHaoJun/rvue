@@ -17,6 +17,7 @@ fn test_layout_node_creation() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -38,6 +39,7 @@ fn test_layout_node_dirty_marking() {
             gap: 5.0,
             align_items: "start".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 
@@ -98,6 +100,7 @@ fn test_layout_node_tree_structure() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -135,6 +138,7 @@ fn test_layout_calculation() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 

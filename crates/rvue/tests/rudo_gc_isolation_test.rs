@@ -3,6 +3,7 @@ use rudo_gc::{collect_full, Gc, GcCell, Trace};
 #[derive(Clone)]
 enum ValueEnum {
     I32(Gc<i32>),
+    #[allow(dead_code)]
     I64(Gc<i64>),
 }
 
@@ -38,6 +39,7 @@ unsafe impl Trace for ValueEnum {
 
 #[derive(Clone)]
 struct ContextEntry {
+    #[allow(dead_code)]
     type_id: std::any::TypeId,
     value: ValueEnum,
 }

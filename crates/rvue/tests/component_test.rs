@@ -28,6 +28,7 @@ fn test_component_add_child() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -104,6 +105,7 @@ fn test_component_types() {
             gap: 5.0,
             align_items: "start".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
     assert_eq!(flex.component_type, ComponentType::Flex);

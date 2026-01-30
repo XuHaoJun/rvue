@@ -302,8 +302,8 @@ fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStrea
                     let root_widget = rvue::widgets::Flex::new()
                         .direction(FlexDirection::Row)
                         .gap(Gap(0.0))
-                        .align_items(AlignItems::Start)
-                        .justify_content(JustifyContent::Start);
+                        .align_items(AlignItems::FlexStart)
+                        .justify_content(JustifyContent::FlexStart);
                     let root_state = root_widget.build(&mut #ctx_ident);
                     let #root_id = Gc::clone(root_state.component());
 

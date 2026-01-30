@@ -238,6 +238,7 @@ fn test_stress_1000_components() {
             gap: 0.0,
             align_items: "stretch".to_string(),
             justify_content: "flex_start".to_string(),
+            styles: None,
         },
     );
 
@@ -303,6 +304,7 @@ fn test_incremental_update_performance() {
             gap: 0.0,
             align_items: "stretch".to_string(),
             justify_content: "flex_start".to_string(),
+            styles: None,
         },
     );
 

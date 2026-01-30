@@ -74,7 +74,7 @@ impl Flex {
 
     /// Set the background color (supports reactive via ReactiveStyles)
     pub fn background_color(mut self, color: BackgroundColor) -> Self {
-        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = self.styles.take().unwrap_or_default();
         let styles = styles.set_background_color(color);
         self.styles = Some(styles);
         self
@@ -82,7 +82,7 @@ impl Flex {
 
     /// Set the border color (supports reactive via ReactiveStyles)
     pub fn border_color(mut self, color: BorderColor) -> Self {
-        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = self.styles.take().unwrap_or_default();
         let styles = styles.set_border_color(color);
         self.styles = Some(styles);
         self
@@ -90,7 +90,7 @@ impl Flex {
 
     /// Set the border radius (supports reactive via ReactiveStyles)
     pub fn border_radius(mut self, radius: f32) -> Self {
-        let styles = self.styles.take().unwrap_or_else(|| ReactiveStyles::new());
+        let styles = self.styles.take().unwrap_or_default();
         let styles = styles.set_border_radius(BorderRadius(radius));
         self.styles = Some(styles);
         self

@@ -4,6 +4,7 @@ use rvue::{
     create_signal, text::TextContext, widget::*, widgets::*, Component, ComponentProps,
     ComponentType,
 };
+use rvue_style::{AlignItems, FlexDirection, Gap, JustifyContent};
 use taffy::TaffyTree;
 
 /// Helper to create a BuildContext for testing
@@ -84,10 +85,10 @@ fn test_button_widget_builder() {
 fn test_flex_widget_builder() {
     with_build_context(|ctx| {
         let widget = Flex::new()
-            .direction(rvue::FlexDirection::Column)
-            .gap(10.0)
-            .align_items(rvue::AlignItems::Center)
-            .justify_content(rvue::JustifyContent::SpaceBetween);
+            .direction(FlexDirection::Column)
+            .gap(Gap(10.0))
+            .align_items(AlignItems::Center)
+            .justify_content(JustifyContent::SpaceBetween);
 
         let state = widget.build(ctx);
 
@@ -214,10 +215,10 @@ fn test_fine_grained_button_update() {
 #[test]
 fn test_fine_grained_flex_update() {
     with_build_context(|ctx| {
-        let widget = Flex::new().gap(5.0);
+        let widget = Flex::new().gap(Gap(5.0));
         let mut state = widget.build(ctx);
 
-        let updated_widget = Flex::new().gap(20.0);
+        let updated_widget = Flex::new().gap(Gap(20.0));
         updated_widget.rebuild(&mut state);
 
         {

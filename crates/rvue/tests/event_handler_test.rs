@@ -211,6 +211,7 @@ fn test_on_pointer_move_0arg_handler() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -235,6 +236,7 @@ fn test_on_pointer_move_1arg_handler() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 

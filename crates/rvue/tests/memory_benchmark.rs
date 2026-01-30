@@ -42,6 +42,7 @@ fn benchmark_initial_memory_footprint() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 

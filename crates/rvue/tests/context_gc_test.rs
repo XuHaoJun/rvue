@@ -26,6 +26,7 @@ fn test_context_gc_on_unmount_with_i32() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -50,9 +51,13 @@ fn test_context_gc_on_unmount_with_i32() {
     let value = **injected_value.as_ref().unwrap();
     assert_eq!(value, 42);
 
+    #[allow(clippy::drop_non_drop)]
     drop(injected_value);
+    #[allow(clippy::drop_non_drop)]
     drop(root);
+    #[allow(clippy::drop_non_drop)]
     drop(child_comp);
+    #[allow(clippy::drop_non_drop)]
     drop(ctx);
 
     super_aggressive_gc_cleanup();
@@ -75,6 +80,7 @@ fn test_context_nested_injection() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -85,6 +91,7 @@ fn test_context_nested_injection() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
     mid_comp.set_parent(Some(root.clone()));
@@ -110,9 +117,13 @@ fn test_context_nested_injection() {
         });
     });
 
+    #[allow(clippy::drop_non_drop)]
     drop(leaf_comp);
+    #[allow(clippy::drop_non_drop)]
     drop(mid_comp);
+    #[allow(clippy::drop_non_drop)]
     drop(root);
+    #[allow(clippy::drop_non_drop)]
     drop(ctx);
 
     super_aggressive_gc_cleanup();

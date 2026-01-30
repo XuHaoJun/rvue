@@ -45,8 +45,9 @@ pub enum ContextValueEnum {
 }
 
 impl ContextValueEnum {
-    pub fn from_value<T: Clone + 'static>(value: T) -> Self
+    pub fn from_value<T>(value: T) -> Self
     where
+        T: Clone + 'static,
         T: Trace,
     {
         let type_id = TypeId::of::<T>();
@@ -80,8 +81,9 @@ impl ContextValueEnum {
         panic!("Unsupported context type");
     }
 
-    pub fn to_gc<T: 'static>(&self) -> Option<Gc<T>>
+    pub fn to_gc<T>(&self) -> Option<Gc<T>>
     where
+        T: 'static,
         T: Trace,
     {
         match self {
@@ -172,15 +174,6 @@ unsafe impl Trace for ContextValueEnum {
             ContextValueEnum::GcVecString(gc) => gc.trace(visitor),
         }
     }
-}
-
-struct Tracer;
-
-impl rudo_gc::Visitor for Tracer {
-    fn visit<U: rudo_gc::Trace>(&mut self, _gc: &rudo_gc::Gc<U>) {
-        // Just mark the GC as visited - don't recursively trace
-    }
-    unsafe fn visit_region(&mut self, _ptr: *const u8, _len: usize) {}
 }
 
 /// Wrapper for vello::Scene to implement Trace
@@ -1086,8 +1079,9 @@ impl Component {
     }
 
     /// Provide context to this component and its descendants
-    pub fn provide_context<T: Clone + 'static>(&self, value: T)
+    pub fn provide_context<T>(&self, value: T)
     where
+        T: Clone + 'static,
         T: Trace,
     {
         let type_id = TypeId::of::<T>();
@@ -1096,8 +1090,9 @@ impl Component {
     }
 
     /// Find context of type T in this component or its ancestors
-    pub fn find_context<T: 'static>(&self) -> Option<Gc<T>>
+    pub fn find_context<T>(&self) -> Option<Gc<T>>
     where
+        T: 'static,
         T: Trace + Clone,
     {
         let type_id = TypeId::of::<T>();
