@@ -506,8 +506,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("Text", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -533,8 +532,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("Button", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -566,8 +564,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("Flex", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -615,8 +612,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("TextInput", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -632,8 +628,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("NumberInput", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -650,8 +645,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("Checkbox", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -669,8 +663,7 @@ fn generate_widget_builder_code(
             let widget_ident = Ident::new("Radio", span);
 
             let style_call = props
-                .optional_value("style")
-                .or_else(|| props.optional_value("styles"))
+                .optional_value("styles")
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 

@@ -172,9 +172,6 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
     let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
 
-    // Extract style attribute and generate .styles() call
-    let style_call = extract_style_for_flex(attrs);
-
     quote! {
         {
             use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
@@ -211,8 +208,7 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
                 .direction(direction_enum)
                 .gap(Gap(gap_val))
                 .align_items(align_enum)
-                .justify_content(justify_enum)
-                #style_call;
+                .justify_content(justify_enum);
 
             flex
         }
@@ -316,15 +312,6 @@ fn extract_optional_prop(attrs: &[RvueAttribute], name: &str) -> TokenStream {
             quote! { Some(#value) }
         })
         .unwrap_or_else(|| quote! { None })
-}
-
-fn extract_style_for_flex(attrs: &[RvueAttribute]) -> TokenStream {
-    if let Some(attr) = attrs.iter().find(|a| a.name() == "style") {
-        let value = extract_attr_value(attr);
-        quote! { .styles(#value) }
-    } else {
-        quote! {}
-    }
 }
 
 fn extract_attr_value(attr: &RvueAttribute) -> TokenStream {
