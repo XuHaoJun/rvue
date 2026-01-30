@@ -15,7 +15,7 @@ cssparser = "0.36"
 bitflags = "2"
 
 # GC for memory management
-rudo-gc = { path = "../../learn-projects/rudo/crates/rudo-gc", features = ["derive"] }
+rudo-gc = { version = "0.4", features = ["derive"] }
 
 # Shared signal types
 rvue-signals = { path = "../rvue-signals" }
