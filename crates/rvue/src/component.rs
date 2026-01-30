@@ -88,9 +88,10 @@ impl ContextValueEnum {
             ContextValueEnum::I32(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<i32>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<i32> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None
@@ -99,9 +100,10 @@ impl ContextValueEnum {
             ContextValueEnum::I64(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<i64>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<i64> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<i64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None
@@ -110,9 +112,10 @@ impl ContextValueEnum {
             ContextValueEnum::F64(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<f64>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<f64> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<f64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None
@@ -121,9 +124,10 @@ impl ContextValueEnum {
             ContextValueEnum::Bool(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<bool>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<bool> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<bool> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None
@@ -132,9 +136,10 @@ impl ContextValueEnum {
             ContextValueEnum::GcString(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<String>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<String> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<String> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None
@@ -143,9 +148,10 @@ impl ContextValueEnum {
             ContextValueEnum::GcVecString(gc) => {
                 if TypeId::of::<T>() == TypeId::of::<Vec<String>>() {
                     let ptr = Gc::internal_ptr(gc);
-                    let new_gc: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
-                    std::mem::forget(Gc::clone(gc));
-                    let result: Gc<T> = unsafe { std::mem::transmute(new_gc) };
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
                     Some(result)
                 } else {
                     None

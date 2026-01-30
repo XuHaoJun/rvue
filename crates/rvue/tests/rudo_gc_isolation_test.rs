@@ -9,18 +9,18 @@ enum ValueEnum {
 impl ValueEnum {
     fn from_i32(value: i32) -> Self {
         let gc = Gc::new(value);
-        let ptr = Gc::internal_ptr(&gc);
-        std::mem::forget(gc);
-        unsafe { Self::I32(Gc::from_raw(ptr)) }
+        std::mem::forget(gc.clone());
+        Self::I32(gc)
     }
 
     fn to_i32(&self) -> Option<Gc<i32>> {
         match self {
             ValueEnum::I32(gc) => {
                 let ptr = Gc::internal_ptr(gc);
-                let new_gc: Gc<i32> = unsafe { Gc::from_raw(ptr) };
-                std::mem::forget(Gc::clone(gc));
-                Some(new_gc)
+                let cloned = Gc::clone(gc);
+                let from_raw: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+                std::mem::forget(from_raw);
+                Some(cloned)
             }
             ValueEnum::I64(_) => None,
         }
@@ -97,7 +97,32 @@ fn gc_cleanup() {
 }
 
 #[test]
+fn test_many_sequential_contexts() {
+    rudo_gc::test_util::reset();
+    gc_cleanup();
+
+    for i in 0..10 {
+        rudo_gc::test_util::reset();
+        gc_cleanup();
+
+        let root = FakeComponent::new();
+        let child = FakeComponent::new();
+        child.parent.borrow_mut().replace(root.clone());
+        root.children.borrow_mut().push(child.clone());
+        root.provide_context(ValueEnum::from_i32(i));
+        let gc = child.find_context();
+        assert_eq!(**gc.as_ref().unwrap(), i);
+
+        drop(gc);
+        drop(child);
+        drop(root);
+        gc_cleanup();
+    }
+}
+
+#[test]
 fn test_single_context() {
+    rudo_gc::test_util::reset();
     gc_cleanup();
 
     let root = FakeComponent::new();
@@ -119,8 +144,8 @@ fn test_single_context() {
 }
 
 #[test]
-#[ignore = "GC isolation issue with GcCell<Vec<Gc<T>>> pattern"]
 fn test_two_components_sequential() {
+    rudo_gc::test_util::reset();
     gc_cleanup();
 
     let root1 = FakeComponent::new();
@@ -149,8 +174,8 @@ fn test_two_components_sequential() {
 }
 
 #[test]
-#[ignore = "GC isolation issue with GcCell<Vec<Gc<T>>> pattern"]
 fn test_nested_context() {
+    rudo_gc::test_util::reset();
     gc_cleanup();
 
     let root = FakeComponent::new();
@@ -176,29 +201,8 @@ fn test_nested_context() {
 }
 
 #[test]
-#[ignore = "GC isolation issue with GcCell<Vec<Gc<T>>> pattern"]
-fn test_many_sequential_contexts() {
-    gc_cleanup();
-
-    for i in 0..10 {
-        let root = FakeComponent::new();
-        let child = FakeComponent::new();
-        child.parent.borrow_mut().replace(root.clone());
-        root.children.borrow_mut().push(child.clone());
-        root.provide_context(ValueEnum::from_i32(i));
-        let gc = child.find_context();
-        assert_eq!(**gc.as_ref().unwrap(), i);
-
-        drop(gc);
-        drop(child);
-        drop(root);
-        gc_cleanup();
-    }
-}
-
-#[test]
-#[ignore = "GC isolation issue with GcCell<Vec<Gc<T>>> pattern"]
 fn test_full_component_pattern() {
+    rudo_gc::test_util::reset();
     gc_cleanup();
 
     let root = FakeComponent::new();
@@ -217,8 +221,8 @@ fn test_full_component_pattern() {
 }
 
 #[test]
-#[ignore = "GC isolation issue with GcCell<Vec<Gc<T>>> pattern"]
 fn test_two_tests_sequential() {
+    rudo_gc::test_util::reset();
     gc_cleanup();
 
     let root1 = FakeComponent::new();
