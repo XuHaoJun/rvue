@@ -41,7 +41,7 @@ pub fn render_component(
                 render_radio(component, &mut local_scene, Affine::IDENTITY);
             }
             ComponentType::Flex => {
-                render_flex_background(component, &mut local_scene, Affine::IDENTITY);
+                render_flex_background(component, &mut local_scene);
             }
             _ => {}
         }
@@ -492,20 +492,29 @@ fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affi
     }
 }
 
-fn render_flex_background(component: &Component, scene: &mut vello::Scene, transform: Affine) {
+fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
     if let ComponentProps::Flex { styles, .. } = &*component.props.borrow() {
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
             if let Some(flex_layout) = layout.layout() {
+                let x = flex_layout.location.x as f64;
+                let y = flex_layout.location.y as f64;
                 let width = flex_layout.size.width as f64;
                 let height = flex_layout.size.height as f64;
-                let rect = Rect::new(0.0, 0.0, width, height);
+
+                let rect = Rect::new(x, y, x + width, y + height);
 
                 if let Some(bg) = styles.as_ref().and_then(|s| s.background_color.as_ref()) {
                     let rgb = bg.0 .0;
                     let bg_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                    scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+                    scene.fill(
+                        vello::peniko::Fill::NonZero,
+                        Affine::IDENTITY,
+                        bg_color,
+                        None,
+                        &rect,
+                    );
                 }
 
                 if let (Some(border), Some(bw), Some(bs)) = (
@@ -518,17 +527,23 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene, trans
                         let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
                         let border_width = bw.0;
 
+                        let border_radius = styles
+                            .as_ref()
+                            .and_then(|s| s.border_radius.as_ref())
+                            .map(|r| r.0 as f64)
+                            .unwrap_or(0.0);
+
                         let half_width = border_width as f64 / 2.0;
                         let rounded_rect = RoundedRect::new(
-                            half_width,
-                            half_width,
-                            width - half_width,
-                            height - half_width,
-                            0.0,
+                            x + half_width,
+                            y + half_width,
+                            x + width - half_width,
+                            y + height - half_width,
+                            border_radius,
                         );
                         scene.stroke(
                             &Stroke::new(border_width as f64),
-                            transform,
+                            Affine::IDENTITY,
                             border_color,
                             None,
                             &rounded_rect,

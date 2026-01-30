@@ -240,30 +240,23 @@ impl Widget for Flex {
         };
 
         // Setup reactive styles effect
+        // Always create effect to ensure styles changes trigger re-render
         let styles_effect = if let Some(ref styles) = self.styles {
-            if styles.background_color.is_reactive()
-                || styles.border_color.is_reactive()
-                || styles.border_radius.is_reactive()
-                || styles.border_style.is_reactive()
-                || styles.border_width.is_reactive()
-            {
-                let comp = Gc::clone(&component);
-                let styles = styles.clone();
-                let effect = crate::effect::create_effect(move || {
-                    // Read all reactive style values to establish dependencies
-                    let _ = styles.background_color.get();
-                    let _ = styles.border_color.get();
-                    let _ = styles.border_radius.get();
-                    let _ = styles.border_style.get();
-                    let _ = styles.border_width.get();
-                    // Mark component as dirty to trigger re-render
-                    comp.mark_dirty();
-                });
-                component.add_effect(Gc::clone(&effect));
-                Some(effect)
-            } else {
-                None
-            }
+            let comp = Gc::clone(&component);
+            let styles = styles.clone();
+            let effect = crate::effect::create_effect(move || {
+                // Read all style values to establish dependencies
+                // This ensures any style change (reactive or not) triggers re-render
+                let _ = styles.background_color.get();
+                let _ = styles.border_color.get();
+                let _ = styles.border_radius.get();
+                let _ = styles.border_style.get();
+                let _ = styles.border_width.get();
+                // Mark component as dirty to trigger re-render
+                comp.mark_dirty();
+            });
+            component.add_effect(Gc::clone(&effect));
+            Some(effect)
         } else {
             None
         };
