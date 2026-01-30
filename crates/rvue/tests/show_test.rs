@@ -12,7 +12,7 @@ fn test_show_component_conditional_rendering() {
     let _child = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Visible".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Visible".to_string(), font_size: None, styles: None },
     );
 
     // Create Show component

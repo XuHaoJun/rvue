@@ -62,7 +62,7 @@ fn test_layout_node_with_text_component() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Hello".to_string(), font_size: None, styles: None },
     );
 
     let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
@@ -107,13 +107,13 @@ fn test_layout_node_tree_structure() {
     let child1 = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Child 1".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Child 1".to_string(), font_size: None, styles: None },
     );
 
     let child2 = Component::new(
         2,
         ComponentType::Text,
-        ComponentProps::Text { content: "Child 2".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Child 2".to_string(), font_size: None, styles: None },
     );
 
     let root_layout = LayoutNode::build_in_tree(&mut taffy, &root, &[], &mut text_context);

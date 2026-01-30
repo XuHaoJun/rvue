@@ -15,7 +15,7 @@ fn test_text_measure() {
         ComponentProps::Text {
             content: "Hello World".to_string(),
             font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
+            styles: None,
         },
     );
 
@@ -67,11 +67,7 @@ fn test_text_in_flex() {
     let text1 = Component::new(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Short".to_string(),
-            font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
-        },
+        ComponentProps::Text { content: "Short".to_string(), font_size: Some(16.0), styles: None },
     );
 
     let text2 = Component::new(
@@ -80,7 +76,7 @@ fn test_text_in_flex() {
         ComponentProps::Text {
             content: "This is a longer piece of text".to_string(),
             font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
+            styles: None,
         },
     );
 

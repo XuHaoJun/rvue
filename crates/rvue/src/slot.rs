@@ -190,7 +190,7 @@ impl ToChildren<ChildrenFn> for MaybeChildren {
                 crate::component::ComponentProps::Text {
                     content: String::new(),
                     font_size: None,
-                    color: None,
+                    styles: None,
                 },
             ))
         }))))
@@ -207,7 +207,7 @@ mod tests {
         Component::new(
             0,
             ComponentType::Text,
-            ComponentProps::Text { content: "test".to_string(), font_size: None, color: None },
+            ComponentProps::Text { content: "test".to_string(), font_size: None, styles: None },
         )
     }
 

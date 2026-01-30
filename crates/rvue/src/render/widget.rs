@@ -5,7 +5,7 @@ use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
-use vello::kurbo::{Affine, Circle, Rect, RoundedRect};
+use vello::kurbo::{Affine, Circle, Rect, RoundedRect, Stroke};
 use vello::peniko::Color;
 
 pub fn render_component(
@@ -109,13 +109,21 @@ fn render_children(
 }
 
 fn render_text(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Text { content: _, font_size: _, color } = &*component.props.borrow() {
+    if let ComponentProps::Text { content: _, font_size: _, styles } = &*component.props.borrow() {
         let user_data = component.user_data.borrow();
         let layout_wrapper =
             user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
 
         if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
-            let brush = color.unwrap_or(Color::BLACK);
+            let brush = styles
+                .as_ref()
+                .and_then(|s| s.text_color.as_ref())
+                .map(|tc| {
+                    let rgb = tc.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or(Color::BLACK);
+
             if layout.lines().next().is_none() {
                 let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
                 let bg_color = Color::from_rgb8(255, 165, 0);
@@ -197,24 +205,33 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene, trans
 
         if let Some(layout) = layout_node {
             if let Some(flex_layout) = layout.layout() {
-                let rect = Rect::new(
-                    0.0,
-                    0.0,
-                    flex_layout.size.width as f64,
-                    flex_layout.size.height as f64,
-                );
+                let width = flex_layout.size.width as f64;
+                let height = flex_layout.size.height as f64;
+                let rect = Rect::new(0.0, 0.0, width, height);
 
-                // Use the component's background_color if available, otherwise default
-                let bg_color = styles
-                    .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
-                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                    })
-                    .unwrap_or_else(|| Color::from_rgba8(245, 245, 245, 255));
+                if let Some(bg) = styles.as_ref().and_then(|s| s.background_color.as_ref()) {
+                    let rgb = bg.0 .0;
+                    let bg_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+                }
 
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+                if let (Some(border), Some(bw)) = (
+                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
+                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
+                ) {
+                    let rgb = border.0 .0;
+                    let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                    let border_width = bw.0;
+
+                    let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, 0.0);
+                    scene.stroke(
+                        &Stroke::new(border_width as f64),
+                        transform,
+                        border_color,
+                        None,
+                        &rounded_rect,
+                    );
+                }
             }
         }
     }

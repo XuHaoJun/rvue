@@ -218,7 +218,7 @@ pub enum ComponentProps {
     Text {
         content: String,
         font_size: Option<f32>,
-        color: Option<vello::peniko::Color>,
+        styles: Option<rvue_style::ComputedStyles>,
     },
     Button {
         label: String,
@@ -534,41 +534,28 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        let (font_size, color) = {
-            if let ComponentProps::Text { font_size, color, .. } = &*self.props.borrow() {
-                (*font_size, *color)
+        let (font_size, styles) = {
+            if let ComponentProps::Text { font_size, styles, .. } = &*self.props.borrow() {
+                (*font_size, styles.clone())
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color };
+        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, styles };
         self.mark_dirty();
     }
 
     /// Set text font size (for Text components)
     pub fn set_text_font_size(&self, font_size: f32) {
-        let (content, color) = {
-            if let ComponentProps::Text { content, color, .. } = &*self.props.borrow() {
-                (content.clone(), *color)
+        let (content, styles) = {
+            if let ComponentProps::Text { content, styles, .. } = &*self.props.borrow() {
+                (content.clone(), styles.clone())
             } else {
                 return;
             }
         };
         *self.props.borrow_mut() =
-            ComponentProps::Text { content, font_size: Some(font_size), color };
-        self.mark_dirty();
-    }
-
-    /// Set text color (for Text components)
-    pub fn set_text_color(&self, color: vello::peniko::Color) {
-        let (content, font_size) = {
-            if let ComponentProps::Text { content, font_size, .. } = &*self.props.borrow() {
-                (content.clone(), *font_size)
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color: Some(color) };
+            ComponentProps::Text { content, font_size: Some(font_size), styles };
         self.mark_dirty();
     }
 

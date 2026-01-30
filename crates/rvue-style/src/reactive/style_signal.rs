@@ -436,3 +436,11 @@ impl From<ReactiveStyles> for ComputedStyles {
         styles.compute()
     }
 }
+
+unsafe impl<T: Clone + 'static> Trace for ReactiveProperty<T> {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+}
+
+unsafe impl Trace for ReactiveStyles {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+}

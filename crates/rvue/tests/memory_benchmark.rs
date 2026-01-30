@@ -51,7 +51,7 @@ fn benchmark_initial_memory_footprint() {
         let _child = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Item {}", i), font_size: None, color: None },
+            ComponentProps::Text { content: format!("Item {}", i), font_size: None, styles: None },
         );
     }
 
@@ -88,7 +88,7 @@ fn benchmark_component_memory_usage() {
             ComponentProps::Text {
                 content: format!("Component {}", i),
                 font_size: None,
-                color: None,
+                styles: None,
             },
         );
         components.push(component);

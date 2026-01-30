@@ -24,6 +24,7 @@ unsafe impl Trace for Flex {
         self.gap.trace(visitor);
         self.align_items.trace(visitor);
         self.justify_content.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 

@@ -8,7 +8,7 @@ fn test_component_creation() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Hello".to_string(), font_size: None, styles: None },
     );
 
     assert_eq!(component.id, 1);
@@ -35,7 +35,7 @@ fn test_component_add_child() {
     let child = Component::new(
         2,
         ComponentType::Text,
-        ComponentProps::Text { content: "Child".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Child".to_string(), font_size: None, styles: None },
     );
 
     // Test add_child works with GcCell
@@ -49,7 +49,7 @@ fn test_component_lifecycle_mount() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), font_size: None, styles: None },
     );
 
     // Mount should not panic
@@ -62,7 +62,7 @@ fn test_component_lifecycle_unmount() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), font_size: None, styles: None },
     );
 
     // Unmount should not panic
@@ -74,7 +74,7 @@ fn test_component_lifecycle_update() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), font_size: None, styles: None },
     );
 
     // Update should not panic (even with no effects)
@@ -86,7 +86,7 @@ fn test_component_types() {
     let text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "".to_string(), font_size: None, styles: None },
     );
     assert_eq!(text.component_type, ComponentType::Text);
 
@@ -114,7 +114,7 @@ fn test_component_types() {
 #[test]
 fn test_component_props() {
     let text_props =
-        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, color: None };
+        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, styles: None };
 
     match text_props {
         ComponentProps::Text { content, .. } => {
