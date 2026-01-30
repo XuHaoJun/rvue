@@ -1,6 +1,7 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
+use crate::style::{resolve_styles, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
@@ -14,6 +15,7 @@ pub fn render_component(
     scene: &mut vello::Scene,
     transform: Affine,
     already_appended: &mut FxHashSet<u64>,
+    stylesheet: Option<&Stylesheet>,
 ) -> bool {
     let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
@@ -23,25 +25,25 @@ pub fn render_component(
 
         match &component.component_type {
             ComponentType::Text => {
-                render_text(component, &mut local_scene, Affine::IDENTITY);
+                render_text(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::Button => {
-                render_button(component, &mut local_scene, Affine::IDENTITY);
+                render_button(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::TextInput => {
-                render_text_input(component, &mut local_scene, Affine::IDENTITY);
+                render_text_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::NumberInput => {
-                render_number_input(component, &mut local_scene, Affine::IDENTITY);
+                render_number_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::Checkbox => {
-                render_checkbox(component, &mut local_scene, Affine::IDENTITY);
+                render_checkbox(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::Radio => {
-                render_radio(component, &mut local_scene, Affine::IDENTITY);
+                render_radio(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::Flex => {
-                render_flex_background(component, &mut local_scene);
+                render_flex_background(component, &mut local_scene, stylesheet);
             }
             _ => {}
         }
@@ -76,7 +78,14 @@ pub fn render_component(
     );
 
     if should_render_children {
-        render_children(component, scene, transform, already_appended, force_render_children);
+        render_children(
+            component,
+            scene,
+            transform,
+            already_appended,
+            force_render_children,
+            stylesheet,
+        );
     }
 
     is_dirty || cache_was_none
@@ -88,6 +97,7 @@ fn render_children(
     transform: Affine,
     already_appended: &mut FxHashSet<u64>,
     force_render_children: bool,
+    stylesheet: Option<&Stylesheet>,
 ) {
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
@@ -104,21 +114,52 @@ fn render_children(
         let cache_was_none = child.vello_cache.borrow().is_none();
 
         if force_render_children || is_dirty || cache_was_none {
-            render_component(child, scene, transform * child_transform, already_appended);
+            render_component(
+                child,
+                scene,
+                transform * child_transform,
+                already_appended,
+                stylesheet,
+            );
         }
     }
 }
 
-fn render_text(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Text { content: _, styles } = &*component.props.borrow() {
+fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> ComputedStyles {
+    match stylesheet {
+        Some(sheet) => resolve_styles(component, sheet),
+        None => {
+            let props = component.props.borrow();
+            match &*props {
+                ComponentProps::Text { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::Button { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::TextInput { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::NumberInput { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::Checkbox { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::Radio { styles, .. } => styles.clone().unwrap_or_default(),
+                ComponentProps::Flex { styles, .. } => styles.clone().unwrap_or_default(),
+                _ => ComputedStyles::default(),
+            }
+        }
+    }
+}
+
+fn render_text(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::Text { content: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let user_data = component.user_data.borrow();
         let layout_wrapper =
             user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
 
         if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
             let brush = styles
+                .text_color
                 .as_ref()
-                .and_then(|s| s.text_color.as_ref())
                 .map(|tc| {
                     let rgb = tc.0 .0;
                     Color::from_rgb8(rgb.r, rgb.g, rgb.b)
@@ -192,8 +233,14 @@ fn render_text_layout(
     }
 }
 
-fn render_button(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Button { label: _, styles } = &*component.props.borrow() {
+fn render_button(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::Button { label: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -203,31 +250,43 @@ fn render_button(component: &Component, scene: &mut vello::Scene, transform: Aff
                 let _rect = Rect::new(0.0, 0.0, width, height);
 
                 let bg_color = styles
+                    .background_color
                     .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
                     .map(|bg| {
                         let rgb = bg.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                     })
                     .unwrap_or_else(|| Color::from_rgb8(70, 130, 180));
 
-                let border_radius = styles
-                    .as_ref()
-                    .and_then(|s| s.border_radius.as_ref())
-                    .map(|r| r.0 as f64)
-                    .unwrap_or(4.0);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
+                render_border(
+                    scene,
+                    transform,
+                    &Some(styles),
+                    0.0,
+                    0.0,
+                    width,
+                    height,
+                    border_radius,
+                );
             }
         }
     }
 }
 
-fn render_text_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::TextInput { value: _, styles } = &*component.props.borrow() {
+fn render_text_input(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::TextInput { value: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -237,31 +296,43 @@ fn render_text_input(component: &Component, scene: &mut vello::Scene, transform:
                 let _rect = Rect::new(0.0, 0.0, width, height);
 
                 let bg_color = styles
+                    .background_color
                     .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
                     .map(|bg| {
                         let rgb = bg.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                     })
                     .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius = styles
-                    .as_ref()
-                    .and_then(|s| s.border_radius.as_ref())
-                    .map(|r| r.0 as f64)
-                    .unwrap_or(4.0);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
+                render_border(
+                    scene,
+                    transform,
+                    &Some(styles),
+                    0.0,
+                    0.0,
+                    width,
+                    height,
+                    border_radius,
+                );
             }
         }
     }
 }
 
-fn render_number_input(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::NumberInput { value: _, styles } = &*component.props.borrow() {
+fn render_number_input(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::NumberInput { value: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -271,31 +342,43 @@ fn render_number_input(component: &Component, scene: &mut vello::Scene, transfor
                 let _rect = Rect::new(0.0, 0.0, width, height);
 
                 let bg_color = styles
+                    .background_color
                     .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
                     .map(|bg| {
                         let rgb = bg.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                     })
                     .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius = styles
-                    .as_ref()
-                    .and_then(|s| s.border_radius.as_ref())
-                    .map(|r| r.0 as f64)
-                    .unwrap_or(4.0);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
+                render_border(
+                    scene,
+                    transform,
+                    &Some(styles),
+                    0.0,
+                    0.0,
+                    width,
+                    height,
+                    border_radius,
+                );
             }
         }
     }
 }
 
-fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Checkbox { checked: _, styles } = &*component.props.borrow() {
+fn render_checkbox(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::Checkbox { checked: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -304,33 +387,36 @@ fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: A
                 let height = checkbox_layout.size.height as f64;
 
                 let bg_color = styles
+                    .background_color
                     .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
                     .map(|bg| {
                         let rgb = bg.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                     })
                     .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius = styles
-                    .as_ref()
-                    .and_then(|s| s.border_radius.as_ref())
-                    .map(|r| r.0 as f64)
-                    .unwrap_or(4.0);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
                 let _rect = Rect::new(0.0, 0.0, width.min(height), height.min(width));
                 let size = width.min(height);
                 let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(scene, transform, styles, 0.0, 0.0, size, size, border_radius);
+                render_border(scene, transform, &Some(styles), 0.0, 0.0, size, size, border_radius);
             }
         }
     }
 }
 
-fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Radio { value: _, checked: _, styles } = &*component.props.borrow() {
+fn render_radio(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::Radio { value: _, checked: _, styles: _ } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -340,8 +426,8 @@ fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affi
                 let center_y = radio_layout.size.height / 2.0;
 
                 let bg_color = styles
+                    .background_color
                     .as_ref()
-                    .and_then(|s| s.background_color.as_ref())
                     .map(|bg| {
                         let rgb = bg.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
@@ -351,27 +437,20 @@ fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affi
                 let circle = Circle::new((center_x, center_y), size / 2.0);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
 
-                let border_style = styles
-                    .as_ref()
-                    .and_then(|s| s.border_style.as_ref())
-                    .copied()
-                    .unwrap_or(BorderStyle::None);
+                let border_style =
+                    styles.border_style.as_ref().copied().unwrap_or(BorderStyle::None);
 
                 if border_style != BorderStyle::None {
                     let border_color = styles
+                        .border_color
                         .as_ref()
-                        .and_then(|s| s.border_color.as_ref())
                         .map(|border| {
                             let rgb = border.0 .0;
                             Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                         })
                         .unwrap_or_else(|| Color::from_rgb8(100, 100, 100));
 
-                    let border_width = styles
-                        .as_ref()
-                        .and_then(|s| s.border_width.as_ref())
-                        .map(|bw| bw.0)
-                        .unwrap_or(1.0);
+                    let border_width = styles.border_width.as_ref().map(|bw| bw.0).unwrap_or(1.0);
 
                     let half_width = border_width as f64 / 2.0;
                     let border_circle = Circle::new((center_x, center_y), size / 2.0 - half_width);
@@ -427,8 +506,13 @@ fn render_border(
     }
 }
 
-fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
-    if let ComponentProps::Flex { styles, .. } = &*component.props.borrow() {
+fn render_flex_background(
+    component: &Gc<Component>,
+    scene: &mut vello::Scene,
+    stylesheet: Option<&Stylesheet>,
+) {
+    if let ComponentProps::Flex { styles: _, .. } = &*component.props.borrow() {
+        let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 
         if let Some(layout) = layout_node {
@@ -440,7 +524,7 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
 
                 let rect = Rect::new(x, y, x + width, y + height);
 
-                if let Some(bg) = styles.as_ref().and_then(|s| s.background_color.as_ref()) {
+                if let Some(bg) = styles.background_color.as_ref() {
                     let rgb = bg.0 .0;
                     let bg_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
                     scene.fill(
@@ -452,13 +536,19 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
                     );
                 }
 
-                let border_radius = styles
-                    .as_ref()
-                    .and_then(|s| s.border_radius.as_ref())
-                    .map(|r| r.0 as f64)
-                    .unwrap_or(0.0);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(0.0);
 
-                render_border(scene, Affine::IDENTITY, styles, x, y, width, height, border_radius);
+                render_border(
+                    scene,
+                    Affine::IDENTITY,
+                    &Some(styles),
+                    x,
+                    y,
+                    width,
+                    height,
+                    border_radius,
+                );
             }
         }
     }

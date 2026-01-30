@@ -3,6 +3,7 @@
 use crate::component::build_layout_tree;
 use crate::component::Component;
 use crate::render::widget::render_component;
+use crate::style::Stylesheet;
 use crate::text::TextContext;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
@@ -18,6 +19,7 @@ pub struct Scene {
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
     pub text_context: TextContext,
+    pub stylesheet: Option<Stylesheet>,
 }
 
 impl Scene {
@@ -30,7 +32,19 @@ impl Scene {
             renderer_initialized: false,
             taffy: TaffyTree::new(),
             text_context: TextContext::new(),
+            stylesheet: None,
         }
+    }
+
+    /// Set the stylesheet for this scene
+    pub fn set_stylesheet(&mut self, stylesheet: Stylesheet) {
+        self.stylesheet = Some(stylesheet);
+        self.is_dirty = true;
+    }
+
+    /// Get a reference to the stylesheet
+    pub fn stylesheet(&self) -> Option<&Stylesheet> {
+        self.stylesheet.as_ref()
     }
 
     /// Initialize the Vello scene lazily (only when needed)
@@ -90,11 +104,23 @@ impl Scene {
             if let Some(ref mut scene) = self.vello_scene {
                 if component.is_dirty() {
                     *component.vello_cache.borrow_mut() = None;
-                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
+                    render_component(
+                        component,
+                        scene,
+                        Affine::IDENTITY,
+                        &mut already_appended,
+                        self.stylesheet.as_ref(),
+                    );
                 } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
                 } else {
-                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
+                    render_component(
+                        component,
+                        scene,
+                        Affine::IDENTITY,
+                        &mut already_appended,
+                        self.stylesheet.as_ref(),
+                    );
                 }
             }
         }

@@ -291,6 +291,8 @@ pub struct Component {
     pub vello_cache: GcCell<Option<SceneWrapper>>,
     pub contexts: GcCell<Vec<ContextEntry>>,
     pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
+    pub classes: GcCell<Vec<String>>,
+    pub element_id: GcCell<Option<String>>,
 }
 
 unsafe impl Trace for Component {
@@ -313,6 +315,8 @@ unsafe impl Trace for Component {
         // Cleanups are not traced since they are closures
         // Trace context values by directly visiting Gc pointers
         self.contexts.trace(visitor);
+        self.classes.trace(visitor);
+        self.element_id.trace(visitor);
     }
 }
 
@@ -340,6 +344,8 @@ impl Clone for Component {
             vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
             contexts: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
+            classes: GcCell::new(self.classes.borrow().clone()),
+            element_id: GcCell::new(self.element_id.borrow().clone()),
         }
     }
 }
@@ -401,6 +407,8 @@ impl Component {
             vello_cache: GcCell::new(None),
             contexts: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
+            classes: GcCell::new(Vec::new()),
+            element_id: GcCell::new(None),
         })
     }
 
@@ -1083,6 +1091,39 @@ impl Component {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
         self.event_handlers.borrow_mut().on_change = Some(handler);
+    }
+
+    pub fn add_class(self: &Gc<Self>, class: &str) {
+        let mut classes = self.classes.borrow_mut();
+        if !classes.iter().any(|c| c == class) {
+            classes.push(class.to_string());
+            self.mark_dirty();
+        }
+    }
+
+    pub fn remove_class(self: &Gc<Self>, class: &str) {
+        let mut classes = self.classes.borrow_mut();
+        if classes.iter().any(|c| c == class) {
+            classes.retain(|c| c != class);
+            self.mark_dirty();
+        }
+    }
+
+    pub fn has_class(self: &Gc<Self>, class: &str) -> bool {
+        self.classes.borrow().iter().any(|c| c == class)
+    }
+
+    pub fn set_id(self: &Gc<Self>, id: &str) {
+        *self.element_id.borrow_mut() = Some(id.to_string());
+        self.mark_dirty();
+    }
+
+    pub fn get_id(self: &Gc<Self>) -> Option<String> {
+        self.element_id.borrow().clone()
+    }
+
+    pub fn classes(&self) -> Vec<String> {
+        self.classes.borrow().clone()
     }
 
     /// Provide context to this component and its descendants

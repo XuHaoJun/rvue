@@ -148,3 +148,7 @@ impl Stylesheet {
         self.rules.is_empty()
     }
 }
+
+unsafe impl rudo_gc::Trace for Stylesheet {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+}

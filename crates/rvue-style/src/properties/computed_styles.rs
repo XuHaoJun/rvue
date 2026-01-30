@@ -138,6 +138,97 @@ impl ComputedStyles {
             self.z_index = Some(*zi);
         }
     }
+
+    #[inline]
+    pub fn merge_with_computed(&mut self, other: &ComputedStyles) {
+        if let Some(bg) = other.background_color.as_ref() {
+            self.background_color = Some(bg.clone());
+        }
+        if let Some(c) = other.color.as_ref() {
+            self.color = Some(c.clone());
+        }
+        if let Some(tc) = other.text_color.as_ref() {
+            self.text_color = Some(tc.clone());
+        }
+        if let Some(fs) = other.font_size.as_ref() {
+            self.font_size = Some(fs.clone());
+        }
+        if let Some(ff) = other.font_family.as_ref() {
+            self.font_family = Some(ff.clone());
+        }
+        if let Some(fw) = other.font_weight.as_ref() {
+            self.font_weight = Some(fw.clone());
+        }
+        if let Some(p) = other.padding.as_ref() {
+            self.padding = Some(p.clone());
+        }
+        if let Some(m) = other.margin.as_ref() {
+            self.margin = Some(m.clone());
+        }
+        if let Some(w) = other.width.as_ref() {
+            self.width = Some(w.clone());
+        }
+        if let Some(h) = other.height.as_ref() {
+            self.height = Some(h.clone());
+        }
+        if let Some(mw) = other.min_width.as_ref() {
+            self.min_width = Some(mw.clone());
+        }
+        if let Some(mh) = other.min_height.as_ref() {
+            self.min_height = Some(mh.clone());
+        }
+        if let Some(mw) = other.max_width.as_ref() {
+            self.max_width = Some(mw.clone());
+        }
+        if let Some(mh) = other.max_height.as_ref() {
+            self.max_height = Some(mh.clone());
+        }
+        if let Some(d) = other.display.as_ref() {
+            self.display = Some(d.clone());
+        }
+        if let Some(fd) = other.flex_direction.as_ref() {
+            self.flex_direction = Some(fd.clone());
+        }
+        if let Some(jc) = other.justify_content.as_ref() {
+            self.justify_content = Some(jc.clone());
+        }
+        if let Some(ai) = other.align_items.as_ref() {
+            self.align_items = Some(ai.clone());
+        }
+        if let Some(as_) = other.align_self.as_ref() {
+            self.align_self = Some(as_.clone());
+        }
+        if let Some(fg) = other.flex_grow.as_ref() {
+            self.flex_grow = Some(fg.clone());
+        }
+        if let Some(fs) = other.flex_shrink.as_ref() {
+            self.flex_shrink = Some(fs.clone());
+        }
+        if let Some(g) = other.gap.as_ref() {
+            self.gap = Some(g.clone());
+        }
+        if let Some(bc) = other.border_color.as_ref() {
+            self.border_color = Some(bc.clone());
+        }
+        if let Some(bw) = other.border_width.as_ref() {
+            self.border_width = Some(bw.clone());
+        }
+        if let Some(br) = other.border_radius.as_ref() {
+            self.border_radius = Some(br.clone());
+        }
+        if let Some(bs) = other.border_style.as_ref() {
+            self.border_style = Some(bs.clone());
+        }
+        if let Some(o) = other.opacity.as_ref() {
+            self.opacity = Some(o.clone());
+        }
+        if let Some(v) = other.visibility.as_ref() {
+            self.visibility = Some(v.clone());
+        }
+        if let Some(zi) = other.z_index.as_ref() {
+            self.z_index = Some(zi.clone());
+        }
+    }
 }
 
 unsafe impl Trace for ComputedStyles {

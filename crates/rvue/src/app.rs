@@ -9,6 +9,7 @@ use crate::event::types::{
 };
 use crate::event::update::{run_update_focus_pass, run_update_pointer_pass};
 use crate::render::Scene as RvueScene;
+use crate::style::Stylesheet;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, GcCell};
@@ -60,6 +61,7 @@ pub struct FocusState {
 pub struct AppState<'a> {
     view: Option<ViewStruct>,
     scene: RvueScene,
+    pub stylesheet: Option<Stylesheet>,
     pub focus_state: FocusState,
     pub pointer_capture: GcCell<Option<Gc<Component>>>,
     pub last_pointer_pos: Option<Point>,
@@ -214,6 +216,7 @@ impl<'a> AppState<'a> {
             window: None,
             view: None,
             scene: RvueScene::new(),
+            stylesheet: None,
             focus_state: FocusState {
                 focused: None,
                 fallback: None,
@@ -487,6 +490,13 @@ impl<'a> AppState<'a> {
             }
         }
 
+        // Set stylesheet if not already set
+        if self.scene.stylesheet.is_none() {
+            if let Some(stylesheet) = &self.stylesheet {
+                self.scene.set_stylesheet(stylesheet.clone());
+            }
+        }
+
         // Update scene (regenerates the underlying vello::Scene if dirty)
         self.scene.update();
 
@@ -622,6 +632,59 @@ where
     app_state.view = Some(view);
 
     // Run the event loop - AppState::drop will handle cleanup
+    event_loop
+        .run_app(&mut app_state)
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Run the application with a stylesheet for CSS selector matching.
+///
+/// # Arguments
+///
+/// * `view_fn` - A function that returns the root view of the application
+/// * `stylesheet` - An optional stylesheet for CSS selector-based styling
+///
+/// # Example
+///
+/// ```ignore
+/// use rvue::prelude::*;
+/// use rvue_style::{Stylesheet, BackgroundColor, Color};
+///
+/// fn main() {
+///     let mut stylesheet = Stylesheet::new();
+///     stylesheet.add_rule("button.primary", Properties::with(
+///         BackgroundColor(Color::rgb(0, 123, 255))
+///     ));
+///     stylesheet.add_rule("button:hover", Properties::with(
+///         BackgroundColor(Color::rgb(0, 86, 179))
+///     ));
+///
+///     rvue::run_app_with_stylesheet(|| {
+///         view! {
+///             <Button label="Primary" class="primary" />
+///         }
+///     }, Some(stylesheet));
+/// }
+/// ```
+pub fn run_app_with_stylesheet<F>(
+    view_fn: F,
+    stylesheet: Option<Stylesheet>,
+) -> Result<(), AppError>
+where
+    F: FnOnce() -> ViewStruct + 'static,
+{
+    rudo_gc::set_collect_condition(|_| false);
+
+    let view = view_fn();
+
+    let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
+    let mut app_state = AppState::new();
+    app_state.view = Some(view);
+    app_state.stylesheet = stylesheet;
+
     event_loop
         .run_app(&mut app_state)
         .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
