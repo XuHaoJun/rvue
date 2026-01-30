@@ -4,7 +4,7 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::{
-    AlignItems, BackgroundColor, BorderColor, BorderRadius, FlexDirection, Gap, JustifyContent,
+    AlignItems, BackgroundColor, BorderColor, BorderRadius, FlexDirection, JustifyContent,
     ReactiveStyles,
 };
 
@@ -12,7 +12,7 @@ use rvue_style::{
 #[derive(Clone)]
 pub struct Flex {
     direction: ReactiveValue<FlexDirection>,
-    gap: ReactiveValue<Gap>,
+    gap: ReactiveValue<f32>,
     align_items: ReactiveValue<AlignItems>,
     justify_content: ReactiveValue<JustifyContent>,
     styles: Option<ReactiveStyles>,
@@ -33,7 +33,7 @@ impl Flex {
     pub fn new() -> Self {
         Self {
             direction: ReactiveValue::Static(FlexDirection::Row),
-            gap: ReactiveValue::Static(Gap(0.0)),
+            gap: ReactiveValue::Static(0.0),
             align_items: ReactiveValue::Static(AlignItems::Stretch),
             justify_content: ReactiveValue::Static(JustifyContent::FlexStart),
             styles: None,
@@ -50,7 +50,7 @@ impl Flex {
     }
 
     /// Set the gap between items
-    pub fn gap(mut self, gap: impl crate::widget::IntoReactiveValue<Gap>) -> Self {
+    pub fn gap(mut self, gap: impl crate::widget::IntoReactiveValue<f32>) -> Self {
         self.gap = gap.into_reactive();
         self
     }
@@ -179,7 +179,7 @@ impl Widget for Flex {
             ComponentType::Flex,
             ComponentProps::Flex {
                 direction: direction.as_str().to_string(),
-                gap: gap.0,
+                gap,
                 align_items: align_items.as_str().to_string(),
                 justify_content: justify_content.as_str().to_string(),
                 styles: computed_styles,
@@ -205,7 +205,7 @@ impl Widget for Flex {
             let gap = self.gap.clone();
             let effect = crate::effect::create_effect(move || {
                 let new_gap = gap.get();
-                comp.set_flex_gap(new_gap.0);
+                comp.set_flex_gap(new_gap);
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -296,14 +296,14 @@ impl Widget for Flex {
                 let gap = self.gap.clone();
                 let effect = crate::effect::create_effect(move || {
                     let new_gap = gap.get();
-                    comp.set_flex_gap(new_gap.0);
+                    comp.set_flex_gap(new_gap);
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.gap_effect = Some(effect);
             }
         } else {
             let new_gap = self.gap.get();
-            state.component.set_flex_gap(new_gap.0);
+            state.component.set_flex_gap(new_gap);
         }
 
         // Update align_items if reactive

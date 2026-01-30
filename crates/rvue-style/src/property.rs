@@ -271,6 +271,7 @@ impl From<Properties> for crate::widget::styled::StyleData {
             cursor: props.get().cloned(),
             z_index: props.get().cloned(),
             gap: props.get().cloned(),
+            size: props.get().cloned(),
         }
     }
 }

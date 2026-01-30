@@ -183,6 +183,7 @@ pub struct StyleData {
     pub cursor: Option<Cursor>,
     pub z_index: Option<ZIndex>,
     pub gap: Option<Gap>,
+    pub size: Option<Size>,
 }
 
 impl StyleData {
@@ -237,7 +238,8 @@ impl StyleData {
 
     pub fn with_size(mut self, size: Size) -> Self {
         self.width = Some(Width(size.clone()));
-        self.height = Some(Height(size));
+        self.height = Some(Height(size.clone()));
+        self.size = Some(size);
         self
     }
 
@@ -441,7 +443,7 @@ impl StyleStore for StyleData {
     }
 
     fn size(&self) -> Option<&Size> {
-        None
+        self.size.as_ref()
     }
 }
 
@@ -524,6 +526,9 @@ impl From<StyleData> for Properties {
             props.insert(p);
         }
         if let Some(p) = style.gap {
+            props.insert(p);
+        }
+        if let Some(p) = style.size {
             props.insert(p);
         }
         props

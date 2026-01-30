@@ -298,10 +298,10 @@ fn generate_fragment_code(nodes: Vec<RvueNode>, ctx_ident: &Ident) -> TokenStrea
 
             quote! {
                 {
-                    use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
+                    use rvue_style::{FlexDirection, AlignItems, JustifyContent};
                     let root_widget = rvue::widgets::Flex::new()
                         .direction(FlexDirection::Row)
-                        .gap(Gap(0.0))
+                        .gap(0.0)
                         .align_items(AlignItems::FlexStart)
                         .justify_content(JustifyContent::FlexStart);
                     let root_state = root_widget.build(&mut #ctx_ident);
@@ -570,7 +570,7 @@ fn generate_widget_builder_code(
 
             quote! {
                 {
-                    use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
+                    use rvue_style::{FlexDirection, AlignItems, JustifyContent};
                     let direction_str = #direction_value.to_string();
                     let direction_enum = match direction_str.as_str() {
                         "row" => FlexDirection::Row,
@@ -600,7 +600,7 @@ fn generate_widget_builder_code(
                     };
                     rvue::widgets::#widget_ident::new()
                         .direction(direction_enum)
-                        .gap(Gap(#gap_value))
+                        .gap(#gap_value)
                         .align_items(align_enum)
                         .justify_content(justify_enum)
                         #style_call

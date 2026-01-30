@@ -16,6 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn text_style(color: TextColor) -> ReactiveStyles {
     ReactiveStyles::new().set_text_color(color)
 }

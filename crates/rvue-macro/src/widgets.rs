@@ -174,7 +174,7 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
 
     quote! {
         {
-            use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
+            use rvue_style::{FlexDirection, AlignItems, JustifyContent};
             let direction_str = #direction.to_string();
             let direction_enum = match direction_str.as_str() {
                 "row" => FlexDirection::Row,
@@ -206,7 +206,7 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
 
             let flex = rvue::widgets::Flex::new()
                 .direction(direction_enum)
-                .gap(Gap(gap_val))
+                .gap(gap_val)
                 .align_items(align_enum)
                 .justify_content(justify_enum);
 

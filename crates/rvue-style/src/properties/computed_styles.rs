@@ -3,10 +3,10 @@
 use rudo_gc::{Trace, Visitor};
 
 use crate::properties::{
-    AlignItems, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color,
-    Display, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize, FontWeight, Gap, Height,
-    JustifyContent, Margin, MaxHeight, MaxWidth, MinHeight, MinWidth, Opacity, Padding, TextColor,
-    Visibility, Width, ZIndex,
+    AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
+    Color, Display, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize, FontWeight, Gap,
+    Height, JustifyContent, Margin, MaxHeight, MaxWidth, MinHeight, MinWidth, Opacity, Padding,
+    TextColor, Visibility, Width, ZIndex,
 };
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -29,6 +29,7 @@ pub struct ComputedStyles {
     pub flex_direction: Option<FlexDirection>,
     pub justify_content: Option<JustifyContent>,
     pub align_items: Option<AlignItems>,
+    pub align_self: Option<AlignSelf>,
     pub flex_grow: Option<FlexGrow>,
     pub flex_shrink: Option<FlexShrink>,
     pub gap: Option<Gap>,
@@ -102,6 +103,9 @@ impl ComputedStyles {
         }
         if let Some(ai) = properties.get::<AlignItems>() {
             self.align_items = Some(*ai);
+        }
+        if let Some(as_) = properties.get::<AlignSelf>() {
+            self.align_self = Some(*as_);
         }
         if let Some(fg) = properties.get::<FlexGrow>() {
             self.flex_grow = Some(*fg);
