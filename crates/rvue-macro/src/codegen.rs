@@ -504,13 +504,39 @@ fn generate_widget_builder_code(
             let PropValue { value: content_value, is_reactive } =
                 props.value("content", || quote! { "" });
             let widget_ident = Ident::new("Text", span);
+
+            let font_size_call = props
+                .optional_value("font_size")
+                .map(|v| quote! { .font_size(#v) })
+                .unwrap_or_else(|| quote! {});
+            let text_color_call = props
+                .optional_value("text_color")
+                .map(|v| quote! { .text_color(#v) })
+                .unwrap_or_else(|| quote! {});
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             if is_reactive {
                 quote! {
-                    rvue::widgets::#widget_ident::new(#content_value)
+                    {
+                        use rvue_style::TextColor;
+                        rvue::widgets::#widget_ident::new(#content_value)
+                            #font_size_call
+                            #text_color_call
+                            #style_call
+                    }
                 }
             } else {
                 quote! {
-                    rvue::widgets::#widget_ident::new(#content_value.to_string())
+                    {
+                        use rvue_style::TextColor;
+                        rvue::widgets::#widget_ident::new(#content_value.to_string())
+                            #font_size_call
+                            #text_color_call
+                            #style_call
+                    }
                 }
             }
         }
@@ -680,6 +706,13 @@ impl<'a> WidgetProps<'a> {
             .find(|attr| attr.name() == name)
             .map(extract_attr_value)
             .unwrap_or_else(|| PropValue { value: default(), is_reactive: false })
+    }
+
+    fn optional_value(&self, name: &str) -> Option<TokenStream> {
+        self.attributes
+            .iter()
+            .find(|attr| attr.name() == name)
+            .map(|attr| extract_attr_value(attr).value)
     }
 }
 
