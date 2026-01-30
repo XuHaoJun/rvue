@@ -3,7 +3,10 @@
 use rvue::prelude::*;
 use rvue_macro::view;
 #[allow(unused_imports)]
-use rvue_style::{BackgroundColor, BorderColor, BorderRadius, Color, ReactiveStyles, TextColor};
+use rvue_style::{
+    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize,
+    ReactiveStyles, TextColor,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rudo_gc::test_util::reset();
@@ -42,10 +45,10 @@ fn create_styled_view() -> ViewStruct {
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
                 <Text content="Font Size Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
-                    <Text content="12px" />
+                    <Text content="12px" style=ReactiveStyles::new().set_font_size(FontSize(12.0)) />
                     <Text content="Aa" style=text_style(TextColor(Color::rgb(33, 37, 41))) />
-                    <Text content="24px" />
-                    <Text content="48px" />
+                    <Text content="24px" style=ReactiveStyles::new().set_font_size(FontSize(24.0)) />
+                    <Text content="48px" style=ReactiveStyles::new().set_font_size(FontSize(48.0)) />
                 </Flex>
             </Flex>
 
@@ -100,6 +103,8 @@ fn create_styled_view() -> ViewStruct {
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
@@ -108,6 +113,8 @@ fn create_styled_view() -> ViewStruct {
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(0, 123, 255)))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
@@ -116,6 +123,8 @@ fn create_styled_view() -> ViewStruct {
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(40, 167, 69)))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
@@ -124,6 +133,8 @@ fn create_styled_view() -> ViewStruct {
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(220, 53, 69)))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)

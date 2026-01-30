@@ -81,16 +81,20 @@ impl LayoutNode {
         mut style: Style,
         text_context: &mut TextContext,
     ) -> Self {
-        let content = if let ComponentProps::Text { content, .. } = &*component.props.borrow() {
-            content.clone()
-        } else {
-            String::new()
-        };
+        let (content, styles) =
+            if let ComponentProps::Text { content, styles } = &*component.props.borrow() {
+                (content.clone(), styles.clone())
+            } else {
+                (String::new(), None)
+            };
+
+        let font_size =
+            styles.as_ref().and_then(|s| s.font_size.as_ref()).map(|fs| fs.0).unwrap_or(16.0);
 
         // Eagerly build text layout to get dimensions
         let mut layout_builder =
             text_context.layout_ctx.ranged_builder(&mut text_context.font_ctx, &content, 1.0, true);
-        layout_builder.push_default(parley::style::StyleProperty::FontSize(16.0));
+        layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
         layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
         // Use a more robust font stack
         layout_builder.push_default(parley::style::FontStack::Source(std::borrow::Cow::Borrowed(

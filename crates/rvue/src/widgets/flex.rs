@@ -244,6 +244,8 @@ impl Widget for Flex {
             if styles.background_color.is_reactive()
                 || styles.border_color.is_reactive()
                 || styles.border_radius.is_reactive()
+                || styles.border_style.is_reactive()
+                || styles.border_width.is_reactive()
             {
                 let comp = Gc::clone(&component);
                 let styles = styles.clone();
@@ -252,6 +254,8 @@ impl Widget for Flex {
                     let _ = styles.background_color.get();
                     let _ = styles.border_color.get();
                     let _ = styles.border_radius.get();
+                    let _ = styles.border_style.get();
+                    let _ = styles.border_width.get();
                     // Mark component as dirty to trigger re-render
                     comp.mark_dirty();
                 });

@@ -563,6 +563,11 @@ fn generate_widget_builder_code(
 
             let widget_ident = Ident::new("Flex", span);
 
+            let style_call = props
+                .optional_value("style")
+                .map(|v| quote! { .styles(#v) })
+                .unwrap_or_else(|| quote! {});
+
             quote! {
                 {
                     use rvue_style::{FlexDirection, AlignItems, JustifyContent, Gap};
@@ -598,6 +603,7 @@ fn generate_widget_builder_code(
                         .gap(Gap(#gap_value))
                         .align_items(align_enum)
                         .justify_content(justify_enum)
+                        #style_call
                 }
             }
         }
