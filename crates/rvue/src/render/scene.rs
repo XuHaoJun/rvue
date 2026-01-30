@@ -55,6 +55,10 @@ impl Scene {
             return;
         }
 
+        if !self.is_dirty && !any_dirty {
+            return;
+        }
+
         self.ensure_initialized();
 
         if self.is_dirty {

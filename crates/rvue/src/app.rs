@@ -56,12 +56,8 @@ pub struct FocusState {
 }
 
 /// Application state
-/// Fields are ordered for correct drop order: renderer first, surface second, render_cx last
+/// Fields are ordered for correct drop order: GC resources first, window last
 pub struct AppState<'a> {
-    renderer: Option<Renderer>,
-    surface: Option<RenderSurface<'a>>,
-    render_cx: Option<RenderContext>,
-    window: Option<Arc<Window>>,
     view: Option<ViewStruct>,
     scene: RvueScene,
     pub focus_state: FocusState,
@@ -73,6 +69,10 @@ pub struct AppState<'a> {
     pub focused_path: Vec<Gc<Component>>,
     pub needs_pointer_pass_update: bool,
     pub last_gc_count: usize,
+    renderer: Option<Renderer>,
+    surface: Option<RenderSurface<'a>>,
+    render_cx: Option<RenderContext>,
+    window: Option<Arc<Window>>,
 }
 
 impl<'a> AppStateLike for AppState<'a> {
@@ -248,6 +248,15 @@ impl ApplicationHandler for AppState<'_> {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
+                // Clear GC resources before exiting to prevent double-free
+                self.active_path.clear();
+                self.hovered_path.clear();
+                self.focused_path.clear();
+                *self.pointer_capture.borrow_mut() = None;
+                *self.hovered_component.borrow_mut() = None;
+                self.scene.root_components.clear();
+                self.scene.vello_scene = None;
+                self.view = None;
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {
@@ -354,6 +363,28 @@ impl ApplicationHandler for AppState<'_> {
             let device = &render_cx.devices[dev_id].device;
             let _ = device.poll(wgpu::PollType::Poll);
         }
+    }
+}
+
+impl<'a> Drop for AppState<'a> {
+    fn drop(&mut self) {
+        // Clear all component paths first - these hold Gc references
+        self.active_path.clear();
+        self.hovered_path.clear();
+        self.focused_path.clear();
+
+        // Clear pointer capture and hovered component
+        *self.pointer_capture.borrow_mut() = None;
+        *self.hovered_component.borrow_mut() = None;
+
+        // Clear the scene's root components to break the reference chain
+        self.scene.root_components.clear();
+        self.scene.vello_scene = None;
+
+        // Clear the view to break the reference to root component
+        self.view = None;
+
+        // GC is disabled during app lifetime, so no need to run cleanup
     }
 }
 
@@ -578,17 +609,19 @@ pub fn run_app<F>(view_fn: F) -> Result<(), AppError>
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
-    eprintln!("[run_app] 1");
+    // Disable automatic GC collection during app lifetime to prevent
+    // race conditions with component drops
+    // The final cleanup in AppState::drop will re-enable and run GC
+    rudo_gc::set_collect_condition(|_| false);
+
     let view = view_fn();
-    eprintln!("[run_app] 2");
 
     let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
-    eprintln!("[run_app] 3");
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
-    eprintln!("[run_app] 4");
 
+    // Run the event loop - AppState::drop will handle cleanup
     event_loop
         .run_app(&mut app_state)
         .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
