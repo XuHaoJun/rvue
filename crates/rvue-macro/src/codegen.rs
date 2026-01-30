@@ -507,6 +507,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -533,6 +534,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -565,6 +567,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -613,6 +616,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -629,6 +633,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -646,6 +651,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
@@ -664,6 +670,7 @@ fn generate_widget_builder_code(
 
             let style_call = props
                 .optional_value("style")
+                .or_else(|| props.optional_value("styles"))
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
