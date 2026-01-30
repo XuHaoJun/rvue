@@ -187,11 +187,7 @@ impl ToChildren<ChildrenFn> for MaybeChildren {
             ViewStruct::new(Component::new(
                 0,
                 crate::component::ComponentType::Text,
-                crate::component::ComponentProps::Text {
-                    content: String::new(),
-                    font_size: None,
-                    styles: None,
-                },
+                crate::component::ComponentProps::Text { content: String::new(), styles: None },
             ))
         }))))
     }
@@ -207,7 +203,7 @@ mod tests {
         Component::new(
             0,
             ComponentType::Text,
-            ComponentProps::Text { content: "test".to_string(), font_size: None, styles: None },
+            ComponentProps::Text { content: "test".to_string(), styles: None },
         )
     }
 

@@ -43,7 +43,6 @@ fn create_counter_view() -> ViewStruct {
         ComponentType::Text,
         ComponentProps::Text {
             content: format!("Count: {}", count.get()),
-            font_size: None,
             styles: None,
         },
     );

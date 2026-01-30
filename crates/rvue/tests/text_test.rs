@@ -12,11 +12,7 @@ fn test_text_measure() {
     let component = Component::new(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello World".to_string(),
-            font_size: Some(16.0),
-            styles: None,
-        },
+        ComponentProps::Text { content: "Hello World".to_string(), styles: None },
     );
 
     // Create a Scene and add the component
@@ -67,7 +63,7 @@ fn test_text_in_flex() {
     let text1 = Component::new(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text { content: "Short".to_string(), font_size: Some(16.0), styles: None },
+        ComponentProps::Text { content: "Short".to_string(), styles: None },
     );
 
     let text2 = Component::new(
@@ -75,7 +71,6 @@ fn test_text_in_flex() {
         ComponentType::Text,
         ComponentProps::Text {
             content: "This is a longer piece of text".to_string(),
-            font_size: Some(16.0),
             styles: None,
         },
     );

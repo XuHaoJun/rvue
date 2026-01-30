@@ -246,7 +246,7 @@ fn test_stress_1000_components() {
         let child = rvue::Component::new(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, styles: None },
+            rvue::ComponentProps::Text { content: ".".to_string(), styles: None },
         );
         root.add_child(child);
     }
@@ -312,7 +312,7 @@ fn test_incremental_update_performance() {
         let child = rvue::Component::new(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, styles: None },
+            rvue::ComponentProps::Text { content: ".".to_string(), styles: None },
         );
         root.add_child(child);
     }

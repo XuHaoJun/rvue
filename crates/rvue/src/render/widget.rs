@@ -109,7 +109,7 @@ fn render_children(
 }
 
 fn render_text(component: &Component, scene: &mut vello::Scene, transform: Affine) {
-    if let ComponentProps::Text { content: _, font_size: _, styles } = &*component.props.borrow() {
+    if let ComponentProps::Text { content: _, styles } = &*component.props.borrow() {
         let user_data = component.user_data.borrow();
         let layout_wrapper =
             user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());

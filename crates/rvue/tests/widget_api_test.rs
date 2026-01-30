@@ -239,7 +239,7 @@ fn test_component_setters() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Initial".to_string(), font_size: None, styles: None },
+        ComponentProps::Text { content: "Initial".to_string(), styles: None },
     );
 
     // Test set_text_content
@@ -249,19 +249,7 @@ fn test_component_setters() {
             assert_eq!(content, "Updated");
         }
         _ => panic!("Expected Text props"),
-    }
-
-    // Test set_text_font_size
-    component.set_text_font_size(24.0);
-    {
-        let props = component.props.borrow();
-        match &*props {
-            ComponentProps::Text { font_size, .. } => {
-                assert_eq!(*font_size, Some(24.0));
-            }
-            _ => panic!("Expected Text props"),
-        }
-    }
+    };
 }
 
 #[test]

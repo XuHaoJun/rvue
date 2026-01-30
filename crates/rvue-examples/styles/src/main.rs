@@ -13,6 +13,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn text_style(color: TextColor) -> ReactiveStyles {
+    ReactiveStyles::new().set_text_color(color)
+}
+
 fn create_styled_view() -> ViewStruct {
     let _border_radius = 8.0;
 
@@ -27,27 +31,26 @@ fn create_styled_view() -> ViewStruct {
         >
             <Text
                 content="Rvue Styling System Showcase"
-                font_size=32.0
-                text_color=TextColor(Color::rgb(33, 37, 41))
+                style=text_style(TextColor(Color::rgb(33, 37, 41)))
             />
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Theme:" font_size=16.0 text_color=TextColor(Color::rgb(73, 80, 87)) />
-                <Text content="[Light / Dark toggle buttons]" font_size=14.0 text_color=TextColor(Color::rgb(134, 142, 150)) />
+                <Text content="Theme:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="[Light / Dark toggle buttons]" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Font Size Examples:" font_size=16.0 text_color=TextColor(Color::rgb(73, 80, 87)) />
+                <Text content="Font Size Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
-                    <Text content="12px" font_size=12.0 />
-                    <Text content="Aa" font_size=16.0 text_color=TextColor(Color::rgb(33, 37, 41)) />
-                    <Text content="24px" font_size=24.0 />
-                    <Text content="48px" font_size=48.0 />
+                    <Text content="12px" />
+                    <Text content="Aa" style=text_style(TextColor(Color::rgb(33, 37, 41))) />
+                    <Text content="24px" />
+                    <Text content="48px" />
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Border Radius Examples:" font_size=16.0 text_color=TextColor(Color::rgb(73, 80, 87)) />
+                <Text content="Border Radius Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -55,7 +58,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(40.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="0" font_size=12.0 text_color=TextColor(Color::rgb(255, 255, 255)) />
+                        <Text content="0" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -63,7 +66,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(40.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="4" font_size=12.0 text_color=TextColor(Color::rgb(255, 255, 255)) />
+                        <Text content="4" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -71,7 +74,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(40.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="8" font_size=12.0 text_color=TextColor(Color::rgb(255, 255, 255)) />
+                        <Text content="8" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -79,7 +82,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(40.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="16" font_size=12.0 text_color=TextColor(Color::rgb(255, 255, 255)) />
+                        <Text content="16" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -87,13 +90,13 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(40.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="32" font_size=12.0 text_color=TextColor(Color::rgb(255, 255, 255)) />
+                        <Text content="32" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Border Color Examples:" font_size=16.0 text_color=TextColor(Color::rgb(73, 80, 87)) />
+                <Text content="Border Color Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
@@ -101,7 +104,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="Default" font_size=12.0 text_color=TextColor(Color::rgb(100, 100, 100)) />
+                        <Text content="Default" style=text_style(TextColor(Color::rgb(100, 100, 100))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(0, 123, 255)))
@@ -109,7 +112,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="Primary" font_size=12.0 text_color=TextColor(Color::rgb(0, 123, 255)) />
+                        <Text content="Primary" style=text_style(TextColor(Color::rgb(0, 123, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(40, 167, 69)))
@@ -117,7 +120,7 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="Success" font_size=12.0 text_color=TextColor(Color::rgb(40, 167, 69)) />
+                        <Text content="Success" style=text_style(TextColor(Color::rgb(40, 167, 69))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(220, 53, 69)))
@@ -125,13 +128,13 @@ fn create_styled_view() -> ViewStruct {
                         width=Size::Pixels(60.0)
                         height=Size::Pixels(40.0)
                     >
-                        <Text content="Danger" font_size=12.0 text_color=TextColor(Color::rgb(220, 53, 69)) />
+                        <Text content="Danger" style=text_style(TextColor(Color::rgb(220, 53, 69))) />
                     </Flex>
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Color Palette:" font_size=16.0 text_color=TextColor(Color::rgb(73, 80, 87)) />
+                <Text content="Color Palette:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=12.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))

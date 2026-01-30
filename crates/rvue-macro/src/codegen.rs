@@ -505,14 +505,6 @@ fn generate_widget_builder_code(
                 props.value("content", || quote! { "" });
             let widget_ident = Ident::new("Text", span);
 
-            let font_size_call = props
-                .optional_value("font_size")
-                .map(|v| quote! { .font_size(#v) })
-                .unwrap_or_else(|| quote! {});
-            let text_color_call = props
-                .optional_value("text_color")
-                .map(|v| quote! { .text_color(#v) })
-                .unwrap_or_else(|| quote! {});
             let style_call = props
                 .optional_value("style")
                 .map(|v| quote! { .styles(#v) })
@@ -521,20 +513,14 @@ fn generate_widget_builder_code(
             if is_reactive {
                 quote! {
                     {
-                        use rvue_style::TextColor;
                         rvue::widgets::#widget_ident::new(#content_value)
-                            #font_size_call
-                            #text_color_call
                             #style_call
                     }
                 }
             } else {
                 quote! {
                     {
-                        use rvue_style::TextColor;
                         rvue::widgets::#widget_ident::new(#content_value.to_string())
-                            #font_size_call
-                            #text_color_call
                             #style_call
                     }
                 }

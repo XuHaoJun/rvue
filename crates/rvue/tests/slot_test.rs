@@ -28,7 +28,7 @@ fn create_test_component(id: u64) -> Gc<Component> {
     Component::new(
         id,
         ComponentType::Text,
-        ComponentProps::Text { content: "test".to_string(), font_size: None, styles: None },
+        ComponentProps::Text { content: "test".to_string(), styles: None },
     )
 }
 

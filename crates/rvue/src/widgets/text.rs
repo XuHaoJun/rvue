@@ -4,13 +4,12 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
-use rvue_style::{ReactiveStyles, TextColor};
+use rvue_style::ReactiveStyles;
 
 /// Text widget builder for displaying text content
 #[derive(Clone)]
 pub struct Text {
     content: ReactiveValue<String>,
-    font_size: Option<f32>,
     styles: Option<ReactiveStyles>,
 }
 
@@ -24,20 +23,7 @@ unsafe impl Trace for Text {
 impl Text {
     /// Create a new Text widget with content
     pub fn new(content: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { content: content.into_reactive(), font_size: None, styles: None }
-    }
-
-    /// Set the font size
-    pub fn font_size(mut self, size: f32) -> Self {
-        self.font_size = Some(size);
-        self
-    }
-
-    /// Set the text color using rvue-style
-    pub fn text_color(mut self, color: TextColor) -> Self {
-        let styles = self.styles.take().unwrap_or_default();
-        self.styles = Some(styles.set_text_color(color));
-        self
+        Self { content: content.into_reactive(), styles: None }
     }
 
     /// Set the styles directly
@@ -94,11 +80,7 @@ impl Widget for Text {
         let component = Component::new(
             id,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: initial_content.clone(),
-                font_size: self.font_size,
-                styles: computed_styles,
-            },
+            ComponentProps::Text { content: initial_content.clone(), styles: computed_styles },
         );
 
         let content_effect = if self.content.is_reactive() {
@@ -132,10 +114,6 @@ impl Widget for Text {
         } else {
             let new_content = self.content.get();
             state.component.set_text_content(new_content);
-        }
-
-        if let Some(font_size) = self.font_size {
-            state.component.set_text_font_size(font_size);
         }
     }
 }

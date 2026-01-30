@@ -217,7 +217,6 @@ pub enum ComponentType {
 pub enum ComponentProps {
     Text {
         content: String,
-        font_size: Option<f32>,
         styles: Option<rvue_style::ComputedStyles>,
     },
     Button {
@@ -534,28 +533,14 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        let (font_size, styles) = {
-            if let ComponentProps::Text { font_size, styles, .. } = &*self.props.borrow() {
-                (*font_size, styles.clone())
+        let styles = {
+            if let ComponentProps::Text { styles, .. } = &*self.props.borrow() {
+                styles.clone()
             } else {
                 return;
             }
         };
-        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, styles };
-        self.mark_dirty();
-    }
-
-    /// Set text font size (for Text components)
-    pub fn set_text_font_size(&self, font_size: f32) {
-        let (content, styles) = {
-            if let ComponentProps::Text { content, styles, .. } = &*self.props.borrow() {
-                (content.clone(), styles.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Text { content, font_size: Some(font_size), styles };
+        *self.props.borrow_mut() = ComponentProps::Text { content, styles };
         self.mark_dirty();
     }
 

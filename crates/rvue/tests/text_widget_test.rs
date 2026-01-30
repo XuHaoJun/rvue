@@ -7,7 +7,7 @@ fn test_text_widget_creation() {
     let text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, styles: None },
+        ComponentProps::Text { content: "Hello World".to_string(), styles: None },
     );
 
     assert_eq!(text.component_type, ComponentType::Text);
@@ -24,7 +24,7 @@ fn test_text_widget_with_empty_string() {
     let text = Component::new(
         2,
         ComponentType::Text,
-        ComponentProps::Text { content: String::new(), font_size: None, styles: None },
+        ComponentProps::Text { content: String::new(), styles: None },
     );
 
     match &*text.props.borrow() {
@@ -40,11 +40,7 @@ fn test_text_widget_with_special_characters() {
     let text = Component::new(
         3,
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello\nWorld\t!".to_string(),
-            font_size: None,
-            styles: None,
-        },
+        ComponentProps::Text { content: "Hello\nWorld\t!".to_string(), styles: None },
     );
 
     match &*text.props.borrow() {
@@ -62,17 +58,17 @@ fn test_text_widget_rendering_properties() {
         Component::new(
             1,
             ComponentType::Text,
-            ComponentProps::Text { content: "A".to_string(), font_size: None, styles: None },
+            ComponentProps::Text { content: "A".to_string(), styles: None },
         ),
         Component::new(
             2,
             ComponentType::Text,
-            ComponentProps::Text { content: "B".to_string(), font_size: None, styles: None },
+            ComponentProps::Text { content: "B".to_string(), styles: None },
         ),
         Component::new(
             3,
             ComponentType::Text,
-            ComponentProps::Text { content: "C".to_string(), font_size: None, styles: None },
+            ComponentProps::Text { content: "C".to_string(), styles: None },
         ),
     ];
 
