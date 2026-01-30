@@ -29,7 +29,7 @@ fn create_styled_view() -> ViewStruct {
             gap=0.0
             align_items="stretch"
             justify_content="start"
-            style=ReactiveStyles::new()
+            styles=ReactiveStyles::new()
                 .set_background_color(BackgroundColor(Color::rgb(250, 250, 250)))
         >
             <Text

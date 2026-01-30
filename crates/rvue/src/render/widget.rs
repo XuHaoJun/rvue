@@ -5,7 +5,7 @@ use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
-use rvue_style::BorderStyle;
+use rvue_style::{BorderStyle, ComputedStyles};
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect, Stroke};
 use vello::peniko::Color;
 
@@ -220,33 +220,7 @@ fn render_button(component: &Component, scene: &mut vello::Scene, transform: Aff
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                if let (Some(border), Some(bw), Some(bs)) = (
-                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_style.as_ref()),
-                ) {
-                    if *bs != BorderStyle::None {
-                        let rgb = border.0 .0;
-                        let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                        let border_width = bw.0;
-
-                        let half_width = border_width as f64 / 2.0;
-                        let inner_rect = RoundedRect::new(
-                            half_width,
-                            half_width,
-                            width - half_width,
-                            height - half_width,
-                            border_radius,
-                        );
-                        scene.stroke(
-                            &Stroke::new(border_width as f64),
-                            transform,
-                            border_color,
-                            None,
-                            &inner_rect,
-                        );
-                    }
-                }
+                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
             }
         }
     }
@@ -280,33 +254,7 @@ fn render_text_input(component: &Component, scene: &mut vello::Scene, transform:
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                if let (Some(border), Some(bw), Some(bs)) = (
-                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_style.as_ref()),
-                ) {
-                    if *bs != BorderStyle::None {
-                        let rgb = border.0 .0;
-                        let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                        let border_width = bw.0;
-
-                        let half_width = border_width as f64 / 2.0;
-                        let inner_rect = RoundedRect::new(
-                            half_width,
-                            half_width,
-                            width - half_width,
-                            height - half_width,
-                            border_radius,
-                        );
-                        scene.stroke(
-                            &Stroke::new(border_width as f64),
-                            transform,
-                            border_color,
-                            None,
-                            &inner_rect,
-                        );
-                    }
-                }
+                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
             }
         }
     }
@@ -340,33 +288,7 @@ fn render_number_input(component: &Component, scene: &mut vello::Scene, transfor
                 let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                if let (Some(border), Some(bw), Some(bs)) = (
-                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_style.as_ref()),
-                ) {
-                    if *bs != BorderStyle::None {
-                        let rgb = border.0 .0;
-                        let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                        let border_width = bw.0;
-
-                        let half_width = border_width as f64 / 2.0;
-                        let inner_rect = RoundedRect::new(
-                            half_width,
-                            half_width,
-                            width - half_width,
-                            height - half_width,
-                            border_radius,
-                        );
-                        scene.stroke(
-                            &Stroke::new(border_width as f64),
-                            transform,
-                            border_color,
-                            None,
-                            &inner_rect,
-                        );
-                    }
-                }
+                render_border(scene, transform, styles, 0.0, 0.0, width, height, border_radius);
             }
         }
     }
@@ -401,33 +323,7 @@ fn render_checkbox(component: &Component, scene: &mut vello::Scene, transform: A
                 let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                if let (Some(border), Some(bw), Some(bs)) = (
-                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_style.as_ref()),
-                ) {
-                    if *bs != BorderStyle::None {
-                        let rgb = border.0 .0;
-                        let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                        let border_width = bw.0;
-
-                        let half_width = border_width as f64 / 2.0;
-                        let border_rect = RoundedRect::new(
-                            half_width,
-                            half_width,
-                            size - half_width,
-                            size - half_width,
-                            border_radius,
-                        );
-                        scene.stroke(
-                            &Stroke::new(border_width as f64),
-                            transform,
-                            border_color,
-                            None,
-                            &border_rect,
-                        );
-                    }
-                }
+                render_border(scene, transform, styles, 0.0, 0.0, size, size, border_radius);
             }
         }
     }
@@ -492,6 +388,45 @@ fn render_radio(component: &Component, scene: &mut vello::Scene, transform: Affi
     }
 }
 
+fn render_border(
+    scene: &mut vello::Scene,
+    transform: Affine,
+    styles: &Option<ComputedStyles>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    border_radius: f64,
+) {
+    if let (Some(border), Some(bw), Some(bs)) = (
+        styles.as_ref().and_then(|s| s.border_color.as_ref()),
+        styles.as_ref().and_then(|s| s.border_width.as_ref()),
+        styles.as_ref().and_then(|s| s.border_style.as_ref()),
+    ) {
+        if *bs != BorderStyle::None {
+            let rgb = border.0 .0;
+            let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+            let border_width = bw.0;
+
+            let half_width = border_width as f64 / 2.0;
+            let rounded_rect = RoundedRect::new(
+                x + half_width,
+                y + half_width,
+                x + width - half_width,
+                y + height - half_width,
+                border_radius,
+            );
+            scene.stroke(
+                &Stroke::new(border_width as f64),
+                transform,
+                border_color,
+                None,
+                &rounded_rect,
+            );
+        }
+    }
+}
+
 fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
     if let ComponentProps::Flex { styles, .. } = &*component.props.borrow() {
         let layout_node = component.layout_node();
@@ -517,39 +452,13 @@ fn render_flex_background(component: &Component, scene: &mut vello::Scene) {
                     );
                 }
 
-                if let (Some(border), Some(bw), Some(bs)) = (
-                    styles.as_ref().and_then(|s| s.border_color.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_width.as_ref()),
-                    styles.as_ref().and_then(|s| s.border_style.as_ref()),
-                ) {
-                    if *bs != BorderStyle::None {
-                        let rgb = border.0 .0;
-                        let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                        let border_width = bw.0;
+                let border_radius = styles
+                    .as_ref()
+                    .and_then(|s| s.border_radius.as_ref())
+                    .map(|r| r.0 as f64)
+                    .unwrap_or(0.0);
 
-                        let border_radius = styles
-                            .as_ref()
-                            .and_then(|s| s.border_radius.as_ref())
-                            .map(|r| r.0 as f64)
-                            .unwrap_or(0.0);
-
-                        let half_width = border_width as f64 / 2.0;
-                        let rounded_rect = RoundedRect::new(
-                            x + half_width,
-                            y + half_width,
-                            x + width - half_width,
-                            y + height - half_width,
-                            border_radius,
-                        );
-                        scene.stroke(
-                            &Stroke::new(border_width as f64),
-                            Affine::IDENTITY,
-                            border_color,
-                            None,
-                            &rounded_rect,
-                        );
-                    }
-                }
+                render_border(scene, Affine::IDENTITY, styles, x, y, width, height, border_radius);
             }
         }
     }
