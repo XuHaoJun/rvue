@@ -703,6 +703,9 @@ where
     let mut app_state = AppState::new();
     app_state.view = Some(view);
 
+    // Add default stylesheet for component sizing (buttons, inputs, etc.)
+    app_state.stylesheet = Some(Stylesheet::with_defaults());
+
     // Run the event loop - AppState::drop will handle cleanup
     event_loop
         .run_app(&mut app_state)
