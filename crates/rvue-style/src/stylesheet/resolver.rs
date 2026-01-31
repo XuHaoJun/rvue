@@ -121,30 +121,26 @@ impl StyleResolver {
         if let Some(class) = selector.strip_prefix('.') {
             let class_name = self.extract_identifier(class);
             let after_class = &class[class_name.len()..];
-            let next_start = selector.len() - after_class.len();
-            return (element.has_class(class_name), &selector[next_start..]);
+            return (element.has_class(class_name), after_class);
         }
 
         if let Some(id) = selector.strip_prefix('#') {
             let id_name = self.extract_identifier(id);
             let after_id = &id[id_name.len()..];
-            let next_start = selector.len() - after_id.len();
-            return (element.has_id(id_name), &selector[next_start..]);
+            return (element.has_id(id_name), after_id);
         }
 
         if let Some(state_name) = selector.strip_prefix(':') {
             let pseudo_class = self.extract_identifier(state_name);
-            let matched = element.state.matches_pseudo_class(pseudo_class);
             let after_state = &state_name[pseudo_class.len()..];
-            let next_start = selector.len() - after_state.len();
-            return (matched, &selector[next_start..]);
+            let matched = element.state.matches_pseudo_class(pseudo_class);
+            return (matched, after_state);
         }
 
         let tag_name = self.extract_identifier(selector);
         let matched = element.has_tag_name(tag_name);
         let after_tag = &selector[tag_name.len()..];
-        let next_start = selector.len() - after_tag.len();
-        (matched, &selector[next_start..])
+        (matched, after_tag)
     }
 
     /// Extracts an identifier (alphanumeric or hyphenated) from the start of a string.

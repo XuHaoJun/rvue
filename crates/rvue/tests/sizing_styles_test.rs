@@ -1,9 +1,9 @@
 //! Tests for width/height styling system
 
 use rvue::layout::node::LayoutNode;
-use rvue::style::Stylesheet;
+use rvue::style::{resolve_styles_for_component, Stylesheet};
 use rvue::{Component, ComponentProps, ComponentType};
-use rvue_style::{ComputedStyles, Height, ReactiveStyles, Size, Width};
+use rvue_style::{BackgroundColor, Color, ComputedStyles, Height, ReactiveStyles, Size, Width};
 use taffy::TaffyTree;
 
 #[test]
@@ -83,4 +83,44 @@ fn test_button_with_default_stylesheet_size() {
         assert!(layout.size.width > 0.0, "button should have width from stylesheet");
         assert!(layout.size.height > 0.0, "button should have height from stylesheet");
     }
+}
+
+#[test]
+fn test_direct_stylesheet_resolution() {
+    // Create stylesheet directly using rvue_style::Stylesheet (like unit test)
+    let mut direct_stylesheet = rvue_style::Stylesheet::new();
+    direct_stylesheet.add_rule(rvue_style::StyleRule::new("button.primary".to_string(), {
+        let mut props = rvue_style::Properties::new();
+        props.insert(BackgroundColor(Color::rgb(0, 123, 255)));
+        props
+    }));
+
+    // Test using rvue_style directly (like the unit test does)
+    let resolver = rvue_style::StyleResolver::new();
+    let element = rvue_style::RvueElement::new("button").with_class("primary");
+    let resolved = resolver.resolve_styles(&element, &direct_stylesheet);
+
+    assert!(
+        resolved.background_color.is_some(),
+        "button with class='primary' should have background_color from stylesheet"
+    );
+}
+
+#[test]
+fn test_button_without_class_gets_default_size() {
+    let stylesheet = Stylesheet::with_defaults();
+
+    let component = Component::new(
+        1,
+        ComponentType::Button,
+        ComponentProps::Button { label: "Test".into(), styles: None },
+    );
+
+    let resolved = resolve_styles_for_component(&component, &stylesheet);
+
+    eprintln!("Resolved width: {:?}", resolved.width);
+    eprintln!("Resolved height: {:?}", resolved.height);
+
+    assert!(resolved.width.is_some(), "button should have default width");
+    assert!(resolved.height.is_some(), "button should have default height");
 }
