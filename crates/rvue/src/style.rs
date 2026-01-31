@@ -10,7 +10,8 @@ use std::rc::Rc;
 use crate::component::Component;
 use rudo_gc::Gc;
 use rvue_style::{
-    BackgroundColor, Color, ComputedStyles, ElementState, Properties, RvueElement, StyleResolver,
+    default_stylesheet, BackgroundColor, Color, ComputedStyles, ElementState, Properties,
+    RvueElement, StyleResolver,
 };
 
 #[derive(Debug)]
@@ -21,6 +22,11 @@ pub struct Stylesheet {
 impl Stylesheet {
     pub fn new() -> Self {
         Self { inner: Rc::new(RefCell::new(rvue_style::Stylesheet::new())) }
+    }
+
+    pub fn with_defaults() -> Self {
+        let defaults = default_stylesheet();
+        Self { inner: Rc::new(RefCell::new(defaults)) }
     }
 
     pub fn add_rule(&mut self, selector: &str, properties: Properties) {
@@ -69,6 +75,16 @@ impl Stylesheet {
     pub fn is_empty(&self) -> bool {
         self.inner.borrow().is_empty()
     }
+
+    pub fn merge(&mut self, other: &Stylesheet) {
+        for rule in other.inner.borrow().rules() {
+            self.inner.borrow_mut().add_rule(rule.clone());
+        }
+    }
+
+    pub fn inner(&self) -> impl std::ops::Deref<Target = rvue_style::Stylesheet> + '_ {
+        self.inner.borrow()
+    }
 }
 
 impl Clone for Stylesheet {
@@ -83,7 +99,7 @@ impl Default for Stylesheet {
     }
 }
 
-pub fn component_to_element(component: &Gc<Component>) -> RvueElement {
+pub fn component_to_element(component: &Component) -> RvueElement {
     let tag_name = component_type_to_tag_name(&component.component_type);
 
     let mut element = RvueElement::new(&tag_name);
@@ -133,6 +149,29 @@ pub fn resolve_styles(component: &Gc<Component>, stylesheet: &Stylesheet) -> Com
 
     let resolver = StyleResolver::new();
 
+    let inline_styles = get_inline_styles(&*component);
+
+    let resolved = resolver.resolve_styles(&element, &stylesheet.inner.borrow());
+
+    let mut merged = resolved;
+
+    if let Some(inline) = inline_styles {
+        merged.merge_with_computed(&inline);
+    }
+
+    merged
+}
+
+/// Resolve styles for a component (accepts &Component instead of &Gc<Component>)
+/// This provides a unified style resolution path for both layout and rendering systems.
+pub fn resolve_styles_for_component(
+    component: &Component,
+    stylesheet: &Stylesheet,
+) -> ComputedStyles {
+    let element = component_to_element(component);
+
+    let resolver = StyleResolver::new();
+
     let inline_styles = get_inline_styles(component);
 
     let resolved = resolver.resolve_styles(&element, &stylesheet.inner.borrow());
@@ -146,7 +185,7 @@ pub fn resolve_styles(component: &Gc<Component>, stylesheet: &Stylesheet) -> Com
     merged
 }
 
-fn get_inline_styles(component: &Gc<Component>) -> Option<ComputedStyles> {
+fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
     use crate::component::ComponentProps;
 
     let props = component.props.borrow();

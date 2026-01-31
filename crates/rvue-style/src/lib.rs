@@ -40,6 +40,6 @@ pub use shared::{
     shared_padding, shared_text_color, SharedComputedStyles, SharedStyleBuilder,
     WeakSharedComputedStyles,
 };
-pub use stylesheet::{StyleResolver, StyleRule, Stylesheet};
+pub use stylesheet::{default_stylesheet, StyleResolver, StyleRule, Stylesheet};
 pub use widget::styled::{StyleData, WidgetStyles};
 pub use widget::{StyledWidget, StyledWidgetExt};

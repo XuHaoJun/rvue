@@ -1192,13 +1192,14 @@ pub fn build_layout_tree(
     component: &Gc<Component>,
     taffy: &mut TaffyTree<()>,
     text_context: &mut TextContext,
+    stylesheet: Option<&crate::style::Stylesheet>,
 ) -> LayoutNode {
     // Build child layout nodes first in the same tree
     let child_layouts: Vec<LayoutNode> = component
         .children
         .borrow()
         .iter()
-        .map(|child| build_layout_tree(child, taffy, text_context))
+        .map(|child| build_layout_tree(child, taffy, text_context, stylesheet))
         .collect();
 
     // Control-flow components (For, Show) are transparent - their children's
@@ -1220,7 +1221,8 @@ pub fn build_layout_tree(
     }
 
     // Build this node with children in the shared tree
-    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context);
+    let node =
+        LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context, stylesheet);
 
     // Store child layouts in their dedicated field for later retrieval
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {

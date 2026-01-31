@@ -9,8 +9,8 @@ use rvue::Stylesheet;
 use rvue_macro::view;
 #[allow(unused_imports)]
 use rvue_style::{
-    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize, Margin,
-    Properties, ReactiveStyles, TextColor,
+    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize, Height,
+    Margin, Properties, ReactiveStyles, Size, TextColor, Width,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -131,40 +131,40 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(0.0))
-                        width=Size::Pixels(40.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(40.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="0" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(4.0))
-                        width=Size::Pixels(40.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(40.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="4" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(8.0))
-                        width=Size::Pixels(40.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(40.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="8" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(16.0))
-                        width=Size::Pixels(40.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(40.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="16" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(32.0))
-                        width=Size::Pixels(40.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(40.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="32" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
@@ -179,8 +179,8 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_width(BorderWidth(2.0))
                         .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
-                        width=Size::Pixels(60.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(60.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="Default" style=text_style(TextColor(Color::rgb(100, 100, 100))) />
                     </Flex>
@@ -189,8 +189,8 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_width(BorderWidth(2.0))
                         .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
-                        width=Size::Pixels(60.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(60.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="Primary" style=text_style(TextColor(Color::rgb(0, 123, 255))) />
                     </Flex>
@@ -199,8 +199,8 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_width(BorderWidth(2.0))
                         .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
-                        width=Size::Pixels(60.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(60.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="Success" style=text_style(TextColor(Color::rgb(40, 167, 69))) />
                     </Flex>
@@ -209,8 +209,8 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_width(BorderWidth(2.0))
                         .set_border_style(BorderStyle::Solid)
                         .set_border_radius(BorderRadius(4.0))
-                        width=Size::Pixels(60.0)
-                        height=Size::Pixels(40.0)
+                        .set_width(Width(Size::Pixels(60.0)))
+                        .set_height(Height(Size::Pixels(40.0)))
                     >
                         <Text content="Danger" style=text_style(TextColor(Color::rgb(220, 53, 69))) />
                     </Flex>
@@ -222,28 +222,28 @@ fn create_styled_view() -> ViewStruct {
                 <Flex direction="row" gap=12.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
-                        width=Size::Pixels(48.0)
-                        height=Size::Pixels(48.0)
+                        .set_width(Width(Size::Pixels(48.0)))
+                        .set_height(Height(Size::Pixels(48.0)))
                     />
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(40, 167, 69)))
-                        width=Size::Pixels(48.0)
-                        height=Size::Pixels(48.0)
+                        .set_width(Width(Size::Pixels(48.0)))
+                        .set_height(Height(Size::Pixels(48.0)))
                     />
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(255, 193, 7)))
-                        width=Size::Pixels(48.0)
-                        height=Size::Pixels(48.0)
+                        .set_width(Width(Size::Pixels(48.0)))
+                        .set_height(Height(Size::Pixels(48.0)))
                     />
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(220, 53, 69)))
-                        width=Size::Pixels(48.0)
-                        height=Size::Pixels(48.0)
+                        .set_width(Width(Size::Pixels(48.0)))
+                        .set_height(Height(Size::Pixels(48.0)))
                     />
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(23, 162, 184)))
-                        width=Size::Pixels(48.0)
-                        height=Size::Pixels(48.0)
+                        .set_width(Width(Size::Pixels(48.0)))
+                        .set_height(Height(Size::Pixels(48.0)))
                     />
                 </Flex>
             </Flex>

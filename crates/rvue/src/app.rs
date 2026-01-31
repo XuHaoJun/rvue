@@ -757,7 +757,16 @@ where
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
-    app_state.stylesheet = stylesheet;
+
+    let merged_stylesheet = match stylesheet {
+        Some(user_sheet) => {
+            let mut defaults = Stylesheet::with_defaults();
+            defaults.merge(&user_sheet);
+            defaults
+        }
+        None => Stylesheet::with_defaults(),
+    };
+    app_state.stylesheet = Some(merged_stylesheet);
 
     event_loop
         .run_app(&mut app_state)

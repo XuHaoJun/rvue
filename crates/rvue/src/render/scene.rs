@@ -93,7 +93,12 @@ impl Scene {
         for component in &self.root_components {
             crate::effect::set_defer_effect_run(true);
 
-            let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
+            let layout = build_layout_tree(
+                component,
+                &mut self.taffy,
+                &mut self.text_context,
+                self.stylesheet.as_ref(),
+            );
             component.set_layout_node(layout.clone());
 
             crate::effect::flush_pending_effects();

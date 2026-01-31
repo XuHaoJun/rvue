@@ -21,7 +21,8 @@ fn test_layout_node_creation() {
         },
     );
 
-    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
+    let layout_node =
+        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
 
     assert!(layout_node.is_dirty());
     assert!(layout_node.taffy_node().is_some());
@@ -43,7 +44,8 @@ fn test_layout_node_dirty_marking() {
         },
     );
 
-    let mut layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
+    let mut layout_node =
+        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
 
     // Initially dirty
     assert!(layout_node.is_dirty());
@@ -65,7 +67,8 @@ fn test_layout_node_with_text_component() {
         ComponentProps::Text { content: "Hello".to_string(), styles: None },
     );
 
-    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
+    let layout_node =
+        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
 
     assert!(layout_node.is_dirty());
     assert!(layout_node.taffy_node().is_some());
@@ -81,7 +84,8 @@ fn test_layout_node_with_button_component() {
         ComponentProps::Button { label: "Click".to_string(), styles: None },
     );
 
-    let layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
+    let layout_node =
+        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
 
     assert!(layout_node.is_dirty());
     assert!(layout_node.taffy_node().is_some());
@@ -116,9 +120,11 @@ fn test_layout_node_tree_structure() {
         ComponentProps::Text { content: "Child 2".to_string(), styles: None },
     );
 
-    let root_layout = LayoutNode::build_in_tree(&mut taffy, &root, &[], &mut text_context);
-    let child1_layout = LayoutNode::build_in_tree(&mut taffy, &child1, &[], &mut text_context);
-    let child2_layout = LayoutNode::build_in_tree(&mut taffy, &child2, &[], &mut text_context);
+    let root_layout = LayoutNode::build_in_tree(&mut taffy, &root, &[], &mut text_context, None);
+    let child1_layout =
+        LayoutNode::build_in_tree(&mut taffy, &child1, &[], &mut text_context, None);
+    let child2_layout =
+        LayoutNode::build_in_tree(&mut taffy, &child2, &[], &mut text_context, None);
 
     // All should be dirty initially
     assert!(root_layout.is_dirty());
@@ -142,7 +148,8 @@ fn test_layout_calculation() {
         },
     );
 
-    let mut layout_node = LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context);
+    let mut layout_node =
+        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
     layout_node.calculate_layout(&mut taffy).unwrap();
 
     assert!(!layout_node.is_dirty());

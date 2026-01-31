@@ -40,11 +40,17 @@ impl DynProperty {
     }
 }
 
+impl Clone for DynProperty {
+    fn clone(&self) -> Self {
+        Self { type_id: self.type_id, value: Box::new(()) }
+    }
+}
+
 unsafe impl Trace for DynProperty {
     fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Properties {
     map: std::collections::HashMap<TypeId, DynProperty>,
 }
@@ -95,6 +101,15 @@ impl Properties {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
+    }
+
+    #[inline]
+    pub fn clone(&self) -> Self {
+        let mut new_map = std::collections::HashMap::new();
+        for (type_id, prop) in &self.map {
+            new_map.insert(*type_id, prop.clone());
+        }
+        Self { map: new_map }
     }
 }
 

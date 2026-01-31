@@ -4,7 +4,7 @@ use crate::property::Properties;
 use std::cmp::Ordering;
 
 /// A style rule consisting of a selector and properties.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StyleRule {
     pub selector: String,
     pub specificity: Specificity,
@@ -146,6 +146,11 @@ impl Stylesheet {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
+    }
+
+    #[inline]
+    pub fn merge(&mut self, other: &Stylesheet) {
+        self.rules.extend(other.rules.iter().cloned());
     }
 }
 
