@@ -20,6 +20,9 @@ rudo-gc = { version = "0.4", features = ["derive"] }
 # Shared signal types
 rvue-signals = { path = "../rvue-signals" }
 
+# Derive macros for Any trait
+# derive_more = "2.1"
+
 [dev-dependencies]
 # Add dev dependencies as needed
 

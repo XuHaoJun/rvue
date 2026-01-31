@@ -7,42 +7,58 @@ use crate::properties::{
     Width, ZIndex,
 };
 use rudo_gc::{Trace, Visitor};
-use std::any::{Any, TypeId};
+use std::any::TypeId;
+use std::collections::HashMap;
 
 /// A property that can be styled on a widget.
 pub trait Property: Default + Clone + Send + Sync + 'static {}
 
-#[derive(Debug)]
+#[derive(Clone)]
 struct DynProperty {
     type_id: TypeId,
-    value: Box<dyn Any>,
+    value: Vec<u8>,
+    size: usize,
+    align: usize,
 }
 
 impl DynProperty {
-    fn new<P: Property>(value: P) -> Self {
-        Self { type_id: TypeId::of::<P>(), value: Box::new(value) }
+    fn new<P: Property>(value: P) -> Self
+    where
+        P: Clone,
+    {
+        let size = std::mem::size_of::<P>();
+        let align = std::mem::align_of::<P>();
+        let mut bytes = vec![0u8; size];
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                &value as *const P as *const u8,
+                bytes.as_mut_ptr(),
+                size,
+            );
+        }
+        Self { type_id: TypeId::of::<P>(), value: bytes, size, align }
     }
 
     fn downcast<P: Property>(&self) -> Option<&P> {
-        if self.type_id == TypeId::of::<P>() {
-            self.value.downcast_ref()
+        if self.type_id == TypeId::of::<P>()
+            && self.size == std::mem::size_of::<P>()
+            && self.align == std::mem::align_of::<P>()
+        {
+            unsafe { Some(&*(self.value.as_ptr() as *const P)) }
         } else {
             None
         }
     }
 
     fn downcast_mut<P: Property>(&mut self) -> Option<&mut P> {
-        if self.type_id == TypeId::of::<P>() {
-            self.value.downcast_mut()
+        if self.type_id == TypeId::of::<P>()
+            && self.size == std::mem::size_of::<P>()
+            && self.align == std::mem::align_of::<P>()
+        {
+            unsafe { Some(&mut *(self.value.as_mut_ptr() as *mut P)) }
         } else {
             None
         }
-    }
-}
-
-impl Clone for DynProperty {
-    fn clone(&self) -> Self {
-        Self { type_id: self.type_id, value: Box::new(()) }
     }
 }
 
@@ -50,20 +66,23 @@ unsafe impl Trace for DynProperty {
     fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone)]
 pub struct Properties {
-    map: std::collections::HashMap<TypeId, DynProperty>,
+    map: HashMap<TypeId, DynProperty>,
 }
 
 impl Properties {
     #[inline]
     pub fn new() -> Self {
-        Self { map: std::collections::HashMap::new() }
+        Self { map: HashMap::new() }
     }
 
     #[inline]
-    pub fn with<P: Property>(value: P) -> Self {
-        let mut map = std::collections::HashMap::new();
+    pub fn with<P: Property>(value: P) -> Self
+    where
+        P: Clone,
+    {
+        let mut map = HashMap::new();
         map.insert(TypeId::of::<P>(), DynProperty::new(value));
         Self { map }
     }
@@ -79,7 +98,10 @@ impl Properties {
     }
 
     #[inline]
-    pub fn insert<P: Property>(&mut self, value: P) {
+    pub fn insert<P: Property>(&mut self, value: P)
+    where
+        P: Clone,
+    {
         self.map.insert(TypeId::of::<P>(), DynProperty::new(value));
     }
 
@@ -105,7 +127,7 @@ impl Properties {
 
     #[inline]
     pub fn clone(&self) -> Self {
-        let mut new_map = std::collections::HashMap::new();
+        let mut new_map = HashMap::new();
         for (type_id, prop) in &self.map {
             new_map.insert(*type_id, prop.clone());
         }
@@ -115,6 +137,12 @@ impl Properties {
 
 unsafe impl Trace for Properties {
     fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
+impl std::fmt::Debug for Properties {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Properties").field("len", &self.map.len()).finish_non_exhaustive()
+    }
 }
 
 pub trait StyleStore {
@@ -291,7 +319,10 @@ impl From<Properties> for crate::widget::styled::StyleData {
     }
 }
 
-impl<P: Property> From<P> for Properties {
+impl<P: Property> From<P> for Properties
+where
+    P: Clone,
+{
     #[inline]
     fn from(prop: P) -> Self {
         Self::with(prop)

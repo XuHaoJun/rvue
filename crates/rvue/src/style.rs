@@ -175,7 +175,9 @@ pub fn resolve_styles_for_component(
     let inline_styles = get_inline_styles(component);
 
     let inner_sheet = stylesheet.inner.borrow();
+
     let resolved = resolver.resolve_styles(&element, &inner_sheet);
+
     drop(inner_sheet);
 
     let mut merged = resolved;

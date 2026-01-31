@@ -1,7 +1,7 @@
 //! Widget-to-Vello mapping
 
 use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
-use crate::style::{resolve_styles, Stylesheet};
+use crate::style::{resolve_styles_for_component, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use parley::Layout;
 use rudo_gc::Gc;
@@ -127,7 +127,11 @@ fn render_children(
 
 fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> ComputedStyles {
     let result = match stylesheet {
-        Some(sheet) => resolve_styles(component, sheet),
+        Some(sheet) => {
+            // Use resolve_styles_for_component which is the unified resolution path
+            // This ensures layout and rendering use the same style resolution
+            resolve_styles_for_component(&*component, sheet)
+        }
         None => {
             let props = component.props.borrow();
             match &*props {

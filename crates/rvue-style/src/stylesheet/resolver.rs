@@ -19,12 +19,25 @@ impl StyleResolver {
     pub fn resolve_styles(&self, element: &RvueElement, stylesheet: &Stylesheet) -> ComputedStyles {
         let mut result = ComputedStyles::default();
 
+        eprintln!("[RESOLVER] Starting resolve_styles, element tag={:?}", element.tag_name);
+
         for rule in stylesheet.rules() {
-            if self.matches_selector(element, &rule.selector) {
+            let matches = self.matches_selector(element, &rule.selector);
+            eprintln!("[RESOLVER] Checking rule '{}', matches={}", rule.selector, matches);
+            if matches {
+                eprintln!("[RESOLVER]   Rule matched! properties.len={}", rule.properties.len());
+                if rule.properties.contains::<crate::properties::BackgroundColor>() {
+                    eprintln!("[RESOLVER]   Has BackgroundColor property!");
+                }
                 result.merge(&rule.properties);
+                eprintln!(
+                    "[RESOLVER]   After merge, result.background_color={:?}",
+                    result.background_color
+                );
             }
         }
 
+        eprintln!("[RESOLVER] Final result.background_color={:?}", result.background_color);
         result
     }
 
