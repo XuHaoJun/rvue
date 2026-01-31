@@ -120,31 +120,31 @@ impl StyleResolver {
 
         if let Some(class) = selector.strip_prefix('.') {
             let class_name = self.extract_identifier(class);
-            return (element.has_class(class_name), &selector[class_name.len() + 1..]);
+            let after_class = &class[class_name.len()..];
+            let next_start = selector.len() - after_class.len();
+            return (element.has_class(class_name), &selector[next_start..]);
         }
 
         if let Some(id) = selector.strip_prefix('#') {
             let id_name = self.extract_identifier(id);
-            return (element.has_id(id_name), &selector[id_name.len() + 1..]);
+            let after_id = &id[id_name.len()..];
+            let next_start = selector.len() - after_id.len();
+            return (element.has_id(id_name), &selector[next_start..]);
         }
 
         if let Some(state_name) = selector.strip_prefix(':') {
             let pseudo_class = self.extract_identifier(state_name);
             let matched = element.state.matches_pseudo_class(pseudo_class);
-            let next_start = state_name.len() + 1;
-            if next_start < selector.len() {
-                return (matched, &selector[next_start..]);
-            }
-            return (matched, "");
+            let after_state = &state_name[pseudo_class.len()..];
+            let next_start = selector.len() - after_state.len();
+            return (matched, &selector[next_start..]);
         }
 
         let tag_name = self.extract_identifier(selector);
         let matched = element.has_tag_name(tag_name);
-        let next_start = tag_name.len();
-        if next_start < selector.len() {
-            return (matched, &selector[next_start..]);
-        }
-        return (matched, "");
+        let after_tag = &selector[tag_name.len()..];
+        let next_start = selector.len() - after_tag.len();
+        return (matched, &selector[next_start..]);
     }
 
     /// Extracts an identifier (alphanumeric or hyphenated) from the start of a string.

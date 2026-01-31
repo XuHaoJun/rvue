@@ -529,6 +529,8 @@ fn generate_widget_builder_code(
         WidgetType::Button => {
             let PropValue { value: label_value, is_reactive } =
                 props.value("label", || quote! { "" });
+            let PropValue { value: class_value, .. } = props.value("class", || quote! { "" });
+            let PropValue { value: id_value, .. } = props.value("id", || quote! { "" });
             let widget_ident = Ident::new("Button", span);
 
             let style_call = props
@@ -536,11 +538,25 @@ fn generate_widget_builder_code(
                 .map(|v| quote! { .styles(#v) })
                 .unwrap_or_else(|| quote! {});
 
+            let class_call = if class_value.to_string() != quote! { "" }.to_string() {
+                quote! { .class(#class_value) }
+            } else {
+                quote! {}
+            };
+
+            let id_call = if id_value.to_string() != quote! { "" }.to_string() {
+                quote! { .id(#id_value) }
+            } else {
+                quote! {}
+            };
+
             if is_reactive {
                 quote! {
                     {
                         rvue::widgets::#widget_ident::new(#label_value)
                             #style_call
+                            #class_call
+                            #id_call
                     }
                 }
             } else {
@@ -548,6 +564,8 @@ fn generate_widget_builder_code(
                     {
                         rvue::widgets::#widget_ident::new(#label_value.to_string())
                             #style_call
+                            #class_call
+                            #id_call
                     }
                 }
             }

@@ -11,20 +11,21 @@ pub struct Button {
     label: ReactiveValue<String>,
     styles: Option<ReactiveStyles>,
     class: Option<String>,
+    id: Option<String>,
 }
 
 unsafe impl Trace for Button {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.label.trace(visitor);
         self.styles.trace(visitor);
-        // class is String, no GC pointers to trace
+        // class and id are String, no GC pointers to trace
     }
 }
 
 impl Button {
     /// Create a new Button widget with a label
     pub fn new(label: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { label: label.into_reactive(), styles: None, class: None }
+        Self { label: label.into_reactive(), styles: None, class: None, id: None }
     }
 
     /// Set the styles directly
@@ -36,6 +37,12 @@ impl Button {
     /// Set the CSS class for this button
     pub fn class(mut self, class: &str) -> Self {
         self.class = Some(class.to_string());
+        self
+    }
+
+    /// Set the element ID for this button
+    pub fn id(mut self, id: &str) -> Self {
+        self.id = Some(id.to_string());
         self
     }
 }
@@ -83,6 +90,7 @@ impl Widget for Button {
         let initial_label = self.label.get();
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
         let class = self.class.clone();
+        let element_id = self.id.clone();
 
         let component = Component::new(
             id,
@@ -91,7 +99,16 @@ impl Widget for Button {
         );
 
         if let Some(ref cls) = class {
-            component.classes.borrow_mut().push(cls.clone());
+            // Split class string by whitespace to support multiple classes (e.g., "primary large")
+            for class_part in cls.split_whitespace() {
+                if !class_part.is_empty() {
+                    component.classes.borrow_mut().push(class_part.to_string());
+                }
+            }
+        }
+
+        if let Some(ref eid) = element_id {
+            *component.element_id.borrow_mut() = Some(eid.clone());
         }
 
         let label_effect = if self.label.is_reactive() {

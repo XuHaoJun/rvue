@@ -126,7 +126,7 @@ fn render_children(
 }
 
 fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> ComputedStyles {
-    match stylesheet {
+    let result = match stylesheet {
         Some(sheet) => resolve_styles(component, sheet),
         None => {
             let props = component.props.borrow();
@@ -141,7 +141,14 @@ fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> Com
                 _ => ComputedStyles::default(),
             }
         }
-    }
+    };
+    eprintln!("[DEBUG-STYLES] component_type={:?}, has_bg={}, bg_rgb={:?}, has_text_color={}, text_color_rgb={:?}",
+        component.component_type,
+        result.background_color.is_some(),
+        result.background_color.as_ref().map(|bg| (bg.0 .0.r, bg.0 .0.g, bg.0 .0.b)),
+        result.text_color.is_some(),
+        result.text_color.as_ref().map(|tc| (tc.0 .0.r, tc.0 .0.g, tc.0 .0.b)));
+    result
 }
 
 fn render_text(
@@ -150,11 +157,18 @@ fn render_text(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Text { content: _, styles: _ } = &*component.props.borrow() {
+    if let ComponentProps::Text { content, styles: _ } = &*component.props.borrow() {
         let styles = get_styles(component, stylesheet);
         let user_data = component.user_data.borrow();
         let layout_wrapper =
             user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
+
+        eprintln!(
+            "[DEBUG-TEXT] content=\"{}\", has_layout_wrapper={}, lines_count={:?}",
+            content,
+            layout_wrapper.is_some(),
+            layout_wrapper.as_ref().map(|lw| lw.0.lines().count())
+        );
 
         if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
             let brush = styles
@@ -167,6 +181,7 @@ fn render_text(
                 .unwrap_or(Color::BLACK);
 
             if layout.lines().next().is_none() {
+                eprintln!("[DEBUG-TEXT] Layout has no lines, showing orange rect");
                 let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
                 let bg_color = Color::from_rgb8(255, 165, 0);
                 scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
@@ -174,10 +189,12 @@ fn render_text(
                 render_text_layout(layout, scene, transform, brush);
             }
         } else if user_data.is_some() {
+            eprintln!("[DEBUG-TEXT] No layout wrapper but user_data exists, showing red rect");
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
             let bg_color = Color::from_rgb8(255, 0, 0);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
         } else {
+            eprintln!("[DEBUG-TEXT] No user_data at all, showing gray rect");
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
             let bg_color = Color::from_rgba8(200, 200, 200, 255);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
@@ -242,6 +259,13 @@ fn render_button(
     if let ComponentProps::Button { label: _, styles: _ } = &*component.props.borrow() {
         let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
+
+        eprintln!(
+            "[DEBUG-RENDER] Button rendered - is_hovered={}, has_bg_color={}, bg_rgb={:?}",
+            *component.is_hovered.borrow(),
+            styles.background_color.is_some(),
+            styles.background_color.as_ref().map(|bg| (bg.0 .0.r, bg.0 .0.g, bg.0 .0.b))
+        );
 
         if let Some(layout) = layout_node {
             if let Some(button_layout) = layout.layout() {
