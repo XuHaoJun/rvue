@@ -19,6 +19,7 @@ use vello::kurbo::Affine;
 use vello::kurbo::{Point, Vec2};
 use vello::peniko::Color;
 use vello::{AaConfig, AaSupport, Renderer, RendererOptions};
+use wgpu::Color as WgpuColor;
 use wgpu::SurfaceTexture;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -510,6 +511,32 @@ impl<'a> AppState<'a> {
             Some(new_scene)
         };
         let scene_ref = transformed_scene.as_ref().unwrap_or(scene);
+
+        // Clear intermediate texture before rendering
+        {
+            let mut clear_encoder =
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Clear Texture"),
+                });
+            {
+                let _clear_pass = clear_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Clear Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &surface.target_view,
+                        resolve_target: None,
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(WgpuColor::WHITE),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+            }
+            queue.submit([clear_encoder.finish()]);
+        }
 
         // Render to intermediate texture
         if let Err(e) = renderer.render_to_texture(

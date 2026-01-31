@@ -2,6 +2,7 @@
 
 use crate::component::build_layout_tree;
 use crate::component::Component;
+use crate::layout::node::LayoutNode;
 use crate::render::widget::render_component;
 use crate::style::Stylesheet;
 use crate::text::TextContext;
@@ -61,6 +62,13 @@ impl Scene {
         self.is_dirty = true;
     }
 
+    fn clear_all_component_layout_nodes(components: &[Gc<Component>]) {
+        for component in components {
+            component.set_layout_node(LayoutNode::new());
+            Self::clear_all_component_layout_nodes(&component.children.borrow());
+        }
+    }
+
     /// Update the scene by regenerating dirty fragments
     pub fn update(&mut self) {
         let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
@@ -69,20 +77,19 @@ impl Scene {
             return;
         }
 
-        if !self.is_dirty && !any_dirty {
-            return;
-        }
-
         self.ensure_initialized();
 
-        if self.is_dirty {
+        if self.is_dirty || any_dirty {
             if let Some(ref mut scene) = self.vello_scene {
                 scene.reset();
             }
-            self.taffy.clear();
+            self.taffy = TaffyTree::new();
+            Self::clear_all_component_layout_nodes(&self.root_components);
         }
 
         let mut already_appended = FxHashSet::default();
+
+        let force_rebuild_layout = self.is_dirty || any_dirty;
 
         for component in &self.root_components {
             crate::effect::set_defer_effect_run(true);
@@ -102,7 +109,10 @@ impl Scene {
             crate::component::propagate_layout_results(component, &self.taffy);
 
             if let Some(ref mut scene) = self.vello_scene {
-                if component.is_dirty() {
+                let comp_dirty = component.is_dirty();
+                let cache_none = component.vello_cache.borrow().is_none();
+
+                if comp_dirty || force_rebuild_layout || cache_none {
                     *component.vello_cache.borrow_mut() = None;
                     render_component(
                         component,
