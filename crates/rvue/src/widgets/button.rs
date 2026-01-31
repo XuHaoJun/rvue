@@ -10,24 +10,32 @@ use rvue_style::ReactiveStyles;
 pub struct Button {
     label: ReactiveValue<String>,
     styles: Option<ReactiveStyles>,
+    class: Option<String>,
 }
 
 unsafe impl Trace for Button {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.label.trace(visitor);
         self.styles.trace(visitor);
+        // class is String, no GC pointers to trace
     }
 }
 
 impl Button {
     /// Create a new Button widget with a label
     pub fn new(label: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { label: label.into_reactive(), styles: None }
+        Self { label: label.into_reactive(), styles: None, class: None }
     }
 
     /// Set the styles directly
     pub fn styles(mut self, styles: ReactiveStyles) -> Self {
         self.styles = Some(styles);
+        self
+    }
+
+    /// Set the CSS class for this button
+    pub fn class(mut self, class: &str) -> Self {
+        self.class = Some(class.to_string());
         self
     }
 }
@@ -74,12 +82,17 @@ impl Widget for Button {
         let id = crate::component::next_component_id();
         let initial_label = self.label.get();
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
+        let class = self.class.clone();
 
         let component = Component::new(
             id,
             ComponentType::Button,
             ComponentProps::Button { label: initial_label, styles: computed_styles },
         );
+
+        if let Some(ref cls) = class {
+            component.classes.borrow_mut().push(cls.clone());
+        }
 
         let label_effect = if self.label.is_reactive() {
             let comp = Gc::clone(&component);

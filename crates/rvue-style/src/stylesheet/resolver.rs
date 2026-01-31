@@ -66,7 +66,7 @@ impl StyleResolver {
             return true;
         };
 
-        if !self.matches_simple_selector(element, first) {
+        if !self.matches_compound_selector(element, first) {
             return false;
         }
 
@@ -83,6 +83,81 @@ impl StyleResolver {
         }
 
         false
+    }
+
+    /// Matches a compound selector (e.g., "button.primary", "button:hover", "div.container.large").
+    fn matches_compound_selector(&self, element: &RvueElement, selector: &str) -> bool {
+        let selector = selector.trim();
+
+        if selector.is_empty() {
+            return true;
+        }
+
+        let mut remaining = selector;
+
+        while !remaining.is_empty() {
+            let (matched, next_remaining) = self.match_simple_selector_prefix(element, remaining);
+            if !matched {
+                return false;
+            }
+            remaining = next_remaining;
+        }
+
+        true
+    }
+
+    /// Matches a simple selector prefix and returns the remaining string.
+    fn match_simple_selector_prefix<'a>(
+        &self,
+        element: &RvueElement,
+        selector: &'a str,
+    ) -> (bool, &'a str) {
+        let selector = selector.trim();
+
+        if selector.is_empty() {
+            return (true, "");
+        }
+
+        if let Some(class) = selector.strip_prefix('.') {
+            let class_name = self.extract_identifier(class);
+            return (element.has_class(class_name), &selector[class_name.len() + 1..]);
+        }
+
+        if let Some(id) = selector.strip_prefix('#') {
+            let id_name = self.extract_identifier(id);
+            return (element.has_id(id_name), &selector[id_name.len() + 1..]);
+        }
+
+        if let Some(state_name) = selector.strip_prefix(':') {
+            let pseudo_class = self.extract_identifier(state_name);
+            let matched = element.state.matches_pseudo_class(pseudo_class);
+            let next_start = state_name.len() + 1;
+            if next_start < selector.len() {
+                return (matched, &selector[next_start..]);
+            }
+            return (matched, "");
+        }
+
+        let tag_name = self.extract_identifier(selector);
+        let matched = element.has_tag_name(tag_name);
+        let next_start = tag_name.len();
+        if next_start < selector.len() {
+            return (matched, &selector[next_start..]);
+        }
+        return (matched, "");
+    }
+
+    /// Extracts an identifier (alphanumeric or hyphenated) from the start of a string.
+    fn extract_identifier<'a>(&self, s: &'a str) -> &'a str {
+        let mut end = 0;
+        for (i, c) in s.char_indices() {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                end = i + c.len_utf8();
+            } else {
+                break;
+            }
+        }
+        &s[..end]
     }
 
     /// Matches a simple selector (type, class, ID, state).
@@ -167,5 +242,54 @@ mod tests {
         let resolved = resolver.resolve_styles(&element, &stylesheet);
 
         assert!(resolved.background_color.is_some());
+    }
+
+    #[test]
+    fn test_matches_compound_selector_tag_class() {
+        let resolver = StyleResolver::new();
+        let element = RvueElement::new("button").with_class("primary");
+
+        assert!(resolver.matches_compound_selector(&element, "button.primary"));
+        assert!(!resolver.matches_compound_selector(&element, "button.secondary"));
+        assert!(!resolver.matches_compound_selector(&element, "span.primary"));
+    }
+
+    #[test]
+    fn test_matches_compound_selector_tag_state() {
+        let resolver = StyleResolver::new();
+        let mut element = RvueElement::new("button");
+        element.state.insert(crate::selectors::ElementState::HOVER);
+
+        assert!(resolver.matches_compound_selector(&element, "button:hover"));
+        assert!(!resolver.matches_compound_selector(&element, "button:focus"));
+    }
+
+    #[test]
+    fn test_matches_compound_selector_tag_class_state() {
+        let resolver = StyleResolver::new();
+        let mut element = RvueElement::new("button").with_class("primary");
+        element.state.insert(crate::selectors::ElementState::HOVER);
+
+        assert!(resolver.matches_compound_selector(&element, "button.primary:hover"));
+        assert!(!resolver.matches_compound_selector(&element, "button.secondary:hover"));
+        assert!(!resolver.matches_compound_selector(&element, "button.primary:focus"));
+    }
+
+    #[test]
+    fn test_resolve_compound_selector_styles() {
+        let resolver = StyleResolver::new();
+        let mut stylesheet = Stylesheet::new();
+
+        let mut props = Properties::new();
+        props.insert(BackgroundColor(crate::properties::Color::rgb(0, 123, 255)));
+        stylesheet.add_rule(StyleRule::new("button.primary".to_string(), props));
+
+        let element = RvueElement::new("button").with_class("primary");
+        let resolved = resolver.resolve_styles(&element, &stylesheet);
+        assert!(resolved.background_color.is_some());
+
+        let element_no_class = RvueElement::new("button");
+        let resolved_no_class = resolver.resolve_styles(&element_no_class, &stylesheet);
+        assert!(resolved_no_class.background_color.is_none());
     }
 }
