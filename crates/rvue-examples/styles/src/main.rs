@@ -7,6 +7,7 @@
 use rvue::prelude::*;
 use rvue::Stylesheet;
 use rvue_macro::view;
+#[allow(unused_imports)]
 use rvue_style::{
     BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize, Margin,
     Properties, ReactiveStyles, TextColor,

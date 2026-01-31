@@ -72,12 +72,7 @@ impl Scene {
     /// Update the scene by regenerating dirty fragments
     pub fn update(&mut self) {
         let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
-        eprintln!(
-            "[DEBUG-SCENE] update called - scene_dirty={}, any_component_dirty={}",
-            self.is_dirty, any_dirty
-        );
         if !self.is_dirty && !any_dirty {
-            eprintln!("[DEBUG-SCENE] UPDATE SKIPPED - nothing dirty");
             return;
         }
 

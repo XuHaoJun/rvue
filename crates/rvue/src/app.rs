@@ -243,23 +243,13 @@ impl<'a> AppState<'a> {
         event: &ui_events::pointer::PointerEvent,
         scale_factor: f64,
     ) {
-        eprintln!("[DEBUG-TRANSLATED-POINTER] Handling translated pointer event: {:?}", event);
-
         if let Some(pos) = get_pointer_event_position(event) {
             let logical_x = pos.x / scale_factor;
             let logical_y = pos.y / scale_factor;
             let logical_pos = Point::new(logical_x, logical_y);
             self.last_pointer_pos = Some(logical_pos);
-            eprintln!(
-                "[DEBUG-TRANSLATED-POINTER] Updated last_pointer_pos to ({:.1}, {:.1}) [physical=({:.1}, {:.1}), scale={}]",
-                logical_pos.x, logical_pos.y, pos.x, pos.y, scale_factor
-            );
 
             let new_hovered = hit_test(&self.root_component(), logical_pos);
-            eprintln!(
-                "[DEBUG-TRANSLATED-POINTER] hit_test result: {:?}",
-                new_hovered.as_ref().map(|c| c.id)
-            );
             *self.hovered_component.borrow_mut() = new_hovered;
         }
 
@@ -267,7 +257,6 @@ impl<'a> AppState<'a> {
 
         let converted_event =
             crate::event::types::convert_pointer_event_from_ui_events(event, scale_factor);
-        eprintln!("[DEBUG-TRANSLATED-POINTER] Converted to rvue event: {:?}", converted_event);
 
         run_pointer_event_pass(self, &converted_event);
         self.request_redraw_if_dirty();
@@ -288,24 +277,15 @@ impl ApplicationHandler for AppState<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        // Log ALL raw winit events for debugging
-        eprintln!("[DEBUG-RAW] {:?}", event);
-
         let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
 
         if let Some(translated) = self.event_translator.translate(scale_factor, &event) {
-            eprintln!("[DEBUG-TRANSLATED] Got translated event: {:?}", translated);
             match translated {
                 ui_events_winit::WindowEventTranslation::Pointer(pointer_event) => {
-                    eprintln!("[DEBUG-TRANSLATED] Handling as PointerEvent via ui_events_winit");
                     self.handle_translated_pointer_event(&pointer_event, scale_factor);
                     return;
                 }
-                ui_events_winit::WindowEventTranslation::Keyboard(_) => {
-                    eprintln!(
-                        "[DEBUG-TRANSLATED] Keyboard event (falling through to default handling)"
-                    );
-                }
+                ui_events_winit::WindowEventTranslation::Keyboard(_) => {}
             }
         }
 
@@ -335,10 +315,6 @@ impl ApplicationHandler for AppState<'_> {
                 let logical_y = position.y / scale_factor;
                 let point = Point::new(logical_x, logical_y);
                 self.last_pointer_pos = Some(point);
-                eprintln!(
-                    "[DEBUG-CURSOR] CursorMoved - pos=({:.1}, {:.1}) [scale={}]",
-                    point.x, point.y, scale_factor
-                );
 
                 // Ensure layout is up to date before hit testing
                 self.scene.update();
@@ -355,20 +331,7 @@ impl ApplicationHandler for AppState<'_> {
                 self.request_redraw_if_dirty();
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                eprintln!(
-                    "[DEBUG-MOUSE-INPUT] Raw MouseInput event received - state={:?}, button={:?}",
-                    state, button
-                );
-                eprintln!(
-                    "[DEBUG-MOUSE-INPUT] last_pointer_pos before update: {:?}",
-                    self.last_pointer_pos
-                );
-
                 let position = self.last_pointer_pos.unwrap_or_default();
-                eprintln!(
-                    "[DEBUG-CLICK] MouseInput - state={:?}, button={:?}, pos=({:.1}, {:.1})",
-                    state, button, position.x, position.y
-                );
 
                 let event = match state {
                     ElementState::Pressed => PointerEvent::Down(PointerButtonEvent {
@@ -385,14 +348,11 @@ impl ApplicationHandler for AppState<'_> {
                     }),
                 };
 
-                eprintln!("[DEBUG-MOUSE-INPUT] Created PointerEvent, calling scene.update()");
                 // Ensure layout is up to date before event dispatch (which includes hit testing)
                 self.scene.update();
 
-                eprintln!("[DEBUG-MOUSE-INPUT] Calling run_pointer_event_pass()");
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
-                eprintln!("[DEBUG-MOUSE-INPUT] MouseInput handling complete");
             }
             WindowEvent::CursorEntered { .. } => {
                 run_pointer_event_pass(self, &PointerEvent::Enter(Default::default()));
@@ -513,7 +473,6 @@ impl<'a> AppState<'a> {
 
     fn request_redraw_if_dirty(&self) {
         let root_dirty = self.view.as_ref().map(|v| v.root_component.is_dirty()).unwrap_or(false);
-        eprintln!("[DEBUG-REDRAW] root_dirty={}, requesting redraw", root_dirty);
         if root_dirty {
             if let Some(window) = &self.window {
                 window.request_redraw();
@@ -740,7 +699,6 @@ where
     let event_loop = EventLoop::with_user_event()
         .build()
         .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
-    eprintln!("[DEBUG] EventLoop with_user_event created successfully");
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);

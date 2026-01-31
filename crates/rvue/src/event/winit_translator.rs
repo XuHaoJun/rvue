@@ -7,6 +7,12 @@ pub struct WinitTranslator {
     reducer: WindowEventReducer,
 }
 
+impl Default for WinitTranslator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WinitTranslator {
     pub fn new() -> Self {
         Self { reducer: WindowEventReducer::default() }

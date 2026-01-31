@@ -71,11 +71,6 @@ unsafe impl Trace for ButtonState {
 
 impl Mountable for ButtonState {
     fn mount(&self, parent: Option<Gc<Component>>) {
-        eprintln!(
-            "[DEBUG-MOUNT] Button mounted - component_id={}, parent={}",
-            self.component.id,
-            parent.as_ref().map(|p| p.id.to_string()).unwrap_or_else(|| "None".to_string())
-        );
         self.component.set_parent(parent.clone());
         if let Some(parent) = parent {
             parent.add_child(Gc::clone(&self.component));

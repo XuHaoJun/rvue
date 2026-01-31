@@ -144,7 +144,7 @@ impl StyleResolver {
         let matched = element.has_tag_name(tag_name);
         let after_tag = &selector[tag_name.len()..];
         let next_start = selector.len() - after_tag.len();
-        return (matched, &selector[next_start..]);
+        (matched, &selector[next_start..])
     }
 
     /// Extracts an identifier (alphanumeric or hyphenated) from the start of a string.
@@ -160,6 +160,7 @@ impl StyleResolver {
         &s[..end]
     }
 
+    #[allow(dead_code)]
     /// Matches a simple selector (type, class, ID, state).
     fn matches_simple_selector(&self, element: &RvueElement, selector: &str) -> bool {
         let selector = selector.trim();
@@ -179,6 +180,7 @@ impl StyleResolver {
         }
     }
 
+    #[allow(dead_code)]
     /// Matches pseudo-class selectors.
     fn matches_pseudo_class(&self, element: &RvueElement, pseudo_class: &str) -> bool {
         element.state.matches_pseudo_class(pseudo_class)

@@ -17,23 +17,13 @@ pub fn run_pointer_event_pass(
     app_state: &mut (impl crate::app::AppStateLike + crate::event::context::EventContextOps),
     event: &PointerEvent,
 ) -> Handled {
-    eprintln!("[DEBUG-PASS] run_pointer_event_pass ENTRY - event_type={:?}", event_type_str(event));
-    eprintln!("[DEBUG-PASS] last_pointer_pos at entry: {:?}", app_state.last_pointer_pos());
-
     // Ensure state is up to date before dispatching
     if app_state.needs_pointer_pass_update() {
-        eprintln!("[DEBUG-PASS] needs_pointer_pass_update=true, running update pass");
         crate::event::update::run_update_pointer_pass(app_state);
         app_state.set_needs_pointer_pass_update(false);
     }
 
     let target = get_pointer_target(app_state);
-    let target_info = target.as_ref().map(|t| (t.id, format!("{:?}", t.component_type)));
-    eprintln!(
-        "[DEBUG-CLICK] run_pointer_event_pass - event_type={:?}, target={:?}",
-        event_type_str(event),
-        target_info
-    );
 
     if let Some(target) = target {
         let result = dispatch_pointer_event(app_state, &target, event);
@@ -52,36 +42,16 @@ pub fn run_pointer_event_pass(
     }
 }
 
-fn event_type_str(event: &PointerEvent) -> &'static str {
-    match event {
-        PointerEvent::Down(_) => "Down",
-        PointerEvent::Up(_) => "Up",
-        PointerEvent::Move(_) => "Move",
-        PointerEvent::Scroll(_) => "Scroll",
-        PointerEvent::Enter(_) => "Enter",
-        PointerEvent::Leave(_) => "Leave",
-        PointerEvent::Cancel(_) => "Cancel",
-    }
-}
-
 fn get_pointer_target(app_state: &impl crate::app::AppStateLike) -> Option<Gc<Component>> {
-    eprintln!("[DEBUG-TARGET] get_pointer_target called");
-    eprintln!("[DEBUG-TARGET] pointer_capture: {:?}", app_state.pointer_capture().map(|c| c.id));
-    eprintln!("[DEBUG-TARGET] last_pointer_pos: {:?}", app_state.last_pointer_pos());
-
     if let Some(captured) = app_state.pointer_capture() {
-        eprintln!("[DEBUG-TARGET] Using captured pointer target: id={}", captured.id);
         return Some(Gc::clone(&captured));
     }
 
     if let Some(pos) = app_state.last_pointer_pos() {
-        eprintln!("[DEBUG-TARGET] Calling hit_test with pos=({:.1}, {:.1})", pos.x, pos.y);
         let result = hit_test(&app_state.root_component(), pos);
-        eprintln!("[DEBUG-TARGET] hit_test result: {:?}", result.as_ref().map(|c| c.id));
         return result;
     }
 
-    eprintln!("[DEBUG-TARGET] No pointer target found");
     None
 }
 
@@ -90,20 +60,11 @@ fn dispatch_pointer_event(
     target: &Gc<Component>,
     event: &PointerEvent,
 ) -> Handled {
-    eprintln!(
-        "[DEBUG-CLICK] dispatch_pointer_event - target_id={}, target_type={:?}",
-        target.id, target.component_type
-    );
-
     let mut current = Some(Gc::clone(target));
     let mut handled = Handled::No;
 
     while let Some(component) = current {
         if component.is_disabled() {
-            eprintln!(
-                "[DEBUG-CLICK] component {:?} is disabled, skipping",
-                component.component_type
-            );
             current = component.parent.borrow().clone();
             continue;
         }
@@ -114,30 +75,21 @@ fn dispatch_pointer_event(
         let handlers = component.event_handlers.borrow();
         match event {
             PointerEvent::Down(e) => {
-                eprintln!(
-                    "[DEBUG-CLICK] Processing Down - component={:?}, has_handler={}",
-                    component.component_type,
-                    handlers.get_pointer_down().is_some()
-                );
                 if let Some(handler) = handlers.get_pointer_down() {
                     handler.call(e, &mut ctx);
                 }
 
                 if handlers.get_click().is_some() {
                     ctx.capture_pointer();
-                    eprintln!("[DEBUG-CLICK] Click handler exists, captured pointer");
                 }
             }
             PointerEvent::Up(e) => {
-                eprintln!("[DEBUG-CLICK] Processing Up - component={:?}, has_click_handler={}, is_active={}",
-                    component.component_type, handlers.get_click().is_some(), *component.is_active.borrow());
                 if let Some(handler) = handlers.get_pointer_up() {
                     handler.call(e, &mut ctx);
                 }
 
                 if let Some(handler) = handlers.get_click() {
                     if *component.is_active.borrow() {
-                        eprintln!("[DEBUG-CLICK] Calling click handler!");
                         handler.call(e, &mut ctx);
                     }
                 }

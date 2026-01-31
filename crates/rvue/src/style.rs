@@ -130,24 +130,12 @@ fn component_type_to_tag_name(component_type: &crate::component::ComponentType) 
 
 pub fn resolve_styles(component: &Gc<Component>, stylesheet: &Stylesheet) -> ComputedStyles {
     let element = component_to_element(component);
-    eprintln!("[DEBUG-RESOLVE] component_type={:?}, element_tag={}, element_classes={:?}, element_id={:?}, element_state={:?}",
-        component.component_type,
-        element.tag_name,
-        element.classes,
-        element.id,
-        element.state);
 
     let resolver = StyleResolver::new();
 
     let inline_styles = get_inline_styles(component);
 
     let resolved = resolver.resolve_styles(&element, &stylesheet.inner.borrow());
-
-    eprintln!(
-        "[DEBUG-RESOLVE] resolved has_bg={}, bg={:?}",
-        resolved.background_color.is_some(),
-        resolved.background_color.as_ref().map(|bg| (bg.0 .0.r, bg.0 .0.g, bg.0 .0.b))
-    );
 
     let mut merged = resolved;
 

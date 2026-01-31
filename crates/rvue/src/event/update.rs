@@ -31,10 +31,6 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(should_have_active));
             cloned.mark_dirty();
-            eprintln!(
-                "[DEBUG] Active state changed for component {:?}: is_active={}",
-                cloned.component_type, should_have_active
-            );
         }
     }
 
@@ -47,17 +43,12 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(false));
             cloned.mark_dirty();
-            eprintln!(
-                "[DEBUG] Previous active leaf lost active state: {:?}",
-                cloned.component_type
-            );
         }
         if let Some(next) = next_active_path.first() {
             *next.is_active.borrow_mut() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(true));
             cloned.mark_dirty();
-            eprintln!("[DEBUG] New active leaf gained active state: {:?}", cloned.component_type);
         }
     }
 
@@ -72,10 +63,6 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(should_have_hovered));
             cloned.mark_dirty();
-            eprintln!(
-                "[DEBUG] Hover state changed for component {:?}: is_hovered={}",
-                cloned.component_type, should_have_hovered
-            );
         }
     }
 
@@ -88,14 +75,12 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(false));
             cloned.mark_dirty();
-            eprintln!("[DEBUG] Previous hovered leaf lost hover: {:?}", cloned.component_type);
         }
         if let Some(next) = next_hovered_path.first() {
             *next.is_hovered.borrow_mut() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(true));
             cloned.mark_dirty();
-            eprintln!("[DEBUG] New hovered leaf gained hover: {:?}", cloned.component_type);
         }
     }
 
