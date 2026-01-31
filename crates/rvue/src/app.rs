@@ -280,7 +280,8 @@ impl ApplicationHandler for AppState<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        eprintln!("[DEBUG-EVENT] Received event: {:?}", event);
+        // Log ALL raw winit events for debugging
+        eprintln!("[DEBUG-RAW] {:?}", event);
 
         let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
 
@@ -722,7 +723,10 @@ where
 
     let view = view_fn();
 
-    let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    let event_loop = EventLoop::with_user_event()
+        .build()
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    eprintln!("[DEBUG] EventLoop with_user_event created successfully");
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
@@ -775,7 +779,9 @@ where
 
     let view = view_fn();
 
-    let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    let event_loop = EventLoop::with_user_event()
+        .build()
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
