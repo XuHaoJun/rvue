@@ -8,6 +8,7 @@ use crate::event::types::{
     map_scroll_delta, KeyboardEvent, PointerButtonEvent, PointerEvent, PointerMoveEvent,
 };
 use crate::event::update::{run_update_focus_pass, run_update_pointer_pass};
+use crate::event::winit_translator::{get_pointer_event_position, WinitTranslator};
 use crate::render::Scene as RvueScene;
 use crate::style::Stylesheet;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
@@ -76,6 +77,7 @@ pub struct AppState<'a> {
     surface: Option<RenderSurface<'a>>,
     render_cx: Option<RenderContext>,
     window: Option<Arc<Window>>,
+    event_translator: WinitTranslator,
 }
 
 impl<'a> AppStateLike for AppState<'a> {
@@ -232,7 +234,35 @@ impl<'a> AppState<'a> {
             focused_path: Vec::new(),
             needs_pointer_pass_update: false,
             last_gc_count: 0,
+            event_translator: WinitTranslator::new(),
         }
+    }
+
+    fn handle_translated_pointer_event(&mut self, event: &ui_events::pointer::PointerEvent) {
+        eprintln!("[DEBUG-TRANSLATED-POINTER] Handling translated pointer event: {:?}", event);
+
+        if let Some(pos) = get_pointer_event_position(event) {
+            self.last_pointer_pos = Some(pos);
+            eprintln!(
+                "[DEBUG-TRANSLATED-POINTER] Updated last_pointer_pos to ({:.1}, {:.1})",
+                pos.x, pos.y
+            );
+
+            let new_hovered = hit_test(&self.root_component(), pos);
+            eprintln!(
+                "[DEBUG-TRANSLATED-POINTER] hit_test result: {:?}",
+                new_hovered.as_ref().map(|c| c.id)
+            );
+            *self.hovered_component.borrow_mut() = new_hovered;
+        }
+
+        self.scene.update();
+
+        let converted_event = crate::event::types::convert_pointer_event_from_ui_events(event);
+        eprintln!("[DEBUG-TRANSLATED-POINTER] Converted to rvue event: {:?}", converted_event);
+
+        run_pointer_event_pass(self, &converted_event);
+        self.request_redraw_if_dirty();
     }
 }
 
@@ -250,6 +280,26 @@ impl ApplicationHandler for AppState<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        eprintln!("[DEBUG-EVENT] Received event: {:?}", event);
+
+        let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+
+        if let Some(translated) = self.event_translator.translate(scale_factor, &event) {
+            eprintln!("[DEBUG-TRANSLATED] Got translated event: {:?}", translated);
+            match translated {
+                ui_events_winit::WindowEventTranslation::Pointer(pointer_event) => {
+                    eprintln!("[DEBUG-TRANSLATED] Handling as PointerEvent via ui_events_winit");
+                    self.handle_translated_pointer_event(&pointer_event);
+                    return;
+                }
+                ui_events_winit::WindowEventTranslation::Keyboard(_) => {
+                    eprintln!(
+                        "[DEBUG-TRANSLATED] Keyboard event (falling through to default handling)"
+                    );
+                }
+            }
+        }
+
         match event {
             WindowEvent::CloseRequested => {
                 // Clear GC resources before exiting to prevent double-free
@@ -273,6 +323,7 @@ impl ApplicationHandler for AppState<'_> {
             WindowEvent::CursorMoved { position, .. } => {
                 let point = Point::new(position.x, position.y);
                 self.last_pointer_pos = Some(point);
+                eprintln!("[DEBUG-CURSOR] CursorMoved - pos=({:.1}, {:.1})", point.x, point.y);
 
                 // Ensure layout is up to date before hit testing
                 self.scene.update();
@@ -289,26 +340,44 @@ impl ApplicationHandler for AppState<'_> {
                 self.request_redraw_if_dirty();
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                eprintln!(
+                    "[DEBUG-MOUSE-INPUT] Raw MouseInput event received - state={:?}, button={:?}",
+                    state, button
+                );
+                eprintln!(
+                    "[DEBUG-MOUSE-INPUT] last_pointer_pos before update: {:?}",
+                    self.last_pointer_pos
+                );
+
+                let position = self.last_pointer_pos.unwrap_or_default();
+                eprintln!(
+                    "[DEBUG-CLICK] MouseInput - state={:?}, button={:?}, pos=({:.1}, {:.1})",
+                    state, button, position.x, position.y
+                );
+
                 let event = match state {
                     ElementState::Pressed => PointerEvent::Down(PointerButtonEvent {
                         button: button.into(),
-                        position: self.last_pointer_pos.unwrap_or_default(),
+                        position,
                         click_count: 1,
                         modifiers: self.current_modifiers(),
                     }),
                     ElementState::Released => PointerEvent::Up(PointerButtonEvent {
                         button: button.into(),
-                        position: self.last_pointer_pos.unwrap_or_default(),
+                        position,
                         click_count: 1,
                         modifiers: self.current_modifiers(),
                     }),
                 };
 
+                eprintln!("[DEBUG-MOUSE-INPUT] Created PointerEvent, calling scene.update()");
                 // Ensure layout is up to date before event dispatch (which includes hit testing)
                 self.scene.update();
 
+                eprintln!("[DEBUG-MOUSE-INPUT] Calling run_pointer_event_pass()");
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
+                eprintln!("[DEBUG-MOUSE-INPUT] MouseInput handling complete");
             }
             WindowEvent::CursorEntered { .. } => {
                 run_pointer_event_pass(self, &PointerEvent::Enter(Default::default()));
@@ -428,11 +497,11 @@ impl<'a> AppState<'a> {
     }
 
     fn request_redraw_if_dirty(&self) {
-        if let Some(view) = &self.view {
-            if view.root_component.is_dirty() {
-                if let Some(window) = &self.window {
-                    window.request_redraw();
-                }
+        let root_dirty = self.view.as_ref().map(|v| v.root_component.is_dirty()).unwrap_or(false);
+        eprintln!("[DEBUG-REDRAW] root_dirty={}, requesting redraw", root_dirty);
+        if root_dirty {
+            if let Some(window) = &self.window {
+                window.request_redraw();
             }
         }
     }

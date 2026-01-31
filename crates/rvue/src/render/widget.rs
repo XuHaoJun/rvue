@@ -20,6 +20,13 @@ pub fn render_component(
     let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
 
+    if component.component_type == ComponentType::Button {
+        eprintln!(
+            "[DEBUG-RENDER-COMP] Button id={}, is_dirty={}, cache_none={}",
+            component.id, is_dirty, cache_was_none
+        );
+    }
+
     if is_dirty || cache_was_none {
         let mut local_scene = vello::Scene::new();
 

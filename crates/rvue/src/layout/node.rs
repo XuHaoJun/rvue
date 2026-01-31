@@ -118,6 +118,9 @@ impl LayoutNode {
         let width = if width > 0.0 { width } else { 10.0 * content.len() as f32 };
         let height = if height > 0.0 { height } else { 20.0 };
 
+        // Reset gap to avoid inherited spacing
+        style.gap = Size::zero();
+
         style.size = Size { width: length(width), height: length(height) };
 
         let taffy_node = taffy.new_leaf(style).ok();

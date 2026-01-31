@@ -1319,6 +1319,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard-types"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
+dependencies = [
+ "bitflags 2.10.0",
+ "serde",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2433,6 +2443,7 @@ dependencies = [
  "cursor-icon",
  "fontique",
  "indexmap",
+ "keyboard-types",
  "log",
  "parley",
  "peniko 0.5.0",
@@ -2445,6 +2456,8 @@ dependencies = [
  "smallvec",
  "taffy",
  "thiserror 2.0.18",
+ "ui-events",
+ "ui-events-winit",
  "vello",
  "wgpu",
  "wgpu-profiler",
@@ -3091,6 +3104,28 @@ dependencies = [
  "memoffset",
  "tempfile",
  "winapi",
+]
+
+[[package]]
+name = "ui-events"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3e29e3e199888d594edd191c5917a2d5c1893b8bf20076c2bf4df7a40a2ee71"
+dependencies = [
+ "dpi",
+ "keyboard-types",
+ "kurbo 0.13.0",
+]
+
+[[package]]
+name = "ui-events-winit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de12c5f7e256ff97aa9a710a5e2fb345bb59302c98d77a3d2f249100d92145d4"
+dependencies = [
+ "ui-events",
+ "web-time",
+ "winit",
 ]
 
 [[package]]
