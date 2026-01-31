@@ -202,22 +202,32 @@ pub fn map_scroll_delta(delta: winit::event::MouseScrollDelta) -> ScrollDelta {
 
 pub fn convert_pointer_event_from_ui_events(
     event: &ui_events::pointer::PointerEvent,
+    scale_factor: f64,
 ) -> PointerEvent {
     match event {
         ui_events::pointer::PointerEvent::Down(e) => PointerEvent::Down(PointerButtonEvent {
             button: convert_pointer_button(e.button),
-            position: Point::new(e.state.position.x, e.state.position.y),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
             click_count: e.state.count as u32,
             modifiers: convert_modifiers(&e.state.modifiers),
         }),
         ui_events::pointer::PointerEvent::Up(e) => PointerEvent::Up(PointerButtonEvent {
             button: convert_pointer_button(e.button),
-            position: Point::new(e.state.position.x, e.state.position.y),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
             click_count: e.state.count as u32,
             modifiers: convert_modifiers(&e.state.modifiers),
         }),
         ui_events::pointer::PointerEvent::Move(e) => PointerEvent::Move(PointerMoveEvent {
-            position: Point::new(e.current.position.x, e.current.position.y),
+            position: Point::new(
+                e.current.position.x / scale_factor,
+                e.current.position.y / scale_factor,
+            ),
             delta: Vec2::ZERO,
             modifiers: convert_modifiers(&e.current.modifiers),
         }),
@@ -229,12 +239,18 @@ pub fn convert_pointer_event_from_ui_events(
         }
         ui_events::pointer::PointerEvent::Scroll(e) => PointerEvent::Scroll(PointerScrollEvent {
             delta: ScrollDelta::Line(1.0),
-            position: Point::new(e.state.position.x, e.state.position.y),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
             modifiers: convert_modifiers(&e.state.modifiers),
         }),
         ui_events::pointer::PointerEvent::Gesture(e) => PointerEvent::Down(PointerButtonEvent {
             button: PointerButton::Primary,
-            position: Point::new(e.state.position.x, e.state.position.y),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
             click_count: 1,
             modifiers: convert_modifiers(&e.state.modifiers),
         }),

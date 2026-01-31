@@ -238,17 +238,24 @@ impl<'a> AppState<'a> {
         }
     }
 
-    fn handle_translated_pointer_event(&mut self, event: &ui_events::pointer::PointerEvent) {
+    fn handle_translated_pointer_event(
+        &mut self,
+        event: &ui_events::pointer::PointerEvent,
+        scale_factor: f64,
+    ) {
         eprintln!("[DEBUG-TRANSLATED-POINTER] Handling translated pointer event: {:?}", event);
 
         if let Some(pos) = get_pointer_event_position(event) {
-            self.last_pointer_pos = Some(pos);
+            let logical_x = pos.x / scale_factor;
+            let logical_y = pos.y / scale_factor;
+            let logical_pos = Point::new(logical_x, logical_y);
+            self.last_pointer_pos = Some(logical_pos);
             eprintln!(
-                "[DEBUG-TRANSLATED-POINTER] Updated last_pointer_pos to ({:.1}, {:.1})",
-                pos.x, pos.y
+                "[DEBUG-TRANSLATED-POINTER] Updated last_pointer_pos to ({:.1}, {:.1}) [physical=({:.1}, {:.1}), scale={}]",
+                logical_pos.x, logical_pos.y, pos.x, pos.y, scale_factor
             );
 
-            let new_hovered = hit_test(&self.root_component(), pos);
+            let new_hovered = hit_test(&self.root_component(), logical_pos);
             eprintln!(
                 "[DEBUG-TRANSLATED-POINTER] hit_test result: {:?}",
                 new_hovered.as_ref().map(|c| c.id)
@@ -258,7 +265,8 @@ impl<'a> AppState<'a> {
 
         self.scene.update();
 
-        let converted_event = crate::event::types::convert_pointer_event_from_ui_events(event);
+        let converted_event =
+            crate::event::types::convert_pointer_event_from_ui_events(event, scale_factor);
         eprintln!("[DEBUG-TRANSLATED-POINTER] Converted to rvue event: {:?}", converted_event);
 
         run_pointer_event_pass(self, &converted_event);
@@ -290,7 +298,7 @@ impl ApplicationHandler for AppState<'_> {
             match translated {
                 ui_events_winit::WindowEventTranslation::Pointer(pointer_event) => {
                     eprintln!("[DEBUG-TRANSLATED] Handling as PointerEvent via ui_events_winit");
-                    self.handle_translated_pointer_event(&pointer_event);
+                    self.handle_translated_pointer_event(&pointer_event, scale_factor);
                     return;
                 }
                 ui_events_winit::WindowEventTranslation::Keyboard(_) => {
@@ -322,9 +330,15 @@ impl ApplicationHandler for AppState<'_> {
                 self.render_frame();
             }
             WindowEvent::CursorMoved { position, .. } => {
-                let point = Point::new(position.x, position.y);
+                let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+                let logical_x = position.x / scale_factor;
+                let logical_y = position.y / scale_factor;
+                let point = Point::new(logical_x, logical_y);
                 self.last_pointer_pos = Some(point);
-                eprintln!("[DEBUG-CURSOR] CursorMoved - pos=({:.1}, {:.1})", point.x, point.y);
+                eprintln!(
+                    "[DEBUG-CURSOR] CursorMoved - pos=({:.1}, {:.1}) [scale={}]",
+                    point.x, point.y, scale_factor
+                );
 
                 // Ensure layout is up to date before hit testing
                 self.scene.update();
