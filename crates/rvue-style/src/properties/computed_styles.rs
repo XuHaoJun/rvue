@@ -4,9 +4,9 @@ use rudo_gc::{Trace, Visitor};
 
 use crate::properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
-    Color, Display, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize, FontWeight, Gap,
-    Height, JustifyContent, Margin, MaxHeight, MaxWidth, MinHeight, MinWidth, Opacity, Padding,
-    TextColor, Visibility, Width, ZIndex,
+    Color, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize,
+    FontWeight, Gap, Height, JustifyContent, Margin, MaxHeight, MaxWidth, MinHeight, MinWidth,
+    Opacity, Padding, TextColor, Visibility, Width, ZIndex,
 };
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -32,6 +32,7 @@ pub struct ComputedStyles {
     pub align_self: Option<AlignSelf>,
     pub flex_grow: Option<FlexGrow>,
     pub flex_shrink: Option<FlexShrink>,
+    pub flex_basis: Option<FlexBasis>,
     pub gap: Option<Gap>,
     pub border_color: Option<BorderColor>,
     pub border_width: Option<BorderWidth>,
@@ -40,6 +41,7 @@ pub struct ComputedStyles {
     pub opacity: Option<Opacity>,
     pub visibility: Option<Visibility>,
     pub z_index: Option<ZIndex>,
+    pub cursor: Option<Cursor>,
 }
 
 impl ComputedStyles {
@@ -113,6 +115,9 @@ impl ComputedStyles {
         if let Some(fs) = properties.get::<FlexShrink>() {
             self.flex_shrink = Some(*fs);
         }
+        if let Some(fb) = properties.get::<FlexBasis>() {
+            self.flex_basis = Some(fb.clone());
+        }
         if let Some(g) = properties.get::<Gap>() {
             self.gap = Some(*g);
         }
@@ -136,6 +141,9 @@ impl ComputedStyles {
         }
         if let Some(zi) = properties.get::<ZIndex>() {
             self.z_index = Some(*zi);
+        }
+        if let Some(c) = properties.get::<Cursor>() {
+            self.cursor = Some(c.clone());
         }
     }
 
@@ -204,6 +212,9 @@ impl ComputedStyles {
         if let Some(fs) = other.flex_shrink.as_ref() {
             self.flex_shrink = Some(fs.clone());
         }
+        if let Some(fb) = other.flex_basis.as_ref() {
+            self.flex_basis = Some(fb.clone());
+        }
         if let Some(g) = other.gap.as_ref() {
             self.gap = Some(g.clone());
         }
@@ -227,6 +238,9 @@ impl ComputedStyles {
         }
         if let Some(zi) = other.z_index.as_ref() {
             self.z_index = Some(zi.clone());
+        }
+        if let Some(c) = other.cursor.as_ref() {
+            self.cursor = Some(c.clone());
         }
     }
 }

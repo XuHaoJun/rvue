@@ -19,7 +19,11 @@ impl Padding {
     }
 }
 
-impl Property for Padding {}
+impl Property for Padding {
+    fn initial_value() -> Self {
+        Self(0.0)
+    }
+}
 
 /// Margin.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -38,4 +42,8 @@ impl Margin {
     }
 }
 
-impl Property for Margin {}
+impl Property for Margin {
+    fn initial_value() -> Self {
+        Self(0.0)
+    }
+}

@@ -11,19 +11,31 @@ pub enum Visibility {
     Collapse,
 }
 
-impl Property for Visibility {}
+impl Property for Visibility {
+    fn initial_value() -> Self {
+        Self::Visible
+    }
+}
 
 /// Opacity property (0.0 to 1.0).
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct Opacity(pub f32);
 
-impl Property for Opacity {}
+impl Property for Opacity {
+    fn initial_value() -> Self {
+        Self(1.0)
+    }
+}
 
 /// Z-index property for stacking order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ZIndex(pub i32);
 
-impl Property for ZIndex {}
+impl Property for ZIndex {
+    fn initial_value() -> Self {
+        Self(0)
+    }
+}
 
 /// Cursor property.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -44,4 +56,8 @@ pub enum Cursor {
     ResizeNWSE,
 }
 
-impl Property for Cursor {}
+impl Property for Cursor {
+    fn initial_value() -> Self {
+        Self::Default
+    }
+}

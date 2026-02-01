@@ -8,7 +8,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::component::Component;
-use rudo_gc::Gc;
 use rvue_style::{
     default_stylesheet, BackgroundColor, Color, ComputedStyles, ElementState, Properties,
     RvueElement, StyleResolver,
@@ -144,24 +143,6 @@ fn component_type_to_tag_name(component_type: &crate::component::ComponentType) 
     .to_string()
 }
 
-pub fn resolve_styles(component: &Gc<Component>, stylesheet: &Stylesheet) -> ComputedStyles {
-    let element = component_to_element(component);
-
-    let resolver = StyleResolver::new();
-
-    let inline_styles = get_inline_styles(component);
-
-    let resolved = resolver.resolve_styles(&element, &stylesheet.inner.borrow());
-
-    let mut merged = resolved;
-
-    if let Some(inline) = inline_styles {
-        merged.merge_with_computed(&inline);
-    }
-
-    merged
-}
-
 /// Resolve styles for a component (accepts &Component instead of &Gc<Component>)
 /// This provides a unified style resolution path for both layout and rendering systems.
 pub fn resolve_styles_for_component(
@@ -178,12 +159,96 @@ pub fn resolve_styles_for_component(
 
     let resolved = resolver.resolve_styles(&element, &inner_sheet);
 
-    drop(inner_sheet);
-
     let mut merged = resolved;
 
     if let Some(inline) = inline_styles {
-        merged.merge_with_computed(&inline);
+        // Only merge inline properties that differ from defaults
+        // This prevents default values (like Width(Auto)) from overriding stylesheet values
+        if let Some(w) = inline.width.as_ref() {
+            if !matches!(w.0, rvue_style::Size::Auto) {
+                merged.width = Some(w.clone());
+            }
+        }
+        if let Some(h) = inline.height.as_ref() {
+            if !matches!(h.0, rvue_style::Size::Auto) {
+                merged.height = Some(h.clone());
+            }
+        }
+        if inline.background_color.is_some() {
+            merged.background_color = inline.background_color;
+        }
+        if inline.color.is_some() {
+            merged.color = inline.color;
+        }
+        if inline.text_color.is_some() {
+            merged.text_color = inline.text_color;
+        }
+        if inline.font_size.is_some() {
+            merged.font_size = inline.font_size;
+        }
+        if inline.font_family.is_some() {
+            merged.font_family = inline.font_family;
+        }
+        if inline.font_weight.is_some() {
+            merged.font_weight = inline.font_weight;
+        }
+        if inline.padding.is_some() {
+            merged.padding = inline.padding;
+        }
+        if inline.margin.is_some() {
+            merged.margin = inline.margin;
+        }
+        if inline.display.is_some() {
+            merged.display = inline.display;
+        }
+        if inline.flex_direction.is_some() {
+            merged.flex_direction = inline.flex_direction;
+        }
+        if inline.justify_content.is_some() {
+            merged.justify_content = inline.justify_content;
+        }
+        if inline.align_items.is_some() {
+            merged.align_items = inline.align_items;
+        }
+        if inline.align_self.is_some() {
+            merged.align_self = inline.align_self;
+        }
+        if inline.flex_grow.is_some() {
+            merged.flex_grow = inline.flex_grow;
+        }
+        if inline.flex_shrink.is_some() {
+            merged.flex_shrink = inline.flex_shrink;
+        }
+        if inline.flex_basis.is_some() {
+            merged.flex_basis = inline.flex_basis;
+        }
+        if inline.gap.is_some() {
+            merged.gap = inline.gap;
+        }
+        if inline.border_color.is_some() {
+            merged.border_color = inline.border_color;
+        }
+        if inline.border_width.is_some() {
+            merged.border_width = inline.border_width;
+        }
+        if inline.border_radius.is_some() {
+            merged.border_radius = inline.border_radius;
+        }
+        if inline.border_style.is_some() {
+            merged.border_style = inline.border_style;
+        }
+        if inline.opacity.is_some() {
+            merged.opacity = inline.opacity;
+        }
+        if inline.visibility.is_some() {
+            merged.visibility = inline.visibility;
+        }
+        if inline.z_index.is_some() {
+            merged.z_index = inline.z_index;
+        }
+        if inline.cursor.is_some() {
+            merged.cursor = inline.cursor;
+        }
     }
 
     merged
@@ -194,7 +259,7 @@ fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
 
     let props = component.props.borrow();
 
-    match &*props {
+    let result = match &*props {
         ComponentProps::Text { styles, .. } => styles.clone(),
         ComponentProps::Button { styles, .. } => styles.clone(),
         ComponentProps::TextInput { styles, .. } => styles.clone(),
@@ -203,7 +268,9 @@ fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
         ComponentProps::Radio { styles, .. } => styles.clone(),
         ComponentProps::Flex { styles, .. } => styles.clone(),
         _ => None,
-    }
+    };
+
+    result
 }
 
 pub trait StylesheetProvider {

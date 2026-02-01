@@ -11,7 +11,17 @@ use std::any::TypeId;
 use std::collections::HashMap;
 
 /// A property that can be styled on a widget.
-pub trait Property: Default + Clone + Send + Sync + 'static {}
+///
+/// Properties represent CSS styles that can be applied to widgets.
+/// Each property has a CSS initial value that is used when the property
+/// is not explicitly set, following CSS cascade semantics.
+pub trait Property: Default + Clone + Send + Sync + 'static {
+    /// Returns the CSS initial value for this property.
+    ///
+    /// This is used when a property is not explicitly set, following
+    /// CSS semantics where unspecified properties use their initial values.
+    fn initial_value() -> Self;
+}
 
 #[derive(Clone)]
 struct DynProperty {

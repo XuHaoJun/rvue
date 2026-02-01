@@ -19,34 +19,6 @@ fn size_to_dimension(size: &RvueSize) -> Dimension {
     }
 }
 
-fn get_computed_styles(component: &Component) -> Option<rvue_style::ComputedStyles> {
-    match &*component.props.borrow() {
-        ComponentProps::Button { styles, .. } => styles.clone(),
-        ComponentProps::TextInput { styles, .. } => styles.clone(),
-        ComponentProps::NumberInput { styles, .. } => styles.clone(),
-        ComponentProps::Checkbox { styles, .. } => styles.clone(),
-        ComponentProps::Radio { styles, .. } => styles.clone(),
-        ComponentProps::Flex { styles, .. } => styles.clone(),
-        ComponentProps::Text { styles, .. } => styles.clone(),
-        _ => None,
-    }
-}
-
-fn get_computed_styles_from_stylesheet(
-    component: &Component,
-    stylesheet: &Stylesheet,
-) -> Option<rvue_style::ComputedStyles> {
-    let inline = get_computed_styles(component);
-    let mut sheet = crate::style::resolve_styles_for_component(component, stylesheet);
-
-    if let Some(inline_styles) = inline {
-        sheet.merge_with_computed(&inline_styles);
-        Some(sheet)
-    } else {
-        Some(sheet)
-    }
-}
-
 fn read_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dimension> {
     let width =
         computed.width.as_ref().map(|w| size_to_dimension(&w.0)).unwrap_or(Dimension::auto());
@@ -69,6 +41,13 @@ fn read_max_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dime
     let height =
         computed.max_height.as_ref().map(|h| size_to_dimension(&h.0)).unwrap_or(Dimension::auto());
     Size { width, height }
+}
+
+fn get_computed_styles_from_stylesheet(
+    component: &Component,
+    stylesheet: &Stylesheet,
+) -> Option<rvue_style::ComputedStyles> {
+    Some(crate::style::resolve_styles_for_component(component, stylesheet))
 }
 
 fn align_items_to_taffy(ai: &rvue_style::AlignItems) -> AlignItems {

@@ -19,7 +19,11 @@ impl fmt::Display for FontFamily {
     }
 }
 
-impl Property for FontFamily {}
+impl Property for FontFamily {
+    fn initial_value() -> Self {
+        Self("system-ui".to_string())
+    }
+}
 
 /// Font size property.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -31,7 +35,11 @@ impl Default for FontSize {
     }
 }
 
-impl Property for FontSize {}
+impl Property for FontSize {
+    fn initial_value() -> Self {
+        Self(16.0)
+    }
+}
 
 /// Font weight property.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -48,7 +56,11 @@ pub enum FontWeight {
     Black = 900,
 }
 
-impl Property for FontWeight {}
+impl Property for FontWeight {
+    fn initial_value() -> Self {
+        Self::Normal
+    }
+}
 
 impl FontWeight {
     #[inline]

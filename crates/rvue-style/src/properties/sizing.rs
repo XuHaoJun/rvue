@@ -44,40 +44,68 @@ impl fmt::Display for Size {
     }
 }
 
-impl Property for Size {}
+impl Property for Size {
+    fn initial_value() -> Self {
+        Self::Auto
+    }
+}
 
 /// Width.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct Width(pub Size);
 
-impl Property for Width {}
+impl Property for Width {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Height.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct Height(pub Size);
 
-impl Property for Height {}
+impl Property for Height {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Minimum width property.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MinWidth(pub Size);
 
-impl Property for MinWidth {}
+impl Property for MinWidth {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Minimum height property.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MinHeight(pub Size);
 
-impl Property for MinHeight {}
+impl Property for MinHeight {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Maximum width property.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MaxWidth(pub Size);
 
-impl Property for MaxWidth {}
+impl Property for MaxWidth {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Maximum height property.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct MaxHeight(pub Size);
 
-impl Property for MaxHeight {}
+impl Property for MaxHeight {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}

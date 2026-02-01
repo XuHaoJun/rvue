@@ -15,7 +15,11 @@ pub enum Display {
     None,
 }
 
-impl Property for Display {}
+impl Property for Display {
+    fn initial_value() -> Self {
+        Self::Flex
+    }
+}
 
 /// Flex direction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Trace)]
@@ -38,7 +42,11 @@ impl FlexDirection {
     }
 }
 
-impl Property for FlexDirection {}
+impl Property for FlexDirection {
+    fn initial_value() -> Self {
+        Self::Row
+    }
+}
 
 /// Justify content (main axis alignment).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Trace)]
@@ -65,7 +73,11 @@ impl JustifyContent {
     }
 }
 
-impl Property for JustifyContent {}
+impl Property for JustifyContent {
+    fn initial_value() -> Self {
+        Self::FlexStart
+    }
+}
 
 /// Align items (cross axis alignment for flex container).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Trace)]
@@ -90,7 +102,11 @@ impl AlignItems {
     }
 }
 
-impl Property for AlignItems {}
+impl Property for AlignItems {
+    fn initial_value() -> Self {
+        Self::Stretch
+    }
+}
 
 /// Align self (cross axis alignment for flex item).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Trace)]
@@ -104,30 +120,50 @@ pub enum AlignSelf {
     Baseline,
 }
 
-impl Property for AlignSelf {}
+impl Property for AlignSelf {
+    fn initial_value() -> Self {
+        Self::Auto
+    }
+}
 
 /// Flex grow factor.
 #[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct FlexGrow(pub f32);
 
-impl Property for FlexGrow {}
+impl Property for FlexGrow {
+    fn initial_value() -> Self {
+        Self(0.0)
+    }
+}
 
 /// Flex shrink factor.
 #[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct FlexShrink(pub f32);
 
-impl Property for FlexShrink {}
+impl Property for FlexShrink {
+    fn initial_value() -> Self {
+        Self(1.0)
+    }
+}
 
 /// Flex basis size.
 #[derive(Clone, Debug, PartialEq, Default, Trace)]
 pub struct FlexBasis(pub Size);
 
-impl Property for FlexBasis {}
+impl Property for FlexBasis {
+    fn initial_value() -> Self {
+        Self(Size::Auto)
+    }
+}
 
 /// Gap between flex/grid items.
 #[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct Gap(pub f32);
 
-impl Property for Gap {}
+impl Property for Gap {
+    fn initial_value() -> Self {
+        Self(0.0)
+    }
+}
 
 use super::sizing::Size;

@@ -59,8 +59,8 @@ fn test_reactive_property_from_signal() {
 fn test_reactive_styles_new() {
     let styles = ReactiveStyles::new();
     let computed = styles.compute();
-    assert!(computed.background_color.is_none());
-    assert!(computed.color.is_none());
+    assert!(computed.background_color.is_some());
+    assert!(computed.color.is_some());
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn test_reactive_signal_write_trait() {
 fn test_reactive_styles_default() {
     let styles = ReactiveStyles::default();
     let computed = styles.compute();
-    assert!(computed.background_color.is_none());
+    assert!(computed.background_color.is_some());
 }
 
 #[test]

@@ -40,10 +40,18 @@ impl Color {
     }
 }
 
-impl Property for Color {}
+impl Property for Color {
+    fn initial_value() -> Self {
+        Self(RgbColor { r: 0, g: 0, b: 0 })
+    }
+}
 
 /// Text/foreground color property.
 #[derive(Clone, Copy, Debug, PartialEq, Default, Trace)]
 pub struct TextColor(pub Color);
 
-impl Property for TextColor {}
+impl Property for TextColor {
+    fn initial_value() -> Self {
+        Self(Color(RgbColor { r: 0, g: 0, b: 0 }))
+    }
+}

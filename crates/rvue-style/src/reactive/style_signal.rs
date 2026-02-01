@@ -8,6 +8,7 @@ use crate::properties::{
     FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding,
     TextColor, Visibility, Width, ZIndex,
 };
+use crate::property::Property;
 use bitflags::bitflags;
 use rudo_gc::{Gc, GcCell, Trace};
 use rvue_signals::{create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
@@ -464,82 +465,154 @@ impl ReactiveStyles {
         self
     }
 
+    /// Computes the final computed styles for rendering.
+    ///
+    /// This method returns a complete `ComputedStyles` with all properties populated:
+    /// - Properties explicitly set via `set_*()` methods use their set value
+    /// - Unset properties use their CSS initial value (never `None`)
+    ///
+    /// This follows CSS cascade semantics where unspecified properties use initial values.
+    /// The result is always a complete style object suitable for rendering.
     pub fn compute(&self) -> ComputedStyles {
         let mut styles = ComputedStyles::new();
         let flags = self.flags;
 
-        if flags.contains(StyleFlags::BACKGROUND_COLOR) {
-            styles.background_color = Some(self.background_color.get_untracked());
-        }
-        if flags.contains(StyleFlags::COLOR) {
-            styles.color = Some(self.color.get_untracked());
-        }
-        if flags.contains(StyleFlags::TEXT_COLOR) {
-            styles.text_color = Some(self.text_color.get_untracked());
-        }
-        if flags.contains(StyleFlags::FONT_SIZE) {
-            styles.font_size = Some(self.font_size.get_untracked());
-        }
-        if flags.contains(StyleFlags::FONT_FAMILY) {
-            styles.font_family = Some(self.font_family.get_untracked());
-        }
-        if flags.contains(StyleFlags::FONT_WEIGHT) {
-            styles.font_weight = Some(self.font_weight.get_untracked());
-        }
-        if flags.contains(StyleFlags::PADDING) {
-            styles.padding = Some(self.padding.get_untracked());
-        }
-        if flags.contains(StyleFlags::MARGIN) {
-            styles.margin = Some(self.margin.get_untracked());
-        }
-        if flags.contains(StyleFlags::WIDTH) {
-            styles.width = Some(self.width.get_untracked());
-        }
-        if flags.contains(StyleFlags::HEIGHT) {
-            styles.height = Some(self.height.get_untracked());
-        }
-        if flags.contains(StyleFlags::DISPLAY) {
-            styles.display = Some(self.display.get_untracked());
-        }
-        if flags.contains(StyleFlags::FLEX_DIRECTION) {
-            styles.flex_direction = Some(self.flex_direction.get_untracked());
-        }
-        if flags.contains(StyleFlags::JUSTIFY_CONTENT) {
-            styles.justify_content = Some(self.justify_content.get_untracked());
-        }
-        if flags.contains(StyleFlags::ALIGN_ITEMS) {
-            styles.align_items = Some(self.align_items.get_untracked());
-        }
-        if flags.contains(StyleFlags::FLEX_GROW) {
-            styles.flex_grow = Some(self.flex_grow.get_untracked());
-        }
-        if flags.contains(StyleFlags::FLEX_SHRINK) {
-            styles.flex_shrink = Some(self.flex_shrink.get_untracked());
-        }
-        if flags.contains(StyleFlags::GAP) {
-            styles.gap = Some(self.gap.get_untracked());
-        }
-        if flags.contains(StyleFlags::BORDER_COLOR) {
-            styles.border_color = Some(self.border_color.get_untracked());
-        }
-        if flags.contains(StyleFlags::BORDER_WIDTH) {
-            styles.border_width = Some(self.border_width.get_untracked());
-        }
-        if flags.contains(StyleFlags::BORDER_RADIUS) {
-            styles.border_radius = Some(self.border_radius.get_untracked());
-        }
-        if flags.contains(StyleFlags::BORDER_STYLE) {
-            styles.border_style = Some(self.border_style.get_untracked());
-        }
-        if flags.contains(StyleFlags::OPACITY) {
-            styles.opacity = Some(self.opacity.get_untracked());
-        }
-        if flags.contains(StyleFlags::VISIBILITY) {
-            styles.visibility = Some(self.visibility.get_untracked());
-        }
-        if flags.contains(StyleFlags::Z_INDEX) {
-            styles.z_index = Some(self.z_index.get_untracked());
-        }
+        styles.background_color = Some(if flags.contains(StyleFlags::BACKGROUND_COLOR) {
+            self.background_color.get_untracked()
+        } else {
+            BackgroundColor::initial_value()
+        });
+        styles.color = Some(if flags.contains(StyleFlags::COLOR) {
+            self.color.get_untracked()
+        } else {
+            Color::initial_value()
+        });
+        styles.text_color = Some(if flags.contains(StyleFlags::TEXT_COLOR) {
+            self.text_color.get_untracked()
+        } else {
+            TextColor::initial_value()
+        });
+        styles.font_size = Some(if flags.contains(StyleFlags::FONT_SIZE) {
+            self.font_size.get_untracked()
+        } else {
+            FontSize::initial_value()
+        });
+        styles.font_family = Some(if flags.contains(StyleFlags::FONT_FAMILY) {
+            self.font_family.get_untracked()
+        } else {
+            FontFamily::initial_value()
+        });
+        styles.font_weight = Some(if flags.contains(StyleFlags::FONT_WEIGHT) {
+            self.font_weight.get_untracked()
+        } else {
+            FontWeight::initial_value()
+        });
+        styles.padding = Some(if flags.contains(StyleFlags::PADDING) {
+            self.padding.get_untracked()
+        } else {
+            Padding::initial_value()
+        });
+        styles.margin = Some(if flags.contains(StyleFlags::MARGIN) {
+            self.margin.get_untracked()
+        } else {
+            Margin::initial_value()
+        });
+        styles.width = Some(if flags.contains(StyleFlags::WIDTH) {
+            self.width.get_untracked()
+        } else {
+            Width::initial_value()
+        });
+        styles.height = Some(if flags.contains(StyleFlags::HEIGHT) {
+            self.height.get_untracked()
+        } else {
+            Height::initial_value()
+        });
+        styles.display = Some(if flags.contains(StyleFlags::DISPLAY) {
+            self.display.get_untracked()
+        } else {
+            Display::initial_value()
+        });
+        styles.flex_direction = Some(if flags.contains(StyleFlags::FLEX_DIRECTION) {
+            self.flex_direction.get_untracked()
+        } else {
+            FlexDirection::initial_value()
+        });
+        styles.justify_content = Some(if flags.contains(StyleFlags::JUSTIFY_CONTENT) {
+            self.justify_content.get_untracked()
+        } else {
+            JustifyContent::initial_value()
+        });
+        styles.align_items = Some(if flags.contains(StyleFlags::ALIGN_ITEMS) {
+            self.align_items.get_untracked()
+        } else {
+            AlignItems::initial_value()
+        });
+        styles.align_self = Some(if flags.contains(StyleFlags::ALIGN_SELF) {
+            self.align_self.get_untracked()
+        } else {
+            AlignSelf::initial_value()
+        });
+        styles.flex_grow = Some(if flags.contains(StyleFlags::FLEX_GROW) {
+            self.flex_grow.get_untracked()
+        } else {
+            FlexGrow::initial_value()
+        });
+        styles.flex_shrink = Some(if flags.contains(StyleFlags::FLEX_SHRINK) {
+            self.flex_shrink.get_untracked()
+        } else {
+            FlexShrink::initial_value()
+        });
+        styles.flex_basis = Some(if flags.contains(StyleFlags::FLEX_BASIS) {
+            self.flex_basis.get_untracked()
+        } else {
+            FlexBasis::initial_value()
+        });
+        styles.gap = Some(if flags.contains(StyleFlags::GAP) {
+            self.gap.get_untracked()
+        } else {
+            Gap::initial_value()
+        });
+        styles.border_color = Some(if flags.contains(StyleFlags::BORDER_COLOR) {
+            self.border_color.get_untracked()
+        } else {
+            BorderColor::initial_value()
+        });
+        styles.border_width = Some(if flags.contains(StyleFlags::BORDER_WIDTH) {
+            self.border_width.get_untracked()
+        } else {
+            BorderWidth::initial_value()
+        });
+        styles.border_radius = Some(if flags.contains(StyleFlags::BORDER_RADIUS) {
+            self.border_radius.get_untracked()
+        } else {
+            BorderRadius::initial_value()
+        });
+        styles.border_style = Some(if flags.contains(StyleFlags::BORDER_STYLE) {
+            self.border_style.get_untracked()
+        } else {
+            BorderStyle::initial_value()
+        });
+        styles.opacity = Some(if flags.contains(StyleFlags::OPACITY) {
+            self.opacity.get_untracked()
+        } else {
+            Opacity::initial_value()
+        });
+        styles.visibility = Some(if flags.contains(StyleFlags::VISIBILITY) {
+            self.visibility.get_untracked()
+        } else {
+            Visibility::initial_value()
+        });
+        styles.z_index = Some(if flags.contains(StyleFlags::Z_INDEX) {
+            self.z_index.get_untracked()
+        } else {
+            ZIndex::initial_value()
+        });
+        styles.cursor = Some(if flags.contains(StyleFlags::CURSOR) {
+            self.cursor.get_untracked()
+        } else {
+            Cursor::initial_value()
+        });
+
         styles
     }
 }
