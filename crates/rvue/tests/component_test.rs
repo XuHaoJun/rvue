@@ -90,11 +90,7 @@ fn test_component_types() {
     );
     assert_eq!(text.component_type, ComponentType::Text);
 
-    let button = Component::new(
-        2,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(2, ComponentType::Button, ComponentProps::Button { styles: None });
     assert_eq!(button.component_type, ComponentType::Button);
 
     let flex = Component::new(
@@ -113,8 +109,7 @@ fn test_component_types() {
 
 #[test]
 fn test_component_props() {
-    let text_props =
-        ComponentProps::Text { content: "Hello World".to_string(), styles: None };
+    let text_props = ComponentProps::Text { content: "Hello World".to_string(), styles: None };
 
     match text_props {
         ComponentProps::Text { content, .. } => {
@@ -123,11 +118,11 @@ fn test_component_props() {
         _ => panic!("Expected Text props"),
     }
 
-    let button_props = ComponentProps::Button { label: "Submit".to_string(), styles: None };
+    let button_props = ComponentProps::Button { styles: None };
 
     match button_props {
-        ComponentProps::Button { label, .. } => {
-            assert_eq!(label, "Submit");
+        ComponentProps::Button { .. } => {
+            // Button created successfully
         }
         _ => panic!("Expected Button props"),
     }

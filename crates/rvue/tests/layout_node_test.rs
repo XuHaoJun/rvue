@@ -78,11 +78,8 @@ fn test_layout_node_with_text_component() {
 fn test_layout_node_with_button_component() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
-    let component = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let component =
+        Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     let layout_node =
         LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);

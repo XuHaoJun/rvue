@@ -224,11 +224,8 @@ mod tests {
 
     #[test]
     fn test_component_to_element() {
-        let component = Component::new(
-            1,
-            ComponentType::Button,
-            ComponentProps::Button { label: "Test".into(), styles: None },
-        );
+        let component =
+            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
         let element = component_to_element(&component);
 
@@ -238,11 +235,8 @@ mod tests {
 
     #[test]
     fn test_component_with_classes() {
-        let component = Component::new(
-            1,
-            ComponentType::Button,
-            ComponentProps::Button { label: "Test".into(), styles: None },
-        );
+        let component =
+            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
         component.classes.borrow_mut().push("primary".into());
         component.classes.borrow_mut().push("large".into());
@@ -256,11 +250,8 @@ mod tests {
 
     #[test]
     fn test_component_with_state() {
-        let component = Component::new(
-            1,
-            ComponentType::Button,
-            ComponentProps::Button { label: "Test".into(), styles: None },
-        );
+        let component =
+            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
         *component.is_hovered.borrow_mut() = true;
         *component.is_focused.borrow_mut() = true;

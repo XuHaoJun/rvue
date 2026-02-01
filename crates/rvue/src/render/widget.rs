@@ -244,7 +244,7 @@ fn render_button(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Button { label: _, styles: _ } = &*component.props.borrow() {
+    if let ComponentProps::Button { styles: _ } = &*component.props.borrow() {
         let styles = get_styles(component, stylesheet);
         let layout_node = component.layout_node();
 

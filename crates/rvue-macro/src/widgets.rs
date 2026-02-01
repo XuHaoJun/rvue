@@ -158,11 +158,9 @@ fn generate_text_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     }
 }
 
-fn generate_button_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
-    let label = extract_prop_value(attrs, "label", || quote! { "".to_string() });
-
+fn generate_button_widget(_id: u64, _attrs: &[RvueAttribute]) -> TokenStream {
     quote! {
-        rvue::widgets::Button::new(#label.to_string())
+        rvue::widgets::Button::new()
     }
 }
 

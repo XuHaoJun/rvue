@@ -62,11 +62,8 @@ fn test_button_with_default_stylesheet_size() {
     let mut taffy = TaffyTree::new();
     let stylesheet = Stylesheet::with_defaults();
 
-    let component = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Test".into(), styles: None },
-    );
+    let component =
+        Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     let mut layout_node = LayoutNode::build_in_tree(
         &mut taffy,
@@ -110,11 +107,8 @@ fn test_direct_stylesheet_resolution() {
 fn test_button_without_class_gets_default_size() {
     let stylesheet = Stylesheet::with_defaults();
 
-    let component = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Test".into(), styles: None },
-    );
+    let component =
+        Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     let resolved = resolve_styles_for_component(&component, &stylesheet);
 

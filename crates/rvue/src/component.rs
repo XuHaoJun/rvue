@@ -220,7 +220,6 @@ pub enum ComponentProps {
         styles: Option<rvue_style::ComputedStyles>,
     },
     Button {
-        label: String,
         styles: Option<rvue_style::ComputedStyles>,
     },
     TextInput {
@@ -555,21 +554,6 @@ impl Component {
         };
         *self.props.borrow_mut() = ComponentProps::Text { content, styles };
         self.mark_dirty();
-    }
-
-    /// Set button label (for Button components)
-    pub fn set_button_label(&self, label: String) {
-        if matches!(self.component_type, ComponentType::Button) {
-            let styles = {
-                if let ComponentProps::Button { styles, .. } = &*self.props.borrow() {
-                    styles.clone()
-                } else {
-                    return;
-                }
-            };
-            *self.props.borrow_mut() = ComponentProps::Button { label, styles };
-            self.mark_dirty();
-        }
     }
 
     /// Set flex direction (for Flex components)

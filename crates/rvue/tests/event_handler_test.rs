@@ -13,11 +13,7 @@ fn test_on_click_0arg_handler() {
     let clicked = std::rc::Rc::new(RefCell::new(false));
     let clicked_clone = clicked.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click_0arg(move || {
         *clicked_clone.borrow_mut() = true;
@@ -32,11 +28,7 @@ fn test_on_click_1arg_handler() {
     let last_clicked_button = std::rc::Rc::new(RefCell::new(None::<PointerButton>));
     let last_clicked_clone = last_clicked_button.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click_1arg(move |event| {
         *last_clicked_clone.borrow_mut() = Some(event.button.clone());
@@ -51,11 +43,7 @@ fn test_on_click_2arg_handler() {
     let call_count = std::rc::Rc::new(RefCell::new(0));
     let call_count_clone = call_count.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click(move |_event, _ctx| {
         *call_count_clone.borrow_mut() += 1;
@@ -250,11 +238,7 @@ fn test_on_pointer_move_1arg_handler() {
 
 #[test]
 fn test_multiple_event_handlers_same_component() {
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click_0arg(|| {});
 
@@ -280,11 +264,7 @@ fn test_event_handler_with_captured_signals() {
     let (_count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click_1arg(move |_event| {
         set_count_clone.update(|x| *x += 1);
@@ -299,8 +279,11 @@ fn test_on_change_handler() {
     let last_value = std::rc::Rc::new(RefCell::new(String::new()));
     let last_value_clone = last_value.clone();
 
-    let checkbox =
-        Component::new(1, ComponentType::Checkbox, ComponentProps::Checkbox { checked: false, styles: None });
+    let checkbox = Component::new(
+        1,
+        ComponentType::Checkbox,
+        ComponentProps::Checkbox { checked: false, styles: None },
+    );
 
     checkbox.on_change_1arg(move |event| {
         *last_value_clone.borrow_mut() = format!("checked:{}", event.checked);
@@ -334,11 +317,7 @@ fn test_on_pointer_down_handler() {
     let pressed = std::rc::Rc::new(RefCell::new(false));
     let pressed_clone = pressed.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Press".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_pointer_down_1arg(move |_event| {
         *pressed_clone.borrow_mut() = true;
@@ -353,11 +332,7 @@ fn test_on_pointer_up_handler() {
     let released = std::rc::Rc::new(RefCell::new(false));
     let released_clone = released.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Release".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_pointer_up_0arg(move || {
         *released_clone.borrow_mut() = true;
@@ -390,11 +365,7 @@ fn test_on_key_up_handler() {
 
 #[test]
 fn test_all_event_types_have_handlers() {
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string(), styles: None },
-    );
+    let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     button.on_click_0arg(|| {});
     button.on_pointer_down_0arg(|| {});

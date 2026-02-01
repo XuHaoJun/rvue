@@ -253,20 +253,34 @@ fn create_styled_view() -> ViewStruct {
                 <Text content="These buttons demonstrate class and ID selectors with pseudo-classes" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
 
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
-                    <Button label="Primary" class="primary" on_click=move || { println!("Primary clicked!"); } />
-                    <Button label="Secondary" class="secondary" on_click=move || { println!("Secondary clicked!"); } />
-                    <Button label="Danger" class="danger" on_click=move || { println!("Danger clicked!"); } />
-                    <Button label="Success" class="success" on_click=move || { println!("Success clicked!"); } />
+                    <Button class="primary" on_click=move || { println!("Primary clicked!"); }>
+                        <Text>Primary</Text>
+                    </Button>
+                    <Button class="secondary" on_click=move || { println!("Secondary clicked!"); }>
+                        <Text>Secondary</Text>
+                    </Button>
+                    <Button class="danger" on_click=move || { println!("Danger clicked!"); }>
+                        <Text>Danger</Text>
+                    </Button>
+                    <Button class="success" on_click=move || { println!("Success clicked!"); }>
+                        <Text>Success</Text>
+                    </Button>
                 </Flex>
 
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start" styles=ReactiveStyles::new().set_margin(Margin(8.0))>
                     <Text content="ID Selector:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
-                    <Button label="Special Gold Button" id="special-button" on_click=move || { println!("Special button clicked!"); } />
+                    <Button id="special-button" on_click=move || { println!("Special button clicked!"); }>
+                        <Text>Special Gold Button</Text>
+                    </Button>
                 </Flex>
 
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start" styles=ReactiveStyles::new().set_margin(Margin(8.0))>
-                    <Button label="Disabled" class="primary" disabled=true on_click=move || {} />
-                    <Button label="Large" class="primary large" on_click=move || {} />
+                    <Button class="primary" disabled=true on_click=move || {}>
+                        <Text>Disabled</Text>
+                    </Button>
+                    <Button class="primary large" on_click=move || {}>
+                        <Text>Large</Text>
+                    </Button>
                 </Flex>
             </Flex>
 

@@ -65,15 +65,15 @@ fn test_text_widget_with_signal() {
 #[test]
 fn test_button_widget_builder() {
     with_build_context(|ctx| {
-        let widget = Button::new("Click Me");
+        let widget = Button::new();
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Button);
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::Button { label, .. } => {
-                    assert_eq!(label, "Click Me");
+                ComponentProps::Button { .. } => {
+                    // Button created successfully without label
                 }
                 _ => panic!("Expected Button props"),
             }
@@ -194,17 +194,17 @@ fn test_fine_grained_text_update() {
 #[test]
 fn test_fine_grained_button_update() {
     with_build_context(|ctx| {
-        let widget = Button::new("Initial Label");
+        let widget = Button::new();
         let mut state = widget.build(ctx);
 
-        let updated_widget = Button::new("Updated Label");
+        let updated_widget = Button::new();
         updated_widget.rebuild(&mut state);
 
         {
             let props = state.component().props.borrow();
             match &*props {
-                ComponentProps::Button { label, .. } => {
-                    assert_eq!(label, "Updated Label");
+                ComponentProps::Button { .. } => {
+                    // Button rebuilt successfully without label
                 }
                 _ => panic!("Expected Button props"),
             }

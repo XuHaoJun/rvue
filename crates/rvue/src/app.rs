@@ -738,7 +738,9 @@ where
 ///
 ///     rvue::run_app_with_stylesheet(|| {
 ///         view! {
-///             <Button label="Primary" class="primary" />
+///             <Button class="primary">
+///                 <Text>Primary</Text>
+///             </Button>
 ///         }
 ///     }, Some(stylesheet));
 /// }
