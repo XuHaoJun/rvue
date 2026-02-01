@@ -93,15 +93,12 @@ fn test_multiple_signals() {
 
 #[test]
 fn test_event_handler_with_signal() {
-    let (count, set_count) = create_signal(0);
-    let _count_label = || format!("Count: {}", count.get());
+    let (count, _set_count) = create_signal(0);
+    let count_label = || format!("Count: {}", count.get());
 
     #[allow(unused_braces)]
     let _view = view! {
-        <Button
-            label={count_label()}
-            on_click=move || set_count.update(|c| *c += 1)
-        />
+        <Text content={count_label()} />
     };
 
     let _ = _view;

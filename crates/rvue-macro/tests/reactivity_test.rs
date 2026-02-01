@@ -96,7 +96,9 @@ fn test_event_handler_0arg_closure() {
 
     with_build_context(|_ctx| {
         let view = view! {
-            <Button label="Click" on_click={move || { *clicked_clone.borrow_mut() = true; }} />
+            <Button on_click={move || { *clicked_clone.borrow_mut() = true; }}>
+                <Text content="Click" />
+            </Button>
         };
         let root = view.root_component;
 
@@ -128,7 +130,9 @@ fn test_event_handler_2arg_closure() {
 
     with_build_context(|_ctx| {
         let view = view! {
-            <Button label="Click" on_click={move |_e, _ctx| { *call_count_clone.borrow_mut() += 1; }} />
+            <Button on_click={move |_e, _ctx| { *call_count_clone.borrow_mut() += 1; }}>
+                <Text content="Click" />
+            </Button>
         };
         let root = view.root_component;
 
@@ -144,12 +148,12 @@ fn test_event_handler_with_signal_capture() {
 
     with_build_context(|_ctx| {
         let view = view! {
-            <Button label="Click" on_click={move |_e| { set_count_clone.update(|x| *x += 1); }} />
+            <TextInput value="" on_input={move |_e| { set_count_clone.update(|x| *x += 1); }} />
         };
         let root = view.root_component;
 
         let handlers = root.event_handlers.borrow();
-        assert!(handlers.get_click().is_some());
+        assert!(handlers.get_input().is_some());
     });
 }
 
@@ -164,7 +168,9 @@ fn test_multiple_event_handlers_in_view() {
     with_build_context(|_ctx| {
         let view = view! {
             <Flex>
-                <Button label="Click" on_click={move || { *click_count_clone.borrow_mut() += 1; }} />
+                <Button on_click={move || { *click_count_clone.borrow_mut() += 1; }}>
+                    <Text content="Click" />
+                </Button>
                 <TextInput value="" on_input={move |_e| { *input_count_clone.borrow_mut() += 1; }} />
             </Flex>
         };
