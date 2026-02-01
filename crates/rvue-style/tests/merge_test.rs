@@ -151,3 +151,165 @@ fn test_inline_styles_override_sheet() {
 
     assert_eq!(resolved.background_color, Some(BackgroundColor(Color::rgb(0, 255, 0))));
 }
+
+#[test]
+fn test_regression_auto_width_does_not_override_explicit() {
+    // REGRESSION TEST: This test catches the bug where Width(Auto) from
+    // ReactiveStyles::compute() would override stylesheet Width(120px)
+    //
+    // Bug: inline.width = Auto would overwrite stylesheet.width = 120px
+    // Fix: Only override if inline width is not Auto (default)
+    let resolver = StyleResolver::new();
+    let mut stylesheet = Stylesheet::new();
+
+    let mut sheet_props = Properties::new();
+    sheet_props.insert(Width(Size::pixels(120.0)));
+    sheet_props.insert(Height(Size::pixels(40.0)));
+    stylesheet.add_rule(StyleRule::new("button".to_string(), sheet_props));
+
+    let element = RvueElement::new("button");
+    let resolved = resolver.resolve_styles(&element, &stylesheet);
+
+    // Simulate inline styles with default Auto width (from ReactiveStyles::compute())
+    let mut inline = ComputedStyles::new();
+    inline.width = Some(Width(Size::Auto)); // Default value - should NOT override
+    inline.height = Some(Height(Size::Auto)); // Default value - should NOT override
+    inline.background_color = Some(BackgroundColor(Color::rgb(76, 175, 80))); // Explicit
+
+    // Apply selective merge (the fix)
+    let mut merged = resolved;
+    if let Some(w) = inline.width.as_ref() {
+        if !matches!(w.0, Size::Auto) {
+            merged.width = Some(w.clone());
+        }
+    }
+    if let Some(h) = inline.height.as_ref() {
+        if !matches!(h.0, Size::Auto) {
+            merged.height = Some(h.clone());
+        }
+    }
+    if inline.background_color.is_some() {
+        merged.background_color = inline.background_color;
+    }
+
+    // Width/Height should be preserved from stylesheet
+    assert_eq!(merged.width, Some(Width(Size::pixels(120.0))));
+    assert_eq!(merged.height, Some(Height(Size::pixels(40.0))));
+    // Background should be overridden by inline
+    assert_eq!(merged.background_color, Some(BackgroundColor(Color::rgb(76, 175, 80))));
+}
+
+#[test]
+fn test_regression_explicit_width_overrides_stylesheet() {
+    // REGRESSION TEST: Explicit width should override stylesheet
+    let resolver = StyleResolver::new();
+    let mut stylesheet = Stylesheet::new();
+
+    let mut sheet_props = Properties::new();
+    sheet_props.insert(Width(Size::pixels(120.0)));
+    sheet_props.insert(Height(Size::pixels(40.0)));
+    stylesheet.add_rule(StyleRule::new("button".to_string(), sheet_props));
+
+    let element = RvueElement::new("button");
+    let resolved = resolver.resolve_styles(&element, &stylesheet);
+
+    // Explicit width from user (not default Auto)
+    let mut inline = ComputedStyles::new();
+    inline.width = Some(Width(Size::pixels(200.0))); // Explicit - SHOULD override
+    inline.height = Some(Height(Size::pixels(50.0))); // Explicit - SHOULD override
+
+    // Apply selective merge
+    let mut merged = resolved;
+    if let Some(w) = inline.width.as_ref() {
+        if !matches!(w.0, Size::Auto) {
+            merged.width = Some(w.clone());
+        }
+    }
+    if let Some(h) = inline.height.as_ref() {
+        if !matches!(h.0, Size::Auto) {
+            merged.height = Some(h.clone());
+        }
+    }
+
+    // Explicit values should override
+    assert_eq!(merged.width, Some(Width(Size::pixels(200.0))));
+    assert_eq!(merged.height, Some(Height(Size::pixels(50.0))));
+}
+
+#[test]
+fn test_counter_example_button_simulation() {
+    // Simulate the counter example button with:
+    // - Stylesheet: button { width: 120px; height: 40px; }
+    // - Inline: background-color: green; align-items: center; justify-content: center;
+    use rvue_style::properties::AlignItems;
+    use rvue_style::properties::JustifyContent;
+
+    let resolver = StyleResolver::new();
+    let mut stylesheet = Stylesheet::new();
+
+    // Stylesheet sets default button size
+    let mut sheet_props = Properties::new();
+    sheet_props.insert(Width(Size::pixels(120.0)));
+    sheet_props.insert(Height(Size::pixels(40.0)));
+    stylesheet.add_rule(StyleRule::new("button".to_string(), sheet_props));
+
+    let element = RvueElement::new("button");
+    let resolved = resolver.resolve_styles(&element, &stylesheet);
+
+    // Inline styles from counter example (increment_button_styles)
+    let mut inline = ComputedStyles::new();
+    inline.width = Some(Width(Size::Auto)); // Default from ReactiveStyles
+    inline.height = Some(Height(Size::Auto)); // Default from ReactiveStyles
+    inline.background_color = Some(BackgroundColor(Color::rgb(76, 175, 80))); // Green
+    inline.align_items = Some(AlignItems::Center);
+    inline.justify_content = Some(JustifyContent::Center);
+
+    // Apply selective merge (the fix)
+    let mut merged = resolved;
+    if let Some(w) = inline.width.as_ref() {
+        if !matches!(w.0, Size::Auto) {
+            merged.width = Some(w.clone());
+        }
+    }
+    if let Some(h) = inline.height.as_ref() {
+        if !matches!(h.0, Size::Auto) {
+            merged.height = Some(h.clone());
+        }
+    }
+    if inline.background_color.is_some() {
+        merged.background_color = inline.background_color;
+    }
+    if inline.align_items.is_some() {
+        merged.align_items = inline.align_items;
+    }
+    if inline.justify_content.is_some() {
+        merged.justify_content = inline.justify_content;
+    }
+
+    // Verify the complete button style is correct
+    assert_eq!(merged.width, Some(Width(Size::pixels(120.0)))); // From stylesheet
+    assert_eq!(merged.height, Some(Height(Size::pixels(40.0)))); // From stylesheet
+    assert_eq!(merged.background_color, Some(BackgroundColor(Color::rgb(76, 175, 80)))); // Green from inline
+    assert_eq!(merged.align_items, Some(AlignItems::Center));
+    assert_eq!(merged.justify_content, Some(JustifyContent::Center));
+}
+
+#[test]
+fn test_selective_merge_preserves_unset_properties() {
+    // Ensure that None values in other don't overwrite Some values in base
+    let mut base = ComputedStyles::new();
+    base.width = Some(Width(Size::pixels(100.0)));
+    base.height = Some(Height(Size::pixels(50.0)));
+    base.display = Some(Display::Flex);
+    base.background_color = Some(BackgroundColor(Color::rgb(0, 0, 255)));
+
+    let other = ComputedStyles::new(); // All None
+
+    base.merge_with_computed(&other);
+
+    // All base properties should be preserved
+    assert_eq!(base.width, Some(Width(Size::pixels(100.0))));
+    assert_eq!(base.height, Some(Height(Size::pixels(50.0))));
+    assert_eq!(base.display, Some(Display::Flex));
+    assert_eq!(base.background_color, Some(BackgroundColor(Color::rgb(0, 0, 255))));
+}

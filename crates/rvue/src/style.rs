@@ -259,7 +259,7 @@ fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
 
     let props = component.props.borrow();
 
-    let result = match &*props {
+    match &*props {
         ComponentProps::Text { styles, .. } => styles.clone(),
         ComponentProps::Button { styles, .. } => styles.clone(),
         ComponentProps::TextInput { styles, .. } => styles.clone(),
@@ -268,9 +268,7 @@ fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
         ComponentProps::Radio { styles, .. } => styles.clone(),
         ComponentProps::Flex { styles, .. } => styles.clone(),
         _ => None,
-    };
-
-    result
+    }
 }
 
 pub trait StylesheetProvider {
