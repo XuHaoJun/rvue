@@ -1,6 +1,7 @@
 //! Unit tests for Component lifecycle
 
 use rudo_gc::Gc;
+use rvue::render::FlexScrollState;
 use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]
@@ -126,4 +127,56 @@ fn test_component_props() {
         }
         _ => panic!("Expected Button props"),
     }
+}
+
+#[test]
+fn test_set_and_get_scroll_state() {
+    let component = Component::new(
+        1,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "column".to_string(),
+            gap: 5.0,
+            align_items: "start".to_string(),
+            justify_content: "center".to_string(),
+            styles: None,
+        },
+    );
+    let scroll_state = FlexScrollState {
+        scroll_offset_x: 10.0,
+        scroll_offset_y: 20.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 80.0,
+        container_height: 150.0,
+    };
+
+    component.set_scroll_state(scroll_state);
+    let retrieved = component.scroll_state();
+
+    assert_eq!(retrieved.scroll_offset_x, 10.0);
+    assert_eq!(retrieved.scroll_offset_y, 20.0);
+    assert_eq!(retrieved.scroll_width, 100.0);
+    assert_eq!(retrieved.scroll_height, 200.0);
+}
+
+#[test]
+fn test_scroll_state_default_values() {
+    let component = Component::new(
+        1,
+        ComponentType::Flex,
+        ComponentProps::Flex {
+            direction: "column".to_string(),
+            gap: 5.0,
+            align_items: "start".to_string(),
+            justify_content: "center".to_string(),
+            styles: None,
+        },
+    );
+    let default_state = component.scroll_state();
+
+    assert_eq!(default_state.scroll_offset_x, 0.0);
+    assert_eq!(default_state.scroll_offset_y, 0.0);
+    assert_eq!(default_state.scroll_width, 0.0);
+    assert_eq!(default_state.scroll_height, 0.0);
 }

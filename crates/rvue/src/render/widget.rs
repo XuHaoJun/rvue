@@ -28,7 +28,9 @@ impl FlexScrollState {
         &self,
         overflow_y: rvue_style::properties::Overflow,
     ) -> bool {
-        matches!(overflow_y, rvue_style::properties::Overflow::Scroll) || self.scroll_width > 0.0
+        !matches!(overflow_y, rvue_style::properties::Overflow::Visible)
+            && (matches!(overflow_y, rvue_style::properties::Overflow::Scroll)
+                || self.scroll_width > 0.0)
     }
 
     /// Check if vertical scrollbar should be visible
@@ -36,7 +38,9 @@ impl FlexScrollState {
         &self,
         overflow_x: rvue_style::properties::Overflow,
     ) -> bool {
-        matches!(overflow_x, rvue_style::properties::Overflow::Scroll) || self.scroll_height > 0.0
+        !matches!(overflow_x, rvue_style::properties::Overflow::Visible)
+            && (matches!(overflow_x, rvue_style::properties::Overflow::Scroll)
+                || self.scroll_height > 0.0)
     }
 }
 
@@ -144,13 +148,29 @@ fn render_children(
 
     let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
 
-    // Get scroll offset if clipping
+    // Get scroll offset if clipping - only apply when non-zero
     let scroll_offset = if should_clip {
-        let scroll_state = get_or_create_scroll_state(component);
-        Some((scroll_state.scroll_offset_x as f64, scroll_state.scroll_offset_y as f64))
+        let mut user_data = component.user_data.borrow_mut();
+        if let Some(scroll_state) =
+            user_data.as_mut().and_then(|d| d.downcast_mut::<FlexScrollState>())
+        {
+            let offset_x = scroll_state.scroll_offset_x;
+            let offset_y = scroll_state.scroll_offset_y;
+            if offset_x != 0.0 || offset_y != 0.0 {
+                Some((offset_x as f64, offset_y as f64))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     } else {
         None
     };
+
+    let children_count = component.children.borrow().len();
+    eprintln!("[DEBUG-SCROLL] render_children - Component ID: {:?}, overflow_x: {:?}, overflow_y: {:?}, should_clip: {}, scroll_offset: {:?}, children_count: {}",
+        component.id, overflow_x, overflow_y, should_clip, scroll_offset, children_count);
 
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
@@ -636,6 +656,17 @@ fn render_flex_background(
                         matches!(overflow_x, rvue_style::properties::Overflow::Scroll)
                             || (matches!(overflow_x, rvue_style::properties::Overflow::Auto)
                                 && scroll_state.scroll_width > 0.0);
+
+                    eprintln!(
+                        "[DEBUG-SCROLL] render_flex_background - Component ID: {:?}",
+                        component.id
+                    );
+                    eprintln!("[DEBUG-SCROLL]   scroll_state - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}, container_w: {}, container_h: {}",
+                        scroll_state.scroll_offset_x, scroll_state.scroll_offset_y,
+                        scroll_state.scroll_width, scroll_state.scroll_height,
+                        scroll_state.container_width, scroll_state.container_height);
+                    eprintln!("[DEBUG-SCROLL]   show_vertical: {}, show_horizontal: {}, overflow_x: {:?}, overflow_y: {:?}",
+                        show_vertical, show_horizontal, overflow_x, overflow_y);
 
                     // Render vertical scrollbar if needed
                     if show_vertical {

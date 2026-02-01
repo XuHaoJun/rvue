@@ -9,6 +9,7 @@ use crate::effect::Effect;
 use crate::signal::ReadSignal;
 use crate::text::TextContext;
 use rudo_gc::{Gc, Trace};
+use rvue_style::Overflow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use taffy::TaffyTree;
@@ -162,6 +163,12 @@ impl crate::widget::IntoReactiveValue<rvue_style::JustifyContent> for rvue_style
 
 impl crate::widget::IntoReactiveValue<rvue_style::Gap> for rvue_style::Gap {
     fn into_reactive(self) -> ReactiveValue<rvue_style::Gap> {
+        ReactiveValue::Static(self)
+    }
+}
+
+impl crate::widget::IntoReactiveValue<Overflow> for Overflow {
+    fn into_reactive(self) -> ReactiveValue<Overflow> {
         ReactiveValue::Static(self)
     }
 }

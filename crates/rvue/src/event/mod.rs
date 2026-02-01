@@ -14,7 +14,7 @@ pub use winit_translator::{get_pointer_event_position, WinitTranslator};
 pub use context::EventContext;
 pub use dispatch::{run_pointer_event_pass, run_text_event_pass};
 pub use focus::find_next_focusable;
-pub use handler::{AnyEventHandler, EventHandler, EventHandlers};
+pub use handler::{AnyEventHandler, EventHandler, EventHandlers, ScrollDragState};
 pub use hit_test::hit_test;
 pub use status::StatusUpdate;
 pub use types::{

@@ -202,6 +202,8 @@ impl Widget for Flex {
         let gap = self.gap.get();
         let align_items = self.align_items.get();
         let justify_content = self.justify_content.get();
+        let overflow_x = self.overflow_x.get();
+        let overflow_y = self.overflow_y.get();
 
         // Compute the styles if present
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
@@ -217,6 +219,15 @@ impl Widget for Flex {
                 styles: computed_styles,
             },
         );
+
+        // Set static overflow values immediately (only once during build)
+        if overflow_x != Overflow::Visible || overflow_y != Overflow::Visible {
+            eprintln!(
+                "[DEBUG-SCROLL] Flex::build setting static overflow - x: {:?}, y: {:?}",
+                overflow_x, overflow_y
+            );
+            component.set_flex_overflow(overflow_x, overflow_y);
+        }
 
         // Setup reactive updates for each property
         let direction_effect = if self.direction.is_reactive() {

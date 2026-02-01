@@ -66,6 +66,106 @@ impl ScrollBar {
         let scrollable = (self.content_size - self.portal_size).max(0.0);
         progress.clamp(0.0, 1.0) * scrollable
     }
+
+    /// Calculate the vertical thumb rect
+    pub fn vertical_thumb_rect(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        scroll_offset_y: f64,
+        scroll_height: f64,
+    ) -> Option<Rect> {
+        let scrollbar_width = default_scrollbar::WIDTH;
+        let thumb_min_length = default_scrollbar::THUMB_MIN_LENGTH;
+
+        let container_height = height;
+        let content_height = container_height + scroll_height;
+
+        if content_height <= container_height {
+            return None;
+        }
+
+        let track_x = x + width - scrollbar_width;
+        let thumb_ratio = container_height / content_height;
+        let thumb_height = (thumb_ratio * container_height).max(thumb_min_length);
+        let thumb_y =
+            y + (scroll_offset_y / scroll_height.max(1.0)) * (container_height - thumb_height);
+
+        Some(Rect::new(
+            track_x + default_scrollbar::TRACK_MARGIN,
+            thumb_y + default_scrollbar::TRACK_MARGIN,
+            track_x + scrollbar_width - default_scrollbar::TRACK_MARGIN,
+            thumb_y + thumb_height - default_scrollbar::TRACK_MARGIN,
+        ))
+    }
+
+    /// Calculate the horizontal thumb rect
+    pub fn horizontal_thumb_rect(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        scroll_offset_x: f64,
+        scroll_width: f64,
+    ) -> Option<Rect> {
+        let scrollbar_height = default_scrollbar::WIDTH;
+        let thumb_min_length = default_scrollbar::THUMB_MIN_LENGTH;
+
+        let container_width = width;
+        let content_width = container_width + scroll_width;
+
+        if content_width <= container_width {
+            return None;
+        }
+
+        let track_y = y + height - scrollbar_height;
+        let thumb_ratio = container_width / content_width;
+        let thumb_width = (thumb_ratio * container_width).max(thumb_min_length);
+        let thumb_x =
+            x + (scroll_offset_x / scroll_width.max(1.0)) * (container_width - thumb_width);
+
+        Some(Rect::new(
+            thumb_x + default_scrollbar::TRACK_MARGIN,
+            track_y + default_scrollbar::TRACK_MARGIN,
+            thumb_x + thumb_width - default_scrollbar::TRACK_MARGIN,
+            track_y + scrollbar_height - default_scrollbar::TRACK_MARGIN,
+        ))
+    }
+
+    /// Check if a point is within the vertical scrollbar track
+    pub fn is_point_in_vertical_track(
+        point_x: f64,
+        point_y: f64,
+        container_x: f64,
+        container_y: f64,
+        container_width: f64,
+        container_height: f64,
+    ) -> bool {
+        let scrollbar_width = default_scrollbar::WIDTH;
+        let track_x = container_x + container_width - scrollbar_width;
+        point_x >= track_x
+            && point_x <= container_x + container_width
+            && point_y >= container_y
+            && point_y <= container_y + container_height
+    }
+
+    /// Check if a point is within the horizontal scrollbar track
+    pub fn is_point_in_horizontal_track(
+        point_x: f64,
+        point_y: f64,
+        container_x: f64,
+        container_y: f64,
+        container_width: f64,
+        container_height: f64,
+    ) -> bool {
+        let scrollbar_height = default_scrollbar::WIDTH;
+        let track_y = container_y + container_height - scrollbar_height;
+        point_x >= container_x
+            && point_x <= container_x + container_width
+            && point_y >= track_y
+            && point_y <= container_y + container_height
+    }
 }
 
 unsafe impl Trace for ScrollBar {

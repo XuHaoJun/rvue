@@ -26,8 +26,8 @@ pub mod widget;
 pub use properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
     Color, ComputedStyles, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink,
-    FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding, Size,
-    TextColor, Visibility, Width, ZIndex,
+    FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Overflow,
+    Padding, Size, TextColor, Visibility, Width, ZIndex,
 };
 pub use property::{Properties, Property, StyleStore};
 pub use reactive::{

@@ -7,6 +7,7 @@
 use rvue::prelude::*;
 use rvue::Stylesheet;
 use rvue_macro::view;
+use rvue_style::properties::Overflow;
 #[allow(unused_imports)]
 use rvue_style::{
     BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize,
@@ -100,6 +101,14 @@ fn create_styled_view() -> ViewStruct {
     let (is_blue, set_is_blue) = create_signal(true);
     let (gap_size, set_gap_size) = create_signal(16.0);
 
+    // 2. Overflow demo signal
+    let (overflow_mode, set_overflow_mode) = create_signal(Overflow::Auto);
+    let _overflow_for_demo = overflow_mode.clone();
+    let set_overflow_visible = set_overflow_mode.clone();
+    let set_overflow_hidden = set_overflow_mode.clone();
+    let set_overflow_scroll = set_overflow_mode.clone();
+    let set_overflow_auto = set_overflow_mode.clone();
+
     let set_is_blue_clone = set_is_blue.clone();
     let set_gap_size_clone = set_gap_size.clone();
 
@@ -113,12 +122,17 @@ fn create_styled_view() -> ViewStruct {
 
     view! {
         <Flex
+            overflow_x=Overflow::Auto
+            overflow_y=Overflow::Auto
             direction="column"
             gap=0.0
             align_items="stretch"
             justify_content="start"
             styles=ReactiveStyles::new()
-                .set_background_color(BackgroundColor(Color::rgb(250, 250, 250)))
+                .set_background_color(BackgroundColor(Color::rgb(0, 250, 250)))
+                .set_height(Height(Size::Pixels(600.0)))
+                .set_overflow_x(Overflow::Auto)
+                .set_overflow_y(Overflow::Auto)
         >
             <Flex direction="column" gap=16.0 align_items="start" justify_content="start" styles=ReactiveStyles::new().set_padding(Padding(24.0)).set_border_width(BorderWidth(1.0)).set_border_style(BorderStyle::Solid).set_border_color(BorderColor(Color::rgb(230, 230, 230)))>
                 <Text content="Interactive Reactive Style Design" style=text_style(TextColor(Color::rgb(33, 37, 41))).set_font_size(FontSize(24.0)).set_font_weight(FontWeight::Bold) />
@@ -350,6 +364,65 @@ fn create_styled_view() -> ViewStruct {
                 <Text content="4. Pseudo-classes (:hover, :focus, :active, :disabled) are tracked automatically" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
                 <Text content="5. Run app with run_app_with_stylesheet(view, Some(stylesheet))" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
             </Flex>
+
+            // === OVERFLOW DEMO SECTION ===
+            <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
+                <Text content="Overflow Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Interactive demo - click buttons to change overflow mode" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+
+                // 切換按鈕
+                <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
+                    <Button class="primary" on_click=move || set_overflow_visible.set(Overflow::Visible)>
+                        <Text content="Visible" />
+                    </Button>
+                    <Button class="secondary" on_click=move || set_overflow_hidden.set(Overflow::Hidden)>
+                        <Text content="Hidden" />
+                    </Button>
+                    <Button class="primary" on_click=move || set_overflow_scroll.set(Overflow::Scroll)>
+                        <Text content="Scroll" />
+                    </Button>
+                    <Button class="success" on_click=move || set_overflow_auto.set(Overflow::Auto)>
+                        <Text content="Auto" />
+                    </Button>
+                </Flex>
+
+                // 目前模式顯示
+                <Text content=create_memo(move || format!("Current Mode: {:?}", overflow_mode.get()))
+                      style=text_style(TextColor(Color::rgb(0, 123, 255))) />
+
+                // 可滾動的長列表
+                <Flex
+                    overflow=overflow_for_demo.get()
+                    styles=ReactiveStyles::new()
+                        .set_height(Height(Size::Pixels(200.0)))
+                        .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
+                        .set_border_radius(BorderRadius(8.0))
+                        .set_border_width(BorderWidth(1.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
+                >
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 1" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 2" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 3" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 4" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 5" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 6" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 7" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 8" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 9" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 10" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 11" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 12" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 13" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 14" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 15" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                </Flex>
+
+                // 說明文字
+                <Text content="Scroll behavior matches Web CSS overflow property"
+                      style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+            </Flex>
+            // === END OVERFLOW DEMO ===
         </Flex>
     }
 }

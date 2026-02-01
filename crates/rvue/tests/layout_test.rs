@@ -1,6 +1,8 @@
 //! Integration test for Flexbox layout
 
+use rvue::layout::node::overflow_to_taffy;
 use rvue::{Component, ComponentProps, ComponentType};
+use rvue_style::properties::Overflow;
 
 #[test]
 fn test_flexbox_layout_creation() {
@@ -214,4 +216,46 @@ fn test_show_conditional_rendering_with_flex_gap() {
         panic!("Expected Show props")
     };
     assert!(!show1_when_final, "Show1 should still be hidden after rebuild");
+}
+
+#[test]
+fn test_overflow_to_taffy_visible() {
+    let result = overflow_to_taffy(&Some(Overflow::Visible));
+    assert_eq!(result.x, taffy::style::Overflow::Visible);
+    assert_eq!(result.y, taffy::style::Overflow::Visible);
+}
+
+#[test]
+fn test_overflow_to_taffy_auto() {
+    let result = overflow_to_taffy(&Some(Overflow::Auto));
+    assert_eq!(result.x, taffy::style::Overflow::Scroll);
+    assert_eq!(result.y, taffy::style::Overflow::Scroll);
+}
+
+#[test]
+fn test_overflow_to_taffy_scroll() {
+    let result = overflow_to_taffy(&Some(Overflow::Scroll));
+    assert_eq!(result.x, taffy::style::Overflow::Scroll);
+    assert_eq!(result.y, taffy::style::Overflow::Scroll);
+}
+
+#[test]
+fn test_overflow_to_taffy_none_returns_visible() {
+    let result = overflow_to_taffy(&None);
+    assert_eq!(result.x, taffy::style::Overflow::Visible);
+    assert_eq!(result.y, taffy::style::Overflow::Visible);
+}
+
+#[test]
+fn test_overflow_to_taffy_clip() {
+    let result = overflow_to_taffy(&Some(Overflow::Clip));
+    assert_eq!(result.x, taffy::style::Overflow::Clip);
+    assert_eq!(result.y, taffy::style::Overflow::Clip);
+}
+
+#[test]
+fn test_overflow_to_taffy_hidden() {
+    let result = overflow_to_taffy(&Some(Overflow::Hidden));
+    assert_eq!(result.x, taffy::style::Overflow::Hidden);
+    assert_eq!(result.y, taffy::style::Overflow::Hidden);
 }

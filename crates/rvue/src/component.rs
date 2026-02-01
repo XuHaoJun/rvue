@@ -4,6 +4,7 @@ use crate::effect::Effect;
 use crate::event::handler::EventHandlers;
 use crate::event::status::{ComponentFlags, StatusUpdate};
 use crate::layout::LayoutNode;
+use crate::render::FlexScrollState;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
@@ -1390,7 +1391,47 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
             if let Ok(layout) = taffy.layout(node_id) {
                 layout_node.layout_result = Some(*layout);
                 layout_node.is_dirty = false;
-                component.set_layout_node(layout_node);
+                component.set_layout_node(layout_node.clone());
+
+                // === 新增：更新 Flex Scroll State ===
+                if matches!(component.component_type, ComponentType::Flex) {
+                    // Calculate scrollable amount (content - container)
+                    let content_width = layout.size.width + layout.scroll_width();
+                    let content_height = layout.size.height + layout.scroll_height();
+                    let container_width = layout.size.width;
+                    let container_height = layout.size.height;
+
+                    let scroll_width = if content_width > container_width {
+                        content_width - container_width
+                    } else {
+                        0.0
+                    };
+                    let scroll_height = if content_height > container_height {
+                        content_height - container_height
+                    } else {
+                        0.0
+                    };
+
+                    // 讀取現有的 scroll_state，保留 offset
+                    let existing_state = component.scroll_state();
+
+                    let scroll_state = FlexScrollState {
+                        scroll_offset_x: existing_state.scroll_offset_x, // 保留現有 offset
+                        scroll_offset_y: existing_state.scroll_offset_y, // 保留現有 offset
+                        scroll_width,
+                        scroll_height,
+                        container_width,
+                        container_height,
+                    };
+
+                    eprintln!("[DEBUG-SCROLL]   New FlexScrollState - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}, container_w: {}, container_h: {}",
+                        scroll_state.scroll_offset_x, scroll_state.scroll_offset_y,
+                        scroll_state.scroll_width, scroll_state.scroll_height,
+                        scroll_state.container_width, scroll_state.container_height);
+
+                    component.set_scroll_state(scroll_state);
+                }
+                // === 新增結束 ===
             }
         }
     }

@@ -565,6 +565,10 @@ fn generate_widget_builder_code(
                 props.value("align_items", || quote! { "stretch" });
             let PropValue { value: justify_content_value, .. } =
                 props.value("justify_content", || quote! { "start" });
+            let PropValue { value: overflow_x_value, .. } =
+                props.value("overflow_x", || quote! { rvue_style::properties::Overflow::Visible });
+            let PropValue { value: overflow_y_value, .. } =
+                props.value("overflow_y", || quote! { rvue_style::properties::Overflow::Visible });
 
             let widget_ident = Ident::new("Flex", span);
 
@@ -575,7 +579,7 @@ fn generate_widget_builder_code(
 
             quote! {
                 {
-                    use rvue_style::{FlexDirection, AlignItems, JustifyContent};
+                    use rvue_style::{FlexDirection, AlignItems, JustifyContent, Overflow};
                     let direction_str = #direction_value.to_string();
                     let direction_enum = match direction_str.as_str() {
                         "row" => FlexDirection::Row,
@@ -608,6 +612,8 @@ fn generate_widget_builder_code(
                         .gap(#gap_value)
                         .align_items(align_enum)
                         .justify_content(justify_enum)
+                        .overflow_x(#overflow_x_value)
+                        .overflow_y(#overflow_y_value)
                         #style_call
                 }
             }

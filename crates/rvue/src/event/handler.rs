@@ -494,3 +494,77 @@ impl EventHandlers {
         }
     }
 }
+
+/// State for tracking scrollbar thumb drag operation
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollDragState {
+    /// The component being scrolled (the parent Flex container)
+    pub component_id: u64,
+    /// Whether dragging the vertical scrollbar
+    pub is_vertical: bool,
+    /// Position where drag started (Y for vertical, X for horizontal)
+    pub start_mouse_pos: f64,
+    /// Scroll offset at drag start
+    pub start_scroll_offset: f64,
+    /// The scrollable content length
+    pub scroll_content_length: f64,
+    /// The container (portal) size
+    pub container_length: f64,
+}
+
+impl ScrollDragState {
+    /// Create a new drag state for vertical scrollbar
+    pub fn new_vertical(
+        component_id: u64,
+        mouse_y: f64,
+        scroll_offset_y: f64,
+        scroll_height: f64,
+        container_height: f64,
+    ) -> Self {
+        Self {
+            component_id,
+            is_vertical: true,
+            start_mouse_pos: mouse_y,
+            start_scroll_offset: scroll_offset_y,
+            scroll_content_length: scroll_height,
+            container_length: container_height,
+        }
+    }
+
+    /// Create a new drag state for horizontal scrollbar
+    pub fn new_horizontal(
+        component_id: u64,
+        mouse_x: f64,
+        scroll_offset_x: f64,
+        scroll_width: f64,
+        container_width: f64,
+    ) -> Self {
+        Self {
+            component_id,
+            is_vertical: false,
+            start_mouse_pos: mouse_x,
+            start_scroll_offset: scroll_offset_x,
+            scroll_content_length: scroll_width,
+            container_length: container_width,
+        }
+    }
+
+    /// Calculate new scroll offset based on current mouse position
+    pub fn calculate_new_offset(&self, current_mouse_pos: f64) -> f64 {
+        let delta = current_mouse_pos - self.start_mouse_pos;
+        let track_length = self.container_length;
+
+        // Calculate thumb dimensions
+        let thumb_ratio = (self.container_length / self.scroll_content_length).max(0.0001);
+        const MIN_THUMB_LENGTH: f64 = 20.0;
+        let thumb_length = (thumb_ratio * track_length).max(MIN_THUMB_LENGTH);
+
+        // Convert mouse delta to scroll delta
+        // The thumb can move within (track_length - thumb_length)
+        let available_track = (track_length - thumb_length).max(1.0);
+        let scroll_per_pixel = self.scroll_content_length / available_track;
+
+        (self.start_scroll_offset + (delta * scroll_per_pixel))
+            .clamp(0.0, self.scroll_content_length.max(0.0))
+    }
+}

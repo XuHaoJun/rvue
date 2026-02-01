@@ -169,10 +169,20 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let gap = extract_prop_value(attrs, "gap", || quote! { 0.0 });
     let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
     let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
+    let overflow_x = extract_prop_value(
+        attrs,
+        "overflow_x",
+        || quote! { rvue_style::properties::Overflow::Visible },
+    );
+    let overflow_y = extract_prop_value(
+        attrs,
+        "overflow_y",
+        || quote! { rvue_style::properties::Overflow::Visible },
+    );
 
     quote! {
         {
-            use rvue_style::{FlexDirection, AlignItems, JustifyContent};
+            use rvue_style::{FlexDirection, AlignItems, JustifyContent, Overflow};
             let direction_str = #direction.to_string();
             let direction_enum = match direction_str.as_str() {
                 "row" => FlexDirection::Row,
@@ -201,12 +211,16 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
                 _ => JustifyContent::FlexStart,
             };
             let gap_val = #gap;
+            let overflow_x_val = #overflow_x;
+            let overflow_y_val = #overflow_y;
 
             let flex = rvue::widgets::Flex::new()
                 .direction(direction_enum)
                 .gap(gap_val)
                 .align_items(align_enum)
-                .justify_content(justify_enum);
+                .justify_content(justify_enum)
+                .overflow_x(overflow_x_val)
+                .overflow_y(overflow_y_val);
 
             flex
         }

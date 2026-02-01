@@ -5,8 +5,8 @@
 use crate::properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
     Color, ComputedStyles, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink,
-    FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding,
-    TextColor, Visibility, Width, ZIndex,
+    FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Overflow,
+    Padding, TextColor, Visibility, Width, ZIndex,
 };
 use crate::property::Property;
 use bitflags::bitflags;
@@ -46,6 +46,8 @@ bitflags! {
         const VISIBILITY = 1 << 24;
         const Z_INDEX = 1 << 25;
         const CURSOR = 1 << 26;
+        const OVERFLOW_X = 1 << 27;
+        const OVERFLOW_Y = 1 << 28;
     }
 }
 
@@ -260,6 +262,8 @@ pub struct ReactiveStyles {
     pub justify_content: ReactiveProperty<JustifyContent>,
     pub margin: ReactiveProperty<Margin>,
     pub padding: ReactiveProperty<Padding>,
+    pub overflow_x: ReactiveProperty<Overflow>,
+    pub overflow_y: ReactiveProperty<Overflow>,
     flags: StyleFlags,
 }
 
@@ -293,6 +297,8 @@ impl ReactiveStyles {
             justify_content: ReactiveProperty::Static(JustifyContent::default()),
             margin: ReactiveProperty::Static(Margin::default()),
             padding: ReactiveProperty::Static(Padding::default()),
+            overflow_x: ReactiveProperty::Static(Overflow::Visible),
+            overflow_y: ReactiveProperty::Static(Overflow::Visible),
             flags: StyleFlags::empty(),
         }
     }
@@ -465,6 +471,18 @@ impl ReactiveStyles {
         self
     }
 
+    pub fn set_overflow_x(mut self, value: impl Into<ReactiveProperty<Overflow>>) -> Self {
+        self.overflow_x = value.into();
+        self.flags |= StyleFlags::OVERFLOW_X;
+        self
+    }
+
+    pub fn set_overflow_y(mut self, value: impl Into<ReactiveProperty<Overflow>>) -> Self {
+        self.overflow_y = value.into();
+        self.flags |= StyleFlags::OVERFLOW_Y;
+        self
+    }
+
     /// Computes the final computed styles for rendering.
     ///
     /// This method returns a complete `ComputedStyles` with all properties populated:
@@ -611,6 +629,16 @@ impl ReactiveStyles {
             self.cursor.get_untracked()
         } else {
             Cursor::initial_value()
+        });
+        styles.overflow_x = Some(if flags.contains(StyleFlags::OVERFLOW_X) {
+            self.overflow_x.get_untracked()
+        } else {
+            Overflow::Visible
+        });
+        styles.overflow_y = Some(if flags.contains(StyleFlags::OVERFLOW_Y) {
+            self.overflow_y.get_untracked()
+        } else {
+            Overflow::Visible
         });
 
         styles

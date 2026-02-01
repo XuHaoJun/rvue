@@ -3,6 +3,7 @@
 use crate::component::{Component, ComponentLifecycle};
 use crate::event::context::EventContextOps;
 use crate::event::dispatch::{run_pointer_event_pass, run_text_event_pass};
+use crate::event::handler::ScrollDragState;
 use crate::event::hit_test::hit_test;
 use crate::event::types::{
     map_scroll_delta, KeyboardEvent, PointerButtonEvent, PointerEvent, PointerMoveEvent,
@@ -49,6 +50,8 @@ pub trait AppStateLike {
     fn needs_pointer_pass_update(&self) -> bool;
     fn set_focused(&mut self, focused: Option<Gc<Component>>);
     fn clear_pointer_capture(&mut self);
+    fn scroll_drag_state(&self) -> Option<ScrollDragState>;
+    fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>);
 }
 
 pub struct FocusState {
@@ -72,6 +75,7 @@ pub struct AppState<'a> {
     pub hovered_path: Vec<Gc<Component>>,
     pub focused_path: Vec<Gc<Component>>,
     pub needs_pointer_pass_update: bool,
+    pub scroll_drag_state: Option<ScrollDragState>,
     pub last_gc_count: usize,
     renderer: Option<Renderer>,
     surface: Option<RenderSurface<'a>>,
@@ -159,6 +163,14 @@ impl<'a> AppStateLike for AppState<'a> {
     fn clear_pointer_capture(&mut self) {
         *self.pointer_capture.borrow_mut() = None;
     }
+
+    fn scroll_drag_state(&self) -> Option<ScrollDragState> {
+        self.scroll_drag_state
+    }
+
+    fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>) {
+        self.scroll_drag_state = state;
+    }
 }
 
 impl EventContextOps for AppState<'_> {
@@ -233,6 +245,7 @@ impl<'a> AppState<'a> {
             hovered_path: Vec::new(),
             focused_path: Vec::new(),
             needs_pointer_pass_update: false,
+            scroll_drag_state: None,
             last_gc_count: 0,
             event_translator: WinitTranslator::new(),
         }

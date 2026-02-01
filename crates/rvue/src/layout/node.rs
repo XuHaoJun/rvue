@@ -72,7 +72,7 @@ fn justify_content_to_taffy(jc: &rvue_style::JustifyContent) -> JustifyContent {
     }
 }
 
-fn overflow_to_taffy(
+pub fn overflow_to_taffy(
     overflow: &Option<rvue_style::properties::Overflow>,
 ) -> Point<taffy::style::Overflow> {
     let x = overflow.as_ref().map_or(taffy::style::Overflow::Visible, |o| match o {
@@ -273,11 +273,18 @@ impl LayoutNode {
                         style.max_size = read_max_size_from_styles(&computed);
 
                         // Apply overflow settings
-                        let overflow = overflow_to_taffy(&computed.overflow_x);
+                        let overflow_x = computed.overflow_x;
+                        let overflow_y = computed.overflow_y;
+                        let overflow_x_taffy = overflow_to_taffy(&computed.overflow_x);
+                        let overflow_y_taffy = overflow_to_taffy(&computed.overflow_y);
+                        let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
+                        eprintln!("[DEBUG-SCROLL] overflow_to_taffy - overflow_x: {:?}, overflow_y: {:?}, result: {:?}", overflow_x, overflow_y, overflow);
                         style.overflow = overflow;
 
                         // Reserve space for scrollbar if overflow is Scroll or Auto
-                        if overflow.x == taffy::style::Overflow::Scroll {
+                        if overflow.x == taffy::style::Overflow::Scroll
+                            || overflow.y == taffy::style::Overflow::Scroll
+                        {
                             style.scrollbar_width = 10.0;
                         }
                     }
