@@ -419,9 +419,17 @@ impl Component {
 
     /// Mark the component as dirty (needs re-render)
     pub fn mark_dirty(&self) {
+        // Avoid re-marking if already dirty
+        if self.is_dirty.load(Ordering::SeqCst) {
+            return;
+        }
         self.is_dirty.store(true, Ordering::SeqCst);
         // Clear vello cache when dirty
         *self.vello_cache.borrow_mut() = None;
+        // Propagate dirty flag to all children (Leptos-style)
+        for child in self.children.borrow().iter() {
+            child.mark_dirty();
+        }
         // Propagate dirty flag upwards so parents know they need to re-render
         if let Some(parent) = self.parent.borrow().as_ref() {
             parent.mark_dirty();
@@ -431,6 +439,10 @@ impl Component {
     /// Clear the dirty flag
     pub fn clear_dirty(&self) {
         self.is_dirty.store(false, Ordering::SeqCst);
+        // Also clear dirty flag for all children
+        for child in self.children.borrow().iter() {
+            child.clear_dirty();
+        }
     }
 
     /// Check if the component is dirty
