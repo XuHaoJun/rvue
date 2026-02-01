@@ -36,10 +36,15 @@ fn get_computed_styles_from_stylesheet(
     component: &Component,
     stylesheet: &Stylesheet,
 ) -> Option<rvue_style::ComputedStyles> {
-    if let Some(inline) = get_computed_styles(component) {
-        return Some(inline);
+    let inline = get_computed_styles(component);
+    let mut sheet = crate::style::resolve_styles_for_component(component, stylesheet);
+
+    if let Some(inline_styles) = inline {
+        sheet.merge_with_computed(&inline_styles);
+        Some(sheet)
+    } else {
+        Some(sheet)
     }
-    Some(crate::style::resolve_styles_for_component(component, stylesheet))
 }
 
 fn read_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dimension> {
@@ -64,6 +69,27 @@ fn read_max_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dime
     let height =
         computed.max_height.as_ref().map(|h| size_to_dimension(&h.0)).unwrap_or(Dimension::auto());
     Size { width, height }
+}
+
+fn align_items_to_taffy(ai: &rvue_style::AlignItems) -> AlignItems {
+    match ai {
+        rvue_style::AlignItems::Stretch => AlignItems::Stretch,
+        rvue_style::AlignItems::FlexStart => AlignItems::FlexStart,
+        rvue_style::AlignItems::FlexEnd => AlignItems::FlexEnd,
+        rvue_style::AlignItems::Center => AlignItems::Center,
+        rvue_style::AlignItems::Baseline => AlignItems::Baseline,
+    }
+}
+
+fn justify_content_to_taffy(jc: &rvue_style::JustifyContent) -> JustifyContent {
+    match jc {
+        rvue_style::JustifyContent::FlexStart => JustifyContent::FlexStart,
+        rvue_style::JustifyContent::FlexEnd => JustifyContent::FlexEnd,
+        rvue_style::JustifyContent::Center => JustifyContent::Center,
+        rvue_style::JustifyContent::SpaceBetween => JustifyContent::SpaceBetween,
+        rvue_style::JustifyContent::SpaceAround => JustifyContent::SpaceAround,
+        rvue_style::JustifyContent::SpaceEvenly => JustifyContent::SpaceEvenly,
+    }
 }
 
 /// Layout node wrapper holding calculation results
@@ -260,11 +286,17 @@ impl LayoutNode {
             }
             ComponentType::Text => Style { ..Default::default() },
             ComponentType::Button => {
-                let mut style = Style::default();
+                let mut style = Style { display: Display::Flex, ..Default::default() };
                 if let Some(computed) = computed {
                     style.size = read_size_from_styles(&computed);
                     style.min_size = read_min_size_from_styles(&computed);
                     style.max_size = read_max_size_from_styles(&computed);
+                    if let Some(ai) = computed.align_items.as_ref() {
+                        style.align_items = Some(align_items_to_taffy(ai));
+                    }
+                    if let Some(jc) = computed.justify_content.as_ref() {
+                        style.justify_content = Some(justify_content_to_taffy(jc));
+                    }
                 }
                 style
             }

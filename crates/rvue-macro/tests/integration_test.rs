@@ -94,7 +94,7 @@ fn test_multiple_signals() {
 #[test]
 fn test_event_handler_with_signal() {
     let (count, set_count) = create_signal(0);
-    let count_label = || format!("Count: {}", count.get());
+    let _count_label = || format!("Count: {}", count.get());
 
     #[allow(unused_braces)]
     let _view = view! {

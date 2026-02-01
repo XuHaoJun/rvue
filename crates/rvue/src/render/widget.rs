@@ -130,7 +130,7 @@ fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> Com
         Some(sheet) => {
             // Use resolve_styles_for_component which is the unified resolution path
             // This ensures layout and rendering use the same style resolution
-            resolve_styles_for_component(&*component, sheet)
+            resolve_styles_for_component(component, sheet)
         }
         None => {
             let props = component.props.borrow();

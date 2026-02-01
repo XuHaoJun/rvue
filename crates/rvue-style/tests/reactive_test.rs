@@ -59,8 +59,8 @@ fn test_reactive_property_from_signal() {
 fn test_reactive_styles_new() {
     let styles = ReactiveStyles::new();
     let computed = styles.compute();
-    assert!(computed.background_color.is_some());
-    assert!(computed.color.is_some());
+    assert!(computed.background_color.is_none());
+    assert!(computed.color.is_none());
 }
 
 #[test]
@@ -78,6 +78,8 @@ fn test_reactive_styles_setters() {
     assert_eq!(computed.height, Some(Height(Size::pixels(200.0))));
     assert_eq!(computed.display, Some(Display::Flex));
     assert_eq!(computed.flex_direction, Some(FlexDirection::Column));
+    assert_eq!(computed.background_color, Some(BackgroundColor::default()));
+    assert_eq!(computed.color, Some(Color::rgb(255, 0, 0)));
 }
 
 #[test]
@@ -199,7 +201,7 @@ fn test_reactive_signal_write_trait() {
 fn test_reactive_styles_default() {
     let styles = ReactiveStyles::default();
     let computed = styles.compute();
-    assert!(computed.background_color.is_some());
+    assert!(computed.background_color.is_none());
 }
 
 #[test]

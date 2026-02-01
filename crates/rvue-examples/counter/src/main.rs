@@ -3,6 +3,8 @@
 
 use rvue::prelude::*;
 use rvue_macro::view;
+#[allow(unused_imports)]
+use rvue_style::{AlignItems, BackgroundColor, Color, JustifyContent, ReactiveStyles};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create counter component
@@ -12,6 +14,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     rvue::run_app(|| counter_view)?;
 
     Ok(())
+}
+
+fn increment_button_styles() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_align_items(AlignItems::Center)
+        .set_justify_content(JustifyContent::Center)
+        .set_background_color(BackgroundColor(Color::rgb(76, 175, 80)))
+}
+
+fn decrement_button_styles() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_align_items(AlignItems::Center)
+        .set_justify_content(JustifyContent::Center)
+        .set_background_color(BackgroundColor(Color::rgb(244, 67, 54)))
 }
 
 fn create_counter_view() -> ViewStruct {
@@ -33,8 +49,12 @@ fn create_counter_view() -> ViewStruct {
             <Show when=show_message>
                 <Text content="Counter is active!" />
             </Show>
-            <Button label="+" on_click={move || { println!("Increment clicked, current count: {}", count_inc.get()); set_count_inc.update(|x| *x += 1); }} />
-            <Button label="-" on_click={move || { println!("Decrement clicked, current count: {}", count_dec.get()); set_count_dec.update(|x| *x -= 1); }} />
+            <Button styles=increment_button_styles() on_click={move || { println!("Increment clicked, current count: {}", count_inc.get()); set_count_inc.update(|x| *x += 1); }}>
+                <Text content="+" />
+            </Button>
+            <Button styles=decrement_button_styles() on_click={move || { println!("Decrement clicked, current count: {}", count_dec.get()); set_count_dec.update(|x| *x -= 1); }}>
+                <Text content="-" />
+            </Button>
         </Flex>
     };
 

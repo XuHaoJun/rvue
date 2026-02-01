@@ -22,9 +22,9 @@ struct DynProperty {
 }
 
 impl DynProperty {
-    fn new<P: Property>(value: P) -> Self
+    fn new<P>(value: P) -> Self
     where
-        P: Clone,
+        P: Property,
     {
         let size = std::mem::size_of::<P>();
         let align = std::mem::align_of::<P>();
@@ -78,9 +78,9 @@ impl Properties {
     }
 
     #[inline]
-    pub fn with<P: Property>(value: P) -> Self
+    pub fn with<P>(value: P) -> Self
     where
-        P: Clone,
+        P: Property,
     {
         let mut map = HashMap::new();
         map.insert(TypeId::of::<P>(), DynProperty::new(value));
@@ -98,9 +98,9 @@ impl Properties {
     }
 
     #[inline]
-    pub fn insert<P: Property>(&mut self, value: P)
+    pub fn insert<P>(&mut self, value: P)
     where
-        P: Clone,
+        P: Property,
     {
         self.map.insert(TypeId::of::<P>(), DynProperty::new(value));
     }

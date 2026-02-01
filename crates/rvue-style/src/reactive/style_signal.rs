@@ -8,11 +8,45 @@ use crate::properties::{
     FontFamily, FontSize, FontWeight, Gap, Height, JustifyContent, Margin, Opacity, Padding,
     TextColor, Visibility, Width, ZIndex,
 };
+use bitflags::bitflags;
 use rudo_gc::{Gc, GcCell, Trace};
 use rvue_signals::{create_signal, ReadSignal, SignalRead, SignalWrite, WriteSignal};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub struct StyleFlags: u32 {
+        const BACKGROUND_COLOR = 1 << 0;
+        const COLOR = 1 << 1;
+        const TEXT_COLOR = 1 << 2;
+        const FONT_SIZE = 1 << 3;
+        const FONT_FAMILY = 1 << 4;
+        const FONT_WEIGHT = 1 << 5;
+        const PADDING = 1 << 6;
+        const MARGIN = 1 << 7;
+        const WIDTH = 1 << 8;
+        const HEIGHT = 1 << 9;
+        const DISPLAY = 1 << 10;
+        const FLEX_DIRECTION = 1 << 11;
+        const JUSTIFY_CONTENT = 1 << 12;
+        const ALIGN_ITEMS = 1 << 13;
+        const ALIGN_SELF = 1 << 14;
+        const FLEX_GROW = 1 << 15;
+        const FLEX_SHRINK = 1 << 16;
+        const FLEX_BASIS = 1 << 17;
+        const GAP = 1 << 18;
+        const BORDER_COLOR = 1 << 19;
+        const BORDER_WIDTH = 1 << 20;
+        const BORDER_RADIUS = 1 << 21;
+        const BORDER_STYLE = 1 << 22;
+        const OPACITY = 1 << 23;
+        const VISIBILITY = 1 << 24;
+        const Z_INDEX = 1 << 25;
+        const CURSOR = 1 << 26;
+    }
+}
 
 thread_local! {
     static CURRENT_STYLE_EFFECT: RefCell<Option<Gc<StyleEffect>>> = const { RefCell::new(None) };
@@ -196,7 +230,7 @@ impl<T: Clone + 'static + Default> Default for ReactiveProperty<T> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ReactiveStyles {
     pub background_color: ReactiveProperty<BackgroundColor>,
     pub border_color: ReactiveProperty<BorderColor>,
@@ -225,6 +259,7 @@ pub struct ReactiveStyles {
     pub justify_content: ReactiveProperty<JustifyContent>,
     pub margin: ReactiveProperty<Margin>,
     pub padding: ReactiveProperty<Padding>,
+    flags: StyleFlags,
 }
 
 impl ReactiveStyles {
@@ -257,6 +292,7 @@ impl ReactiveStyles {
             justify_content: ReactiveProperty::Static(JustifyContent::default()),
             margin: ReactiveProperty::Static(Margin::default()),
             padding: ReactiveProperty::Static(Padding::default()),
+            flags: StyleFlags::empty(),
         }
     }
 
@@ -265,121 +301,145 @@ impl ReactiveStyles {
         value: impl Into<ReactiveProperty<BackgroundColor>>,
     ) -> Self {
         self.background_color = value.into();
+        self.flags |= StyleFlags::BACKGROUND_COLOR;
         self
     }
 
     pub fn set_border_color(mut self, value: impl Into<ReactiveProperty<BorderColor>>) -> Self {
         self.border_color = value.into();
+        self.flags |= StyleFlags::BORDER_COLOR;
         self
     }
 
     pub fn set_border_radius(mut self, value: impl Into<ReactiveProperty<BorderRadius>>) -> Self {
         self.border_radius = value.into();
+        self.flags |= StyleFlags::BORDER_RADIUS;
         self
     }
 
     pub fn set_color(mut self, value: impl Into<ReactiveProperty<Color>>) -> Self {
         self.color = value.into();
+        self.flags |= StyleFlags::COLOR;
         self
     }
 
     pub fn set_text_color(mut self, value: impl Into<ReactiveProperty<TextColor>>) -> Self {
         self.text_color = value.into();
+        self.flags |= StyleFlags::TEXT_COLOR;
         self
     }
 
     pub fn set_cursor(mut self, value: impl Into<ReactiveProperty<Cursor>>) -> Self {
         self.cursor = value.into();
+        self.flags |= StyleFlags::CURSOR;
         self
     }
 
     pub fn set_display(mut self, value: impl Into<ReactiveProperty<Display>>) -> Self {
         self.display = value.into();
+        self.flags |= StyleFlags::DISPLAY;
         self
     }
 
     pub fn set_opacity(mut self, value: impl Into<ReactiveProperty<Opacity>>) -> Self {
         self.opacity = value.into();
+        self.flags |= StyleFlags::OPACITY;
         self
     }
 
     pub fn set_visibility(mut self, value: impl Into<ReactiveProperty<Visibility>>) -> Self {
         self.visibility = value.into();
+        self.flags |= StyleFlags::VISIBILITY;
         self
     }
 
     pub fn set_width(mut self, value: impl Into<ReactiveProperty<Width>>) -> Self {
         self.width = value.into();
+        self.flags |= StyleFlags::WIDTH;
         self
     }
 
     pub fn set_height(mut self, value: impl Into<ReactiveProperty<Height>>) -> Self {
         self.height = value.into();
+        self.flags |= StyleFlags::HEIGHT;
         self
     }
 
     pub fn set_font_family(mut self, value: impl Into<ReactiveProperty<FontFamily>>) -> Self {
         self.font_family = value.into();
+        self.flags |= StyleFlags::FONT_FAMILY;
         self
     }
 
     pub fn set_font_size(mut self, value: impl Into<ReactiveProperty<FontSize>>) -> Self {
         self.font_size = value.into();
+        self.flags |= StyleFlags::FONT_SIZE;
         self
     }
 
     pub fn set_font_weight(mut self, value: impl Into<ReactiveProperty<FontWeight>>) -> Self {
         self.font_weight = value.into();
+        self.flags |= StyleFlags::FONT_WEIGHT;
         self
     }
 
     pub fn set_z_index(mut self, value: impl Into<ReactiveProperty<ZIndex>>) -> Self {
         self.z_index = value.into();
+        self.flags |= StyleFlags::Z_INDEX;
         self
     }
 
     pub fn set_align_items(mut self, value: impl Into<ReactiveProperty<AlignItems>>) -> Self {
         self.align_items = value.into();
+        self.flags |= StyleFlags::ALIGN_ITEMS;
         self
     }
 
     pub fn set_align_self(mut self, value: impl Into<ReactiveProperty<AlignSelf>>) -> Self {
         self.align_self = value.into();
+        self.flags |= StyleFlags::ALIGN_SELF;
         self
     }
 
     pub fn set_border_style(mut self, value: impl Into<ReactiveProperty<BorderStyle>>) -> Self {
         self.border_style = value.into();
+        self.flags |= StyleFlags::BORDER_STYLE;
         self
     }
 
     pub fn set_border_width(mut self, value: impl Into<ReactiveProperty<BorderWidth>>) -> Self {
         self.border_width = value.into();
+        self.flags |= StyleFlags::BORDER_WIDTH;
         self
     }
 
     pub fn set_flex_basis(mut self, value: impl Into<ReactiveProperty<FlexBasis>>) -> Self {
         self.flex_basis = value.into();
+        self.flags |= StyleFlags::FLEX_BASIS;
         self
     }
 
     pub fn set_flex_direction(mut self, value: impl Into<ReactiveProperty<FlexDirection>>) -> Self {
         self.flex_direction = value.into();
+        self.flags |= StyleFlags::FLEX_DIRECTION;
         self
     }
 
     pub fn set_flex_grow(mut self, value: impl Into<ReactiveProperty<FlexGrow>>) -> Self {
         self.flex_grow = value.into();
+        self.flags |= StyleFlags::FLEX_GROW;
         self
     }
 
     pub fn set_flex_shrink(mut self, value: impl Into<ReactiveProperty<FlexShrink>>) -> Self {
         self.flex_shrink = value.into();
+        self.flags |= StyleFlags::FLEX_SHRINK;
         self
     }
 
     pub fn set_gap(mut self, value: impl Into<ReactiveProperty<Gap>>) -> Self {
         self.gap = value.into();
+        self.flags |= StyleFlags::GAP;
         self
     }
 
@@ -388,46 +448,105 @@ impl ReactiveStyles {
         value: impl Into<ReactiveProperty<JustifyContent>>,
     ) -> Self {
         self.justify_content = value.into();
+        self.flags |= StyleFlags::JUSTIFY_CONTENT;
         self
     }
 
     pub fn set_margin(mut self, value: impl Into<ReactiveProperty<Margin>>) -> Self {
         self.margin = value.into();
+        self.flags |= StyleFlags::MARGIN;
         self
     }
 
     pub fn set_padding(mut self, value: impl Into<ReactiveProperty<Padding>>) -> Self {
         self.padding = value.into();
+        self.flags |= StyleFlags::PADDING;
         self
     }
 
     pub fn compute(&self) -> ComputedStyles {
         let mut styles = ComputedStyles::new();
-        styles.background_color = Some(self.background_color.get_untracked());
-        styles.color = Some(self.color.get_untracked());
-        styles.text_color = Some(self.text_color.get_untracked());
-        styles.font_size = Some(self.font_size.get_untracked());
-        styles.font_family = Some(self.font_family.get_untracked());
-        styles.font_weight = Some(self.font_weight.get_untracked());
-        styles.padding = Some(self.padding.get_untracked());
-        styles.margin = Some(self.margin.get_untracked());
-        styles.width = Some(self.width.get_untracked());
-        styles.height = Some(self.height.get_untracked());
-        styles.display = Some(self.display.get_untracked());
-        styles.flex_direction = Some(self.flex_direction.get_untracked());
-        styles.justify_content = Some(self.justify_content.get_untracked());
-        styles.align_items = Some(self.align_items.get_untracked());
-        styles.flex_grow = Some(self.flex_grow.get_untracked());
-        styles.flex_shrink = Some(self.flex_shrink.get_untracked());
-        styles.gap = Some(self.gap.get_untracked());
-        styles.border_color = Some(self.border_color.get_untracked());
-        styles.border_width = Some(self.border_width.get_untracked());
-        styles.border_radius = Some(self.border_radius.get_untracked());
-        styles.border_style = Some(self.border_style.get_untracked());
-        styles.opacity = Some(self.opacity.get_untracked());
-        styles.visibility = Some(self.visibility.get_untracked());
-        styles.z_index = Some(self.z_index.get_untracked());
+        let flags = self.flags;
+
+        if flags.contains(StyleFlags::BACKGROUND_COLOR) {
+            styles.background_color = Some(self.background_color.get_untracked());
+        }
+        if flags.contains(StyleFlags::COLOR) {
+            styles.color = Some(self.color.get_untracked());
+        }
+        if flags.contains(StyleFlags::TEXT_COLOR) {
+            styles.text_color = Some(self.text_color.get_untracked());
+        }
+        if flags.contains(StyleFlags::FONT_SIZE) {
+            styles.font_size = Some(self.font_size.get_untracked());
+        }
+        if flags.contains(StyleFlags::FONT_FAMILY) {
+            styles.font_family = Some(self.font_family.get_untracked());
+        }
+        if flags.contains(StyleFlags::FONT_WEIGHT) {
+            styles.font_weight = Some(self.font_weight.get_untracked());
+        }
+        if flags.contains(StyleFlags::PADDING) {
+            styles.padding = Some(self.padding.get_untracked());
+        }
+        if flags.contains(StyleFlags::MARGIN) {
+            styles.margin = Some(self.margin.get_untracked());
+        }
+        if flags.contains(StyleFlags::WIDTH) {
+            styles.width = Some(self.width.get_untracked());
+        }
+        if flags.contains(StyleFlags::HEIGHT) {
+            styles.height = Some(self.height.get_untracked());
+        }
+        if flags.contains(StyleFlags::DISPLAY) {
+            styles.display = Some(self.display.get_untracked());
+        }
+        if flags.contains(StyleFlags::FLEX_DIRECTION) {
+            styles.flex_direction = Some(self.flex_direction.get_untracked());
+        }
+        if flags.contains(StyleFlags::JUSTIFY_CONTENT) {
+            styles.justify_content = Some(self.justify_content.get_untracked());
+        }
+        if flags.contains(StyleFlags::ALIGN_ITEMS) {
+            styles.align_items = Some(self.align_items.get_untracked());
+        }
+        if flags.contains(StyleFlags::FLEX_GROW) {
+            styles.flex_grow = Some(self.flex_grow.get_untracked());
+        }
+        if flags.contains(StyleFlags::FLEX_SHRINK) {
+            styles.flex_shrink = Some(self.flex_shrink.get_untracked());
+        }
+        if flags.contains(StyleFlags::GAP) {
+            styles.gap = Some(self.gap.get_untracked());
+        }
+        if flags.contains(StyleFlags::BORDER_COLOR) {
+            styles.border_color = Some(self.border_color.get_untracked());
+        }
+        if flags.contains(StyleFlags::BORDER_WIDTH) {
+            styles.border_width = Some(self.border_width.get_untracked());
+        }
+        if flags.contains(StyleFlags::BORDER_RADIUS) {
+            styles.border_radius = Some(self.border_radius.get_untracked());
+        }
+        if flags.contains(StyleFlags::BORDER_STYLE) {
+            styles.border_style = Some(self.border_style.get_untracked());
+        }
+        if flags.contains(StyleFlags::OPACITY) {
+            styles.opacity = Some(self.opacity.get_untracked());
+        }
+        if flags.contains(StyleFlags::VISIBILITY) {
+            styles.visibility = Some(self.visibility.get_untracked());
+        }
+        if flags.contains(StyleFlags::Z_INDEX) {
+            styles.z_index = Some(self.z_index.get_untracked());
+        }
         styles
+    }
+}
+
+impl Default for ReactiveStyles {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

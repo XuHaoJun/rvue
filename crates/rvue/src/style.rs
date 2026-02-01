@@ -149,7 +149,7 @@ pub fn resolve_styles(component: &Gc<Component>, stylesheet: &Stylesheet) -> Com
 
     let resolver = StyleResolver::new();
 
-    let inline_styles = get_inline_styles(&*component);
+    let inline_styles = get_inline_styles(component);
 
     let resolved = resolver.resolve_styles(&element, &stylesheet.inner.borrow());
 
