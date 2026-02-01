@@ -42,6 +42,7 @@ fn benchmark_initial_memory_footprint() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
 
@@ -50,7 +51,7 @@ fn benchmark_initial_memory_footprint() {
         let _child = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Item {}", i), font_size: None, color: None },
+            ComponentProps::Text { content: format!("Item {}", i), styles: None },
         );
     }
 
@@ -84,11 +85,7 @@ fn benchmark_component_memory_usage() {
         let component = Component::new(
             i,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: format!("Component {}", i),
-                font_size: None,
-                color: None,
-            },
+            ComponentProps::Text { content: format!("Component {}", i), styles: None },
         );
         components.push(component);
     }

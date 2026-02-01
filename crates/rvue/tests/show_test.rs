@@ -1,6 +1,6 @@
 //! Integration test for Show component
 
-use rvue::{create_signal, ComponentLifecycle, SignalRead, SignalWrite};
+use rvue::{create_signal, ComponentLifecycle};
 use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]
@@ -12,7 +12,7 @@ fn test_show_component_conditional_rendering() {
     let _child = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Visible".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Visible".to_string(), styles: None },
     );
 
     // Create Show component

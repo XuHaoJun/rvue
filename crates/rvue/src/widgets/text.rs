@@ -4,36 +4,31 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
+use rvue_style::ReactiveStyles;
 
 /// Text widget builder for displaying text content
 #[derive(Clone)]
 pub struct Text {
     content: ReactiveValue<String>,
-    font_size: Option<f32>,
-    color: Option<vello::peniko::Color>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for Text {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.content.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 
 impl Text {
     /// Create a new Text widget with content
     pub fn new(content: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { content: content.into_reactive(), font_size: None, color: None }
+        Self { content: content.into_reactive(), styles: None }
     }
 
-    /// Set the font size
-    pub fn font_size(mut self, size: f32) -> Self {
-        self.font_size = Some(size);
-        self
-    }
-
-    /// Set the text color
-    pub fn color(mut self, color: vello::peniko::Color) -> Self {
-        self.color = Some(color);
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
         self
     }
 }
@@ -80,17 +75,14 @@ impl Widget for Text {
         let id = crate::component::next_component_id();
         let initial_content = self.content.get();
 
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
+
         let component = Component::new(
             id,
             ComponentType::Text,
-            ComponentProps::Text {
-                content: initial_content,
-                font_size: self.font_size,
-                color: self.color,
-            },
+            ComponentProps::Text { content: initial_content.clone(), styles: computed_styles },
         );
 
-        // Setup reactive update if content is reactive
         let content_effect = if self.content.is_reactive() {
             let comp = Gc::clone(&component);
             let content = self.content.clone();
@@ -108,10 +100,7 @@ impl Widget for Text {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update content if it changed
         if self.content.is_reactive() {
-            // Content is reactive, effect will handle updates
-            // Just ensure the effect is still set up
             if state.content_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let content = self.content.clone();
@@ -123,19 +112,8 @@ impl Widget for Text {
                 state.content_effect = Some(effect);
             }
         } else {
-            // Static content - update directly
             let new_content = self.content.get();
             state.component.set_text_content(new_content);
-        }
-
-        // Update font_size if changed
-        if let Some(font_size) = self.font_size {
-            state.component.set_text_font_size(font_size);
-        }
-
-        // Update color if changed
-        if let Some(color) = self.color {
-            state.component.set_text_color(color);
         }
     }
 }

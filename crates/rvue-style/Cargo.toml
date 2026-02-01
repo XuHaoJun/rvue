@@ -1,0 +1,39 @@
+[package]
+name = "rvue-style"
+version = "0.1.0"
+edition = "2021"
+description = "GPU-accelerated GUI framework with CSS-like styling and fine-grained reactivity"
+
+[dependencies]
+# CSS selector parsing and matching
+selectors = "0.35"
+
+# CSS value parsing
+cssparser = "0.36"
+
+# State bitflags for pseudo-class matching
+bitflags = "2"
+
+# GC for memory management
+rudo-gc = { version = "0.5", features = ["derive", "default"] }
+
+# Shared signal types
+rvue-signals = { path = "../rvue-signals" }
+
+# Derive macros for Any trait
+# derive_more = "2.1"
+
+[dev-dependencies]
+# Add dev dependencies as needed
+
+[features]
+default = []
+# Add feature flags as needed
+
+[lib]
+path = "src/lib.rs"
+
+# Example binaries
+[[example]]
+name = "basic_styling"
+path = "examples/basic_styling.rs"

@@ -63,6 +63,7 @@ mod tests {
                 gap: 0.0,
                 align_items: "start".to_string(),
                 justify_content: "start".to_string(),
+                styles: None,
             },
         );
         let one_element = vec![Gc::clone(&component)];
@@ -81,6 +82,7 @@ mod tests {
                     gap: 0.0,
                     align_items: "start".to_string(),
                     justify_content: "start".to_string(),
+                    styles: None,
                 },
             ),
             None,

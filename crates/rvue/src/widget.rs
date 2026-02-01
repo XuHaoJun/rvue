@@ -142,22 +142,26 @@ impl IntoReactiveValue<String> for &str {
 }
 
 // Implement for style types
-impl crate::widget::IntoReactiveValue<crate::style::FlexDirection> for crate::style::FlexDirection {
-    fn into_reactive(self) -> ReactiveValue<crate::style::FlexDirection> {
+impl crate::widget::IntoReactiveValue<rvue_style::FlexDirection> for rvue_style::FlexDirection {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::FlexDirection> {
         ReactiveValue::Static(self)
     }
 }
 
-impl crate::widget::IntoReactiveValue<crate::style::AlignItems> for crate::style::AlignItems {
-    fn into_reactive(self) -> ReactiveValue<crate::style::AlignItems> {
+impl crate::widget::IntoReactiveValue<rvue_style::AlignItems> for rvue_style::AlignItems {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::AlignItems> {
         ReactiveValue::Static(self)
     }
 }
 
-impl crate::widget::IntoReactiveValue<crate::style::JustifyContent>
-    for crate::style::JustifyContent
-{
-    fn into_reactive(self) -> ReactiveValue<crate::style::JustifyContent> {
+impl crate::widget::IntoReactiveValue<rvue_style::JustifyContent> for rvue_style::JustifyContent {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::JustifyContent> {
+        ReactiveValue::Static(self)
+    }
+}
+
+impl crate::widget::IntoReactiveValue<rvue_style::Gap> for rvue_style::Gap {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::Gap> {
         ReactiveValue::Static(self)
     }
 }

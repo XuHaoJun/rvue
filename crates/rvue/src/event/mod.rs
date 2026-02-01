@@ -7,6 +7,9 @@ pub mod path;
 pub mod status;
 pub mod types;
 pub mod update;
+pub mod winit_translator;
+
+pub use winit_translator::{get_pointer_event_position, WinitTranslator};
 
 pub use context::EventContext;
 pub use dispatch::{run_pointer_event_pass, run_text_event_pass};

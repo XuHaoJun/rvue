@@ -19,41 +19,93 @@ For more details on the vision and technical roadmap, see the [Vision Document](
 - **Component-Based**: Familiar component architecture for building reusable UI building blocks.
 - **Native Performance**: Built from the ground up in Rust for maximum performance and efficiency.
 
-## 🛠️ Basic Usage (Experimental)
+## 🛠️ Basic Example
+
+Stop worrying about lifetimes. Start building beautiful, native UI with a familiar Vue-like developer experience.
 
 ```rust
 use rvue::prelude::*;
 use rvue_macro::{view, component};
+use rvue_style::{BackgroundColor, Color, BorderRadius, Padding, ReactiveStyles, TextColor, FontWeight, FontSize};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    rvue::run_app(|| App())?;
+    rvue::run_app(|| view! {
+        <Flex direction="column" gap=30.0 align_items="center" justify_content="center">
+            <Text content="Welcome to Rvue" styles=header_style() />
+            <InteractiveCard />
+        </Flex>
+    })?;
     Ok(())
 }
 
-fn App() -> ViewStruct {
+#[component]
+fn InteractiveCard() -> ViewStruct {
+    let (count, set_count) = create_signal(0);
+    let (items, set_items) = create_signal(vec!["Initial state".to_string()]);
+    
+    // Derived state - automatic dependency tracking
+    let is_active = create_memo(move || count.get() > 0);
+
     view! {
-        <Flex direction="column" gap=20.0 align_items="center">
-            <Text content="My First Rvue App" />
-            <Counter />
+        <Flex direction="column" gap=20.0 styles=card_style()>
+            <Text content={move || format!("Updates: {}", count.get())} />
+            
+            // Conditional Rendering - One-line logic
+            <Show when=is_active>
+                <Text content="System Active 🚀" styles=text_style(Color::rgb(40, 167, 69)) />
+            </Show>
+
+            <Button on_click=move || {
+                set_count.update(|n| *n += 1);
+                set_items.update(|list| list.push(format!("Update #{}", count.get_untracked())));
+            } styles=button_style()>
+                <Text content="Push Update" styles=text_style(Color::rgb(255, 255, 255)) />
+            </Button>
+
+            // List Rendering - High-performance For loop
+            <Flex direction="column" gap=8.0>
+                <Text content="History Log:" styles=label_style() />
+                <For each=items key=|item: &String| item.clone() view=|item| {
+                    view! { <Text content=format!("• {}", item) /> }
+                } />
+            </Flex>
         </Flex>
     }
 }
 
-#[component]
-fn Counter() -> ViewStruct {
-    let (count, set_count) = create_signal(0);
-    let set_count_inc = set_count.clone();
+// Clean, reusable styling
+fn card_style() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
+        .set_padding(Padding(20.0))
+        .set_border_radius(BorderRadius(12.0))
+}
 
-    view! {
-        <Flex direction="row" gap=10.0 align_items="center">
-            <Text content={format!("Count: {}", count.get())} />
-            <Button label="Increment" 
-                on_click={move || set_count_inc.update(|x| *x += 1)} 
-            />
-        </Flex>
-    }
+fn header_style() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_font_size(FontSize(32.0))
+        .set_font_weight(FontWeight::Bold)
+        .set_text_color(TextColor(Color::rgb(33, 37, 41)))
+}
+
+fn label_style() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_font_weight(FontWeight::Bold)
+        .set_text_color(TextColor(Color::rgb(108, 117, 125)))
+}
+
+fn button_style() -> ReactiveStyles {
+    ReactiveStyles::new()
+        .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
+        .set_padding(Padding(12.0))
+        .set_border_radius(BorderRadius(8.0))
+}
+
+fn text_style(color: Color) -> ReactiveStyles {
+    ReactiveStyles::new().set_text_color(TextColor(color))
 }
 ```
+
 
 
 ## 📦 Project Structure

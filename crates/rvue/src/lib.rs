@@ -27,7 +27,7 @@ pub mod view;
 pub mod widget;
 pub mod widgets;
 
-pub use app::{run_app, AppError};
+pub use app::{run_app, run_app_with_stylesheet, AppError};
 pub use component::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
 pub use effect::{
     create_effect, flush_pending_effects, on_cleanup, set_defer_effect_run, untracked, Effect,
@@ -41,10 +41,7 @@ pub use signal::{
     create_memo, create_memo_with_equality, create_signal, ReadSignal, SignalRead, SignalWrite,
     WriteSignal,
 };
-pub use style::{
-    AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
-    Spacing, Style,
-};
+pub use style::{Stylesheet, StylesheetProvider};
 pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};

@@ -2,7 +2,9 @@
 
 use crate::component::build_layout_tree;
 use crate::component::Component;
+use crate::layout::node::LayoutNode;
 use crate::render::widget::render_component;
+use crate::style::Stylesheet;
 use crate::text::TextContext;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
@@ -18,6 +20,7 @@ pub struct Scene {
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
     pub text_context: TextContext,
+    pub stylesheet: Option<Stylesheet>,
 }
 
 impl Scene {
@@ -30,7 +33,19 @@ impl Scene {
             renderer_initialized: false,
             taffy: TaffyTree::new(),
             text_context: TextContext::new(),
+            stylesheet: None,
         }
+    }
+
+    /// Set the stylesheet for this scene
+    pub fn set_stylesheet(&mut self, stylesheet: Stylesheet) {
+        self.stylesheet = Some(stylesheet);
+        self.is_dirty = true;
+    }
+
+    /// Get a reference to the stylesheet
+    pub fn stylesheet(&self) -> Option<&Stylesheet> {
+        self.stylesheet.as_ref()
     }
 
     /// Initialize the Vello scene lazily (only when needed)
@@ -47,29 +62,43 @@ impl Scene {
         self.is_dirty = true;
     }
 
+    fn clear_all_component_layout_nodes(components: &[Gc<Component>]) {
+        for component in components {
+            component.set_layout_node(LayoutNode::new());
+            Self::clear_all_component_layout_nodes(&component.children.borrow());
+        }
+    }
+
     /// Update the scene by regenerating dirty fragments
     pub fn update(&mut self) {
         let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
-
         if !self.is_dirty && !any_dirty {
             return;
         }
 
         self.ensure_initialized();
 
-        if self.is_dirty {
+        if self.is_dirty || any_dirty {
             if let Some(ref mut scene) = self.vello_scene {
                 scene.reset();
             }
-            self.taffy.clear();
+            self.taffy = TaffyTree::new();
+            Self::clear_all_component_layout_nodes(&self.root_components);
         }
 
         let mut already_appended = FxHashSet::default();
 
+        let force_rebuild_layout = self.is_dirty || any_dirty;
+
         for component in &self.root_components {
             crate::effect::set_defer_effect_run(true);
 
-            let layout = build_layout_tree(component, &mut self.taffy, &mut self.text_context);
+            let layout = build_layout_tree(
+                component,
+                &mut self.taffy,
+                &mut self.text_context,
+                self.stylesheet.as_ref(),
+            );
             component.set_layout_node(layout.clone());
 
             crate::effect::flush_pending_effects();
@@ -84,13 +113,28 @@ impl Scene {
             crate::component::propagate_layout_results(component, &self.taffy);
 
             if let Some(ref mut scene) = self.vello_scene {
-                if component.is_dirty() {
+                let comp_dirty = component.is_dirty();
+                let cache_none = component.vello_cache.borrow().is_none();
+
+                if comp_dirty || force_rebuild_layout || cache_none {
                     *component.vello_cache.borrow_mut() = None;
-                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
+                    render_component(
+                        component,
+                        scene,
+                        Affine::IDENTITY,
+                        &mut already_appended,
+                        self.stylesheet.as_ref(),
+                    );
                 } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
                 } else {
-                    render_component(component, scene, Affine::IDENTITY, &mut already_appended);
+                    render_component(
+                        component,
+                        scene,
+                        Affine::IDENTITY,
+                        &mut already_appended,
+                        self.stylesheet.as_ref(),
+                    );
                 }
             }
         }

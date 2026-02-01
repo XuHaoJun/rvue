@@ -74,7 +74,9 @@ fn create_form_view() -> ViewStruct {
                 </Flex>
             </Flex>
 
-            <Button label="Submit" />
+            <Button>
+            <Text content="Submit" />
+        </Button>
         </Flex>
     }
 }

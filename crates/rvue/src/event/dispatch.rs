@@ -48,7 +48,8 @@ fn get_pointer_target(app_state: &impl crate::app::AppStateLike) -> Option<Gc<Co
     }
 
     if let Some(pos) = app_state.last_pointer_pos() {
-        return hit_test(&app_state.root_component(), pos);
+        let result = hit_test(&app_state.root_component(), pos);
+        return result;
     }
 
     None

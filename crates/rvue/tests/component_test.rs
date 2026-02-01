@@ -8,7 +8,7 @@ fn test_component_creation() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Hello".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Hello".to_string(), styles: None },
     );
 
     assert_eq!(component.id, 1);
@@ -28,13 +28,14 @@ fn test_component_add_child() {
             gap: 10.0,
             align_items: "center".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
     let child = Component::new(
         2,
         ComponentType::Text,
-        ComponentProps::Text { content: "Child".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Child".to_string(), styles: None },
     );
 
     // Test add_child works with GcCell
@@ -48,7 +49,7 @@ fn test_component_lifecycle_mount() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), styles: None },
     );
 
     // Mount should not panic
@@ -61,7 +62,7 @@ fn test_component_lifecycle_unmount() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), styles: None },
     );
 
     // Unmount should not panic
@@ -73,7 +74,7 @@ fn test_component_lifecycle_update() {
     let component = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "Test".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "Test".to_string(), styles: None },
     );
 
     // Update should not panic (even with no effects)
@@ -85,15 +86,11 @@ fn test_component_types() {
     let text = Component::new(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: "".to_string(), font_size: None, color: None },
+        ComponentProps::Text { content: "".to_string(), styles: None },
     );
     assert_eq!(text.component_type, ComponentType::Text);
 
-    let button = Component::new(
-        2,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button = Component::new(2, ComponentType::Button, ComponentProps::Button { styles: None });
     assert_eq!(button.component_type, ComponentType::Button);
 
     let flex = Component::new(
@@ -104,6 +101,7 @@ fn test_component_types() {
             gap: 5.0,
             align_items: "start".to_string(),
             justify_content: "center".to_string(),
+            styles: None,
         },
     );
     assert_eq!(flex.component_type, ComponentType::Flex);
@@ -111,8 +109,7 @@ fn test_component_types() {
 
 #[test]
 fn test_component_props() {
-    let text_props =
-        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, color: None };
+    let text_props = ComponentProps::Text { content: "Hello World".to_string(), styles: None };
 
     match text_props {
         ComponentProps::Text { content, .. } => {
@@ -121,11 +118,11 @@ fn test_component_props() {
         _ => panic!("Expected Text props"),
     }
 
-    let button_props = ComponentProps::Button { label: "Submit".to_string() };
+    let button_props = ComponentProps::Button { styles: None };
 
     match button_props {
-        ComponentProps::Button { label } => {
-            assert_eq!(label, "Submit");
+        ComponentProps::Button { .. } => {
+            // Button created successfully
         }
         _ => panic!("Expected Button props"),
     }

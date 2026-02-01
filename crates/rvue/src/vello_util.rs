@@ -189,7 +189,8 @@ fn create_targets(
         dimension: wgpu::TextureDimension::D2,
         usage: TextureUsages::STORAGE_BINDING
             | TextureUsages::TEXTURE_BINDING
-            | TextureUsages::COPY_SRC,
+            | TextureUsages::COPY_SRC
+            | TextureUsages::RENDER_ATTACHMENT,
         format,
         view_formats: &[],
     });

@@ -25,6 +25,7 @@ fn test_basic_context() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -50,6 +51,7 @@ fn test_nested_context() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -92,6 +94,7 @@ fn test_context_shadowing() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 
@@ -105,6 +108,7 @@ fn test_context_shadowing() {
                 gap: 0.0,
                 align_items: "start".to_string(),
                 justify_content: "start".to_string(),
+                styles: None,
             },
         );
 
@@ -143,6 +147,7 @@ fn test_context_in_effect() {
             gap: 0.0,
             align_items: "start".to_string(),
             justify_content: "start".to_string(),
+            styles: None,
         },
     );
 

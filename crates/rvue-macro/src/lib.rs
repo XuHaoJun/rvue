@@ -52,6 +52,22 @@ use slot::slot_impl;
 /// Dynamic attributes: `attr={expression}`
 /// Event handlers: `on_event=handler`
 ///
+/// # Styles
+///
+/// Use `styles` attribute to apply styling to widgets:
+///
+/// ```ignore
+/// use rvue_style::{BackgroundColor, BorderColor, BorderWidth, Color, ReactiveStyles};
+///
+/// view! {
+///     <Flex styles=ReactiveStyles::new()
+///         .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
+///         .set_border_color(BorderColor(Color::rgb(0, 0, 0)))
+///         .set_border_width(BorderWidth(2.0))
+///     />
+/// }
+/// ```
+///
 /// # Examples
 ///
 /// Static text widget:
