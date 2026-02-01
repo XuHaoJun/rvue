@@ -3,12 +3,50 @@
 use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
 use crate::style::{resolve_styles_for_component, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
+use crate::widgets::scroll_bar::{render_horizontal_scrollbar, render_vertical_scrollbar};
 use parley::Layout;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
 use rvue_style::{BorderStyle, ComputedStyles};
 use vello::kurbo::{Affine, Circle, Rect, RoundedRect, Stroke};
 use vello::peniko::Color;
+
+/// Scroll state for Flex widgets with overflow
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FlexScrollState {
+    pub scroll_offset_x: f32,
+    pub scroll_offset_y: f32,
+    pub scroll_width: f32,
+    pub scroll_height: f32,
+    pub container_width: f32,
+    pub container_height: f32,
+}
+
+impl FlexScrollState {
+    /// Check if horizontal scrollbar should be visible
+    pub fn should_show_horizontal_scrollbar(
+        &self,
+        overflow_y: rvue_style::properties::Overflow,
+    ) -> bool {
+        matches!(overflow_y, rvue_style::properties::Overflow::Scroll) || self.scroll_width > 0.0
+    }
+
+    /// Check if vertical scrollbar should be visible
+    pub fn should_show_vertical_scrollbar(
+        &self,
+        overflow_x: rvue_style::properties::Overflow,
+    ) -> bool {
+        matches!(overflow_x, rvue_style::properties::Overflow::Scroll) || self.scroll_height > 0.0
+    }
+}
+
+fn get_or_create_scroll_state(component: &Gc<Component>) -> FlexScrollState {
+    let mut user_data = component.user_data.borrow_mut();
+    if let Some(state) = user_data.as_mut().and_then(|d| d.downcast_mut::<FlexScrollState>()) {
+        return *state;
+    }
+    FlexScrollState::default()
+}
 
 pub fn render_component(
     component: &Gc<Component>,
@@ -99,10 +137,32 @@ fn render_children(
     force_render_children: bool,
     stylesheet: Option<&Stylesheet>,
 ) {
+    // Check if we need to apply scroll offset
+    let styles = get_styles(component, stylesheet);
+    let overflow_x = styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);
+    let overflow_y = styles.overflow_y.unwrap_or(rvue_style::properties::Overflow::Visible);
+
+    let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
+
+    // Get scroll offset if clipping
+    let scroll_offset = if should_clip {
+        let scroll_state = get_or_create_scroll_state(component);
+        Some((scroll_state.scroll_offset_x as f64, scroll_state.scroll_offset_y as f64))
+    } else {
+        None
+    };
+
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
-                Affine::translate((layout.location.x as f64, layout.location.y as f64))
+                let tx = layout.location.x as f64;
+                let ty = layout.location.y as f64;
+                // Apply scroll offset if needed
+                if let Some((sx, sy)) = scroll_offset {
+                    Affine::translate((tx - sx, ty - sy))
+                } else {
+                    Affine::translate((tx, ty))
+                }
             } else {
                 Affine::IDENTITY
             }
@@ -547,13 +607,62 @@ fn render_flex_background(
                 render_border(
                     scene,
                     Affine::IDENTITY,
-                    &Some(styles),
+                    &Some(styles.clone()),
                     x,
                     y,
                     width,
                     height,
                     border_radius,
                 );
+
+                // Render scrollbars if overflow is set
+                let overflow_x =
+                    styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);
+                let overflow_y =
+                    styles.overflow_y.unwrap_or(rvue_style::properties::Overflow::Visible);
+
+                let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
+
+                if should_clip {
+                    // Get scroll state from user_data
+                    let scroll_state = get_or_create_scroll_state(component);
+
+                    // Check if we need to show scrollbars
+                    let show_vertical =
+                        matches!(overflow_y, rvue_style::properties::Overflow::Scroll)
+                            || (matches!(overflow_y, rvue_style::properties::Overflow::Auto)
+                                && scroll_state.scroll_height > 0.0);
+                    let show_horizontal =
+                        matches!(overflow_x, rvue_style::properties::Overflow::Scroll)
+                            || (matches!(overflow_x, rvue_style::properties::Overflow::Auto)
+                                && scroll_state.scroll_width > 0.0);
+
+                    // Render vertical scrollbar if needed
+                    if show_vertical {
+                        render_vertical_scrollbar(
+                            scene,
+                            x,
+                            y,
+                            width,
+                            height,
+                            scroll_state.scroll_offset_y as f64,
+                            scroll_state.scroll_height as f64,
+                        );
+                    }
+
+                    // Render horizontal scrollbar if needed
+                    if show_horizontal {
+                        render_horizontal_scrollbar(
+                            scene,
+                            x,
+                            y,
+                            width,
+                            height,
+                            scroll_state.scroll_offset_x as f64,
+                            scroll_state.scroll_width as f64,
+                        );
+                    }
+                }
             }
         }
     }

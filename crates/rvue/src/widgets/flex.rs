@@ -4,8 +4,8 @@ use crate::component::{Component, ComponentProps, ComponentType};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::{
-    AlignItems, BackgroundColor, BorderColor, BorderRadius, FlexDirection, JustifyContent,
-    ReactiveStyles,
+    properties::Overflow, AlignItems, BackgroundColor, BorderColor, BorderRadius, FlexDirection,
+    JustifyContent, ReactiveStyles,
 };
 
 /// Flex widget builder for creating flexbox layouts
@@ -16,6 +16,8 @@ pub struct Flex {
     align_items: ReactiveValue<AlignItems>,
     justify_content: ReactiveValue<JustifyContent>,
     styles: Option<ReactiveStyles>,
+    overflow_x: ReactiveValue<Overflow>,
+    overflow_y: ReactiveValue<Overflow>,
 }
 
 unsafe impl Trace for Flex {
@@ -25,6 +27,8 @@ unsafe impl Trace for Flex {
         self.align_items.trace(visitor);
         self.justify_content.trace(visitor);
         self.styles.trace(visitor);
+        self.overflow_x.trace(visitor);
+        self.overflow_y.trace(visitor);
     }
 }
 
@@ -37,6 +41,8 @@ impl Flex {
             align_items: ReactiveValue::Static(AlignItems::Stretch),
             justify_content: ReactiveValue::Static(JustifyContent::FlexStart),
             styles: None,
+            overflow_x: ReactiveValue::Static(Overflow::Visible),
+            overflow_y: ReactiveValue::Static(Overflow::Visible),
         }
     }
 
@@ -102,6 +108,28 @@ impl Flex {
         self.styles = Some(styles);
         self
     }
+
+    /// Set the overflow behavior for x-axis (horizontal)
+    pub fn overflow_x(mut self, overflow: impl crate::widget::IntoReactiveValue<Overflow>) -> Self {
+        self.overflow_x = overflow.into_reactive();
+        self
+    }
+
+    /// Set the overflow behavior for y-axis (vertical)
+    pub fn overflow_y(mut self, overflow: impl crate::widget::IntoReactiveValue<Overflow>) -> Self {
+        self.overflow_y = overflow.into_reactive();
+        self
+    }
+
+    /// Set the overflow behavior for both axes
+    pub fn overflow(
+        mut self,
+        overflow: impl crate::widget::IntoReactiveValue<Overflow> + Clone,
+    ) -> Self {
+        self.overflow_x = overflow.clone().into_reactive();
+        self.overflow_y = overflow.into_reactive();
+        self
+    }
 }
 
 impl Default for Flex {
@@ -118,6 +146,7 @@ pub struct FlexState {
     align_items_effect: Option<Gc<crate::effect::Effect>>,
     justify_content_effect: Option<Gc<crate::effect::Effect>>,
     styles_effect: Option<Gc<crate::effect::Effect>>,
+    overflow_effect: Option<Gc<crate::effect::Effect>>,
 }
 
 impl FlexState {
@@ -143,6 +172,9 @@ unsafe impl Trace for FlexState {
             effect.trace(visitor);
         }
         if let Some(effect) = &self.styles_effect {
+            effect.trace(visitor);
+        }
+        if let Some(effect) = &self.overflow_effect {
             effect.trace(visitor);
         }
     }
@@ -261,6 +293,22 @@ impl Widget for Flex {
             None
         };
 
+        // Setup overflow effect (for reactive overflow values)
+        let overflow_effect = if self.overflow_x.is_reactive() || self.overflow_y.is_reactive() {
+            let comp = Gc::clone(&component);
+            let overflow_x = self.overflow_x.clone();
+            let overflow_y = self.overflow_y.clone();
+            let effect = crate::effect::create_effect(move || {
+                let new_overflow_x = overflow_x.get();
+                let new_overflow_y = overflow_y.get();
+                comp.set_flex_overflow(new_overflow_x, new_overflow_y);
+            });
+            component.add_effect(Gc::clone(&effect));
+            Some(effect)
+        } else {
+            None
+        };
+
         FlexState {
             component,
             direction_effect,
@@ -268,6 +316,7 @@ impl Widget for Flex {
             align_items_effect,
             justify_content_effect,
             styles_effect,
+            overflow_effect,
         }
     }
 
@@ -338,6 +387,26 @@ impl Widget for Flex {
         } else {
             let new_justify_content = self.justify_content.get();
             state.component.set_flex_justify_content(new_justify_content.as_str().to_string());
+        }
+
+        // Update overflow if reactive
+        if self.overflow_x.is_reactive() || self.overflow_y.is_reactive() {
+            if state.overflow_effect.is_none() {
+                let comp = Gc::clone(&state.component);
+                let overflow_x = self.overflow_x.clone();
+                let overflow_y = self.overflow_y.clone();
+                let effect = crate::effect::create_effect(move || {
+                    let new_overflow_x = overflow_x.get();
+                    let new_overflow_y = overflow_y.get();
+                    comp.set_flex_overflow(new_overflow_x, new_overflow_y);
+                });
+                state.component.add_effect(Gc::clone(&effect));
+                state.overflow_effect = Some(effect);
+            }
+        } else {
+            let new_overflow_x = self.overflow_x.get();
+            let new_overflow_y = self.overflow_y.get();
+            state.component.set_flex_overflow(new_overflow_x, new_overflow_y);
         }
     }
 }

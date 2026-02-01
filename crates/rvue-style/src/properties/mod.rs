@@ -6,6 +6,7 @@ pub mod color;
 pub mod computed_styles;
 pub mod font;
 pub mod layout;
+pub mod overflow;
 pub mod sizing;
 pub mod spacing;
 pub mod visibility;
@@ -19,6 +20,7 @@ pub use layout::{
     AlignItems, AlignSelf, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink, Gap,
     JustifyContent,
 };
+pub use overflow::Overflow;
 pub use sizing::{Height, MaxHeight, MaxWidth, MinHeight, MinWidth, Size, Width};
 pub use spacing::{Margin, Padding};
 pub use visibility::{Cursor, Opacity, Visibility, ZIndex};

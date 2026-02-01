@@ -6,6 +6,7 @@ use crate::text::{BrushIndex, ParleyLayoutWrapper, TextContext};
 use parley::Layout;
 use rudo_gc::Trace;
 use rvue_style::Size as RvueSize;
+use taffy::geometry::Point;
 use taffy::prelude::*;
 use taffy::TaffyTree;
 
@@ -69,6 +70,20 @@ fn justify_content_to_taffy(jc: &rvue_style::JustifyContent) -> JustifyContent {
         rvue_style::JustifyContent::SpaceAround => JustifyContent::SpaceAround,
         rvue_style::JustifyContent::SpaceEvenly => JustifyContent::SpaceEvenly,
     }
+}
+
+fn overflow_to_taffy(
+    overflow: &Option<rvue_style::properties::Overflow>,
+) -> Point<taffy::style::Overflow> {
+    let x = overflow.as_ref().map_or(taffy::style::Overflow::Visible, |o| match o {
+        rvue_style::properties::Overflow::Visible => taffy::style::Overflow::Visible,
+        rvue_style::properties::Overflow::Clip => taffy::style::Overflow::Clip,
+        rvue_style::properties::Overflow::Hidden => taffy::style::Overflow::Hidden,
+        rvue_style::properties::Overflow::Scroll | rvue_style::properties::Overflow::Auto => {
+            taffy::style::Overflow::Scroll
+        }
+    });
+    Point { x, y: x }
 }
 
 /// Layout node wrapper holding calculation results
@@ -256,6 +271,15 @@ impl LayoutNode {
                         style.size = read_size_from_styles(&computed);
                         style.min_size = read_min_size_from_styles(&computed);
                         style.max_size = read_max_size_from_styles(&computed);
+
+                        // Apply overflow settings
+                        let overflow = overflow_to_taffy(&computed.overflow_x);
+                        style.overflow = overflow;
+
+                        // Reserve space for scrollbar if overflow is Scroll or Auto
+                        if overflow.x == taffy::style::Overflow::Scroll {
+                            style.scrollbar_width = 10.0;
+                        }
                     }
 
                     style

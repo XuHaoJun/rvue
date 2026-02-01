@@ -601,7 +601,7 @@ impl Component {
         self.mark_dirty();
     }
 
-    /// Set flex align items (for Flex components)
+    /// Set flex align_items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
         let (direction, gap, justify_content, styles) = {
             if let ComponentProps::Flex { direction, gap, justify_content, styles, .. } =
@@ -617,7 +617,7 @@ impl Component {
         self.mark_dirty();
     }
 
-    /// Set flex justify content (for Flex components)
+    /// Set flex justify_content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
         let (direction, gap, align_items, styles) = {
             if let ComponentProps::Flex { direction, gap, align_items, styles, .. } =
@@ -631,6 +631,65 @@ impl Component {
         *self.props.borrow_mut() =
             ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
         self.mark_dirty();
+    }
+
+    /// Set flex overflow (for Flex components)
+    pub fn set_flex_overflow(
+        &self,
+        overflow_x: rvue_style::properties::Overflow,
+        overflow_y: rvue_style::properties::Overflow,
+    ) {
+        let (direction, gap, align_items, justify_content, _styles) = {
+            if let ComponentProps::Flex {
+                direction,
+                gap,
+                align_items,
+                justify_content,
+                styles,
+                ..
+            } = &*self.props.borrow()
+            {
+                (
+                    direction.clone(),
+                    *gap,
+                    align_items.clone(),
+                    justify_content.clone(),
+                    styles.clone(),
+                )
+            } else {
+                return;
+            }
+        };
+        let mut new_styles = _styles.unwrap_or_default();
+        new_styles.overflow_x = Some(overflow_x);
+        new_styles.overflow_y = Some(overflow_y);
+        *self.props.borrow_mut() = ComponentProps::Flex {
+            direction,
+            gap,
+            align_items,
+            justify_content,
+            styles: Some(new_styles),
+        };
+        self.mark_dirty();
+    }
+
+    /// Set scroll state for a Flex component (used internally after layout calculation)
+    pub fn set_scroll_state(&self, scroll_state: crate::render::widget::FlexScrollState) {
+        let mut user_data = self.user_data.borrow_mut();
+        *user_data = Some(Box::new(scroll_state));
+    }
+
+    /// Get scroll state for a Flex component (returns default if not set)
+    pub fn scroll_state(&self) -> crate::render::widget::FlexScrollState {
+        let user_data = self.user_data.borrow();
+        if let Some(data) = user_data
+            .as_ref()
+            .and_then(|d| d.downcast_ref::<crate::render::widget::FlexScrollState>())
+        {
+            *data
+        } else {
+            crate::render::widget::FlexScrollState::default()
+        }
     }
 
     /// Set checkbox checked state (for Checkbox components)

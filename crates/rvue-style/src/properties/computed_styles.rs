@@ -6,7 +6,7 @@ use crate::properties::{
     AlignItems, AlignSelf, BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth,
     Color, Cursor, Display, FlexBasis, FlexDirection, FlexGrow, FlexShrink, FontFamily, FontSize,
     FontWeight, Gap, Height, JustifyContent, Margin, MaxHeight, MaxWidth, MinHeight, MinWidth,
-    Opacity, Padding, TextColor, Visibility, Width, ZIndex,
+    Opacity, Overflow, Padding, TextColor, Visibility, Width, ZIndex,
 };
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -42,6 +42,8 @@ pub struct ComputedStyles {
     pub visibility: Option<Visibility>,
     pub z_index: Option<ZIndex>,
     pub cursor: Option<Cursor>,
+    pub overflow_x: Option<Overflow>,
+    pub overflow_y: Option<Overflow>,
 }
 
 impl ComputedStyles {
@@ -145,6 +147,12 @@ impl ComputedStyles {
         if let Some(c) = properties.get::<Cursor>() {
             self.cursor = Some(c.clone());
         }
+        if let Some(ox) = properties.get::<Overflow>() {
+            self.overflow_x = Some(*ox);
+        }
+        if let Some(oy) = properties.get::<Overflow>() {
+            self.overflow_y = Some(*oy);
+        }
     }
 
     #[inline]
@@ -241,6 +249,12 @@ impl ComputedStyles {
         }
         if let Some(c) = other.cursor.as_ref() {
             self.cursor = Some(c.clone());
+        }
+        if let Some(ox) = other.overflow_x.as_ref() {
+            self.overflow_x = Some(*ox);
+        }
+        if let Some(oy) = other.overflow_y.as_ref() {
+            self.overflow_y = Some(*oy);
         }
     }
 }
