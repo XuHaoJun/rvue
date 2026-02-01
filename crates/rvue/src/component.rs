@@ -1166,10 +1166,20 @@ fn collect_child_node_ids(
 
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
         if let Some(node_id) = child_layout.taffy_node() {
-            // Direct child has a layout node - include it
             node_ids.push(node_id);
-        } else if matches!(child.component_type, ComponentType::For | ComponentType::Show) {
-            // Control-flow component - include its children's nodes
+        } else if matches!(child.component_type, ComponentType::Show) {
+            if let ComponentProps::Show { when } = &*child.props.borrow() {
+                if *when {
+                    for grandchild in child.children.borrow().iter() {
+                        if let Some(grandchild_layout) = grandchild.layout_node() {
+                            if let Some(node_id) = grandchild_layout.taffy_node() {
+                                node_ids.push(node_id);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if matches!(child.component_type, ComponentType::For) {
             for grandchild in child.children.borrow().iter() {
                 if let Some(grandchild_layout) = grandchild.layout_node() {
                     if let Some(node_id) = grandchild_layout.taffy_node() {
@@ -1211,6 +1221,12 @@ pub fn build_layout_tree(
         for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
             child.set_layout_node(child_layout.clone());
             child.set_parent(Some(Gc::clone(component)));
+            // Set layout nodes on grandchildren (the actual content inside Show/For)
+            for (i, grandchild) in child.children.borrow().iter().enumerate() {
+                if i < child_layouts.len() {
+                    grandchild.set_layout_node(child_layouts[i].clone());
+                }
+            }
         }
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };

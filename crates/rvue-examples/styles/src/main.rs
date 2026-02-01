@@ -9,8 +9,8 @@ use rvue::Stylesheet;
 use rvue_macro::view;
 #[allow(unused_imports)]
 use rvue_style::{
-    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize, Height,
-    Margin, Properties, ReactiveStyles, Size, TextColor, Width,
+    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Color, FontSize,
+    FontWeight, Height, Margin, Padding, Properties, ReactiveStyles, Size, TextColor, Width,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -96,6 +96,21 @@ fn text_style(color: TextColor) -> ReactiveStyles {
 }
 
 fn create_styled_view() -> ViewStruct {
+    // 1. Reactive signals for demonstrating style updates
+    let (is_blue, set_is_blue) = create_signal(true);
+    let (gap_size, set_gap_size) = create_signal(16.0);
+
+    let set_is_blue_clone = set_is_blue.clone();
+    let set_gap_size_clone = set_gap_size.clone();
+
+    let is_blue_for_show1 = is_blue.clone();
+    let is_blue_for_show2 = is_blue.clone();
+    let is_blue_for_click = is_blue.clone();
+
+    let gap_for_flex = gap_size.clone();
+    let gap_for_click = gap_size.clone();
+    let gap_for_text = gap_size.clone();
+
     view! {
         <Flex
             direction="column"
@@ -105,6 +120,49 @@ fn create_styled_view() -> ViewStruct {
             styles=ReactiveStyles::new()
                 .set_background_color(BackgroundColor(Color::rgb(250, 250, 250)))
         >
+            <Flex direction="column" gap=16.0 align_items="start" justify_content="start" styles=ReactiveStyles::new().set_padding(Padding(24.0)).set_border_width(BorderWidth(1.0)).set_border_style(BorderStyle::Solid).set_border_color(BorderColor(Color::rgb(230, 230, 230)))>
+                <Text content="Interactive Reactive Style Design" style=text_style(TextColor(Color::rgb(33, 37, 41))).set_font_size(FontSize(24.0)).set_font_weight(FontWeight::Bold) />
+                <Text content="This section demonstrates how Rvue styles react to signal changes." style=text_style(TextColor(Color::rgb(108, 117, 125))) />
+
+                <Flex direction="row" gap=24.0 align_items="center" justify_content="start">
+                    // Demonstrating Color Reactivity using Show (conditional styling)
+                    <Flex direction="column" gap=4.0 align_items="center">
+                        <Show when=is_blue_for_show1>
+                            <Flex styles=ReactiveStyles::new()
+                                .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
+                                .set_width(Width(Size::Pixels(100.0)))
+                                .set_height(Height(Size::Pixels(100.0)))
+                                .set_border_radius(BorderRadius(12.0))
+                            />
+                        </Show>
+                        <Show when=create_memo(move || !is_blue_for_show2.get())>
+                            <Flex styles=ReactiveStyles::new()
+                                .set_background_color(BackgroundColor(Color::rgb(220, 53, 69)))
+                                .set_width(Width(Size::Pixels(100.0)))
+                                .set_height(Height(Size::Pixels(100.0)))
+                                .set_border_radius(BorderRadius(12.0))
+                            />
+                        </Show>
+                        <Button class="primary" on_click=move || set_is_blue_clone.set(!is_blue_for_click.get_untracked())>
+                            <Text content="Toggle Color" />
+                        </Button>
+                    </Flex>
+
+                    // Demonstrating Layout Reactivity using gap property
+                    <Flex direction="column" gap=8.0 align_items="center">
+                        <Flex direction="row" gap=gap_for_flex styles=ReactiveStyles::new().set_background_color(BackgroundColor(Color::rgb(240, 240, 240))).set_padding(Padding(10.0)).set_border_radius(BorderRadius(8.0))>
+                            <Flex styles=ReactiveStyles::new().set_width(Width(Size::Pixels(40.0))).set_height(Height(Size::Pixels(40.0))).set_background_color(BackgroundColor(Color::rgb(40, 167, 69))).set_border_radius(BorderRadius(4.0)) />
+                            <Flex styles=ReactiveStyles::new().set_width(Width(Size::Pixels(40.0))).set_height(Height(Size::Pixels(40.0))).set_background_color(BackgroundColor(Color::rgb(40, 167, 69))).set_border_radius(BorderRadius(4.0)) />
+                            <Flex styles=ReactiveStyles::new().set_width(Width(Size::Pixels(40.0))).set_height(Height(Size::Pixels(40.0))).set_background_color(BackgroundColor(Color::rgb(40, 167, 69))).set_border_radius(BorderRadius(4.0)) />
+                        </Flex>
+                        <Button class="primary" on_click=move || set_gap_size_clone.set(if gap_for_click.get_untracked() > 40.0 { 8.0 } else { gap_for_click.get_untracked() + 8.0 })>
+                            <Text content="Change Gap" />
+                        </Button>
+                        <Text content=create_memo(move || format!("Gap: {:.0}px", gap_for_text.get())) />
+                    </Flex>
+                </Flex>
+            </Flex>
+
             <Text
                 content="Rvue Styling System Showcase"
                 style=text_style(TextColor(Color::rgb(33, 37, 41)))
