@@ -51,6 +51,32 @@ fn get_computed_styles_from_stylesheet(
     Some(crate::style::resolve_styles_for_component(component, stylesheet))
 }
 
+fn get_computed_styles_for_component(
+    component: &Component,
+    stylesheet: Option<&Stylesheet>,
+) -> Option<rvue_style::ComputedStyles> {
+    eprintln!(
+        "[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, stylesheet: {}",
+        component.id,
+        stylesheet.is_some()
+    );
+
+    // First try to get styles from stylesheet (includes inline styles via resolve_styles_for_component)
+    if let Some(sheet) = stylesheet {
+        let result = crate::style::resolve_styles_for_component(component, sheet);
+        eprintln!("[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, from_stylesheet overflow: x: {:?}, y: {:?}",
+                  component.id, result.overflow_x, result.overflow_y);
+        return Some(result);
+    }
+    // Fall back to inline styles only if stylesheet is not available
+    let result = crate::style::get_inline_styles(component);
+    eprintln!("[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, from_inline overflow: {:?}, {:?}",
+              component.id,
+              result.as_ref().map(|s| s.overflow_x.clone()).unwrap_or(None),
+              result.as_ref().map(|s| s.overflow_y.clone()).unwrap_or(None));
+    result
+}
+
 fn align_items_to_taffy(ai: &rvue_style::AlignItems) -> AlignItems {
     match ai {
         rvue_style::AlignItems::Stretch => AlignItems::Stretch,
@@ -213,8 +239,7 @@ impl LayoutNode {
         component: &Component,
         stylesheet: Option<&Stylesheet>,
     ) -> Style {
-        let computed =
-            stylesheet.and_then(|sheet| get_computed_styles_from_stylesheet(component, sheet));
+        let computed = get_computed_styles_for_component(component, stylesheet);
 
         match &component.component_type {
             ComponentType::Flex => {
@@ -278,7 +303,7 @@ impl LayoutNode {
                         let overflow_x_taffy = overflow_to_taffy(&computed.overflow_x);
                         let overflow_y_taffy = overflow_to_taffy(&computed.overflow_y);
                         let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
-                        eprintln!("[DEBUG-SCROLL] overflow_to_taffy - overflow_x: {:?}, overflow_y: {:?}, result: {:?}", overflow_x, overflow_y, overflow);
+                        eprintln!("[DEBUG-SCROLL] overflow_to_taffy - component_id: {}, overflow_x: {:?}, overflow_y: {:?}, result: {:?}", component.id, overflow_x, overflow_y, overflow);
                         style.overflow = overflow;
 
                         // Reserve space for scrollbar if overflow is Scroll or Auto

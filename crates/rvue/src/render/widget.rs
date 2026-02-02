@@ -172,6 +172,33 @@ fn render_children(
     eprintln!("[DEBUG-SCROLL] render_children - Component ID: {:?}, overflow_x: {:?}, overflow_y: {:?}, should_clip: {}, scroll_offset: {:?}, children_count: {}",
         component.id, overflow_x, overflow_y, should_clip, scroll_offset, children_count);
 
+    // Get container layout for clipping
+    let container_rect = if should_clip {
+        component.layout_node().and_then(|ln| {
+            ln.layout().map(|layout| {
+                Rect::new(
+                    layout.location.x as f64,
+                    layout.location.y as f64,
+                    (layout.location.x + layout.size.width) as f64,
+                    (layout.location.y + layout.size.height) as f64,
+                )
+            })
+        })
+    } else {
+        None
+    };
+
+    // Push clip layer if needed
+    if should_clip {
+        if let Some(ref rect) = container_rect {
+            eprintln!(
+                "[DEBUG-SCROLL] render_children - pushing clip layer for component {:?}",
+                component.id
+            );
+            scene.push_clip_layer(vello::peniko::Fill::NonZero, Affine::IDENTITY, rect);
+        }
+    }
+
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
@@ -202,6 +229,15 @@ fn render_children(
                 stylesheet,
             );
         }
+    }
+
+    // Pop clip layer if it was pushed
+    if should_clip && container_rect.is_some() {
+        eprintln!(
+            "[DEBUG-SCROLL] render_children - popping clip layer for component {:?}",
+            component.id
+        );
+        scene.pop_layer();
     }
 }
 

@@ -1,6 +1,7 @@
 //! Flex widget for flexbox layouts
 
 use crate::component::{Component, ComponentProps, ComponentType};
+use crate::event::status::ComponentFlags;
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::{
@@ -205,8 +206,25 @@ impl Widget for Flex {
         let overflow_x = self.overflow_x.get();
         let overflow_y = self.overflow_y.get();
 
-        // Compute the styles if present
-        let computed_styles = self.styles.as_ref().map(|s| s.compute());
+        // Compute the styles if present and include overflow values
+        let mut computed_styles = self.styles.as_ref().map(|s| s.compute());
+
+        // Always include overflow values (even if not set via styles)
+        if overflow_x != Overflow::Visible || overflow_y != Overflow::Visible {
+            eprintln!(
+                "[DEBUG-SCROLL] Flex::build including overflow - id: {}, x: {:?}, y: {:?}",
+                id, overflow_x, overflow_y
+            );
+            if let Some(ref mut styles) = computed_styles {
+                styles.overflow_x = Some(overflow_x);
+                styles.overflow_y = Some(overflow_y);
+            } else {
+                let mut new_styles = rvue_style::ComputedStyles::default();
+                new_styles.overflow_x = Some(overflow_x);
+                new_styles.overflow_y = Some(overflow_y);
+                computed_styles = Some(new_styles);
+            }
+        }
 
         let component = Component::new(
             id,
@@ -220,13 +238,16 @@ impl Widget for Flex {
             },
         );
 
-        // Set static overflow values immediately (only once during build)
-        if overflow_x != Overflow::Visible || overflow_y != Overflow::Visible {
+        eprintln!("[DEBUG-SCROLL] Flex::build created component id: {}, is_root: {}", id, id == 0);
+
+        // Set ACCEPTS_POINTER flag if this is a scroll container
+        // This allows the component to receive scroll events without requiring prior pointer interaction
+        if overflow_x.should_clip() || overflow_y.should_clip() {
+            component.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
             eprintln!(
-                "[DEBUG-SCROLL] Flex::build setting static overflow - x: {:?}, y: {:?}",
-                overflow_x, overflow_y
+                "[DEBUG-SCROLL] Flex component {} marked as scroll container (accepts scroll events)",
+                component.id
             );
-            component.set_flex_overflow(overflow_x, overflow_y);
         }
 
         // Setup reactive updates for each property

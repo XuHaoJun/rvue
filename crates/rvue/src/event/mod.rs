@@ -316,4 +316,24 @@ mod tests {
         assert_eq!(event.action, accesskit::Action::Click);
         assert!(event.data.is_none());
     }
+
+    #[test]
+    fn test_scroll_delta_variants_exhaustive() {
+        // Test that ScrollDelta enum variants work correctly
+        let line = ScrollDelta::Line(3.0);
+        let pixel = ScrollDelta::Pixel(10.0, 20.0);
+
+        match line {
+            ScrollDelta::Line(y) => assert!((y - 3.0).abs() < f64::EPSILON),
+            _ => panic!("Expected Line"),
+        }
+
+        match pixel {
+            ScrollDelta::Pixel(x, y) => {
+                assert!((x - 10.0).abs() < f64::EPSILON);
+                assert!((y - 20.0).abs() < f64::EPSILON);
+            }
+            _ => panic!("Expected Pixel"),
+        }
+    }
 }

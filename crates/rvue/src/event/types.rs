@@ -238,7 +238,11 @@ pub fn convert_pointer_event_from_ui_events(
             PointerEvent::Leave(PointerInfo { position: Point::ZERO })
         }
         ui_events::pointer::PointerEvent::Scroll(e) => PointerEvent::Scroll(PointerScrollEvent {
-            delta: ScrollDelta::Line(1.0),
+            delta: match e.delta {
+                ui_events::ScrollDelta::PageDelta(_, y) => ScrollDelta::Line(y as f64),
+                ui_events::ScrollDelta::LineDelta(_, y) => ScrollDelta::Line(y as f64),
+                ui_events::ScrollDelta::PixelDelta(p) => ScrollDelta::Pixel(p.x, p.y),
+            },
             position: Point::new(
                 e.state.position.x / scale_factor,
                 e.state.position.y / scale_factor,

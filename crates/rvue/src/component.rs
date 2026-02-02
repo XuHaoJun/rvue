@@ -385,6 +385,8 @@ impl Component {
             _ => {}
         }
 
+        eprintln!("[DEBUG-SCROLL] Component::new - id: {}, type: {:?}", id, component_type);
+
         Gc::new(Self {
             id,
             component_type,
