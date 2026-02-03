@@ -211,14 +211,10 @@ fn render_children(
         let is_dirty = child.is_dirty();
         let cache_was_none = child.vello_cache.borrow().is_none();
 
+        let final_transform = transform * child_transform;
+
         if force_render_children || is_dirty || cache_was_none {
-            render_component(
-                child,
-                scene,
-                transform * child_transform,
-                already_appended,
-                stylesheet,
-            );
+            render_component(child, scene, final_transform, already_appended, stylesheet);
         }
     }
 

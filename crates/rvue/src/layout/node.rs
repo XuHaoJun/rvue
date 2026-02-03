@@ -189,8 +189,8 @@ impl LayoutNode {
         let mut layout: Layout<BrushIndex> = layout_builder.build(&content);
         layout.break_all_lines(None); // Generate lines (no max advance)
 
-        let width = layout.width();
-        let height = layout.height();
+        let parley_width = layout.width();
+        let parley_height = layout.height();
 
         // Store layout in user_data for rendering
         {
@@ -200,13 +200,15 @@ impl LayoutNode {
 
         // Set explicit size in style based on text measurement
         // If width/height is 0, provide a small default to avoid collapse in tests if fonts aren't loaded
-        let width = if width > 0.0 { width } else { 10.0 * content.len() as f32 };
-        let height = if height > 0.0 { height } else { 20.0 };
+        let width = if parley_width > 0.0 { parley_width } else { 10.0 * content.len() as f32 };
+        let height = if parley_height > 0.0 { parley_height } else { 20.0 };
 
         // Reset gap to avoid inherited spacing
         style.gap = Size::zero();
 
         style.size = Size { width: length(width), height: length(height) };
+        style.min_size = Size { width: length(0.0), height: length(height) };
+        style.max_size = Size { width: length(f32::MAX), height: length(height) };
 
         let taffy_node = taffy.new_leaf(style).ok();
 
