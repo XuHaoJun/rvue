@@ -4,6 +4,7 @@ members = [
     "crates/rvue",
     "crates/rvue-style",
     "crates/rvue-macro",
+    "crates/rvue-testing",
     "crates/rvue-examples/counter",
     "crates/rvue-examples/list",
     "crates/rvue-examples/layout",

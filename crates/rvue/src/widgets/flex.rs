@@ -304,6 +304,8 @@ impl Widget for Flex {
                 let _ = styles.border_radius.get();
                 let _ = styles.border_style.get();
                 let _ = styles.border_width.get();
+                let _ = styles.overflow_x.get();
+                let _ = styles.overflow_y.get();
                 // Mark component as dirty to trigger re-render
                 comp.mark_dirty();
             });
@@ -314,6 +316,8 @@ impl Widget for Flex {
         };
 
         // Setup overflow effect (for reactive overflow values)
+        // This handles ReactiveValue::Signal which uses rvue::signal::SignalRead::get()
+        // which properly tracks effects
         let overflow_effect = if self.overflow_x.is_reactive() || self.overflow_y.is_reactive() {
             let comp = Gc::clone(&component);
             let overflow_x = self.overflow_x.clone();

@@ -3,8 +3,6 @@
 //! This example demonstrates the scroll/overflow functionality in Rvue.
 //! It shows how to create scrollable containers with different overflow modes.
 
-use std::rc::Rc;
-
 use rvue::prelude::*;
 use rvue_macro::view;
 use rvue_style::properties::Overflow;
@@ -19,7 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_scroll_view() -> ViewStruct {
     let (overflow_mode, set_overflow_mode) = create_signal(Overflow::Auto);
-    let overflow_for_demo = overflow_mode.clone();
+    let overflow_mode_for_memo = overflow_mode.clone();
+    let overflow_mode_for_flex = overflow_mode.clone();
 
     let set_visible = set_overflow_mode.clone();
     let set_hidden = set_overflow_mode.clone();
@@ -67,7 +66,7 @@ fn create_scroll_view() -> ViewStruct {
             </Flex>
 
             <Text
-                content=create_memo(move || format!("Current Mode: {:?}", overflow_mode.get()))
+                content=create_memo(move || format!("Current Mode: {:?}", overflow_mode_for_memo.get()))
                 style=ReactiveStyles::new()
                     .set_font_size(14.0)
                     .set_text_color(TextColor(Color::rgb(0, 123, 255)))
@@ -85,6 +84,7 @@ fn create_scroll_view() -> ViewStruct {
                 gap=0.0
                 align_items="stretch"
                 justify_content="start"
+                overflow_y=overflow_mode_for_flex
                 styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(300.0)))
                     .set_width(Width(Size::Pixels(400.0)))
@@ -93,7 +93,6 @@ fn create_scroll_view() -> ViewStruct {
                     .set_border_width(BorderWidth(1.0))
                     .set_border_style(BorderStyle::Solid)
                     .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
-                    .set_overflow_y_dynamic(Rc::new(move || overflow_for_demo.get()))
             >
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
