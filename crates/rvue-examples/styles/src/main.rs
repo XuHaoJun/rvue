@@ -103,7 +103,7 @@ fn create_styled_view() -> ViewStruct {
 
     // 2. Overflow demo signal
     let (overflow_mode, set_overflow_mode) = create_signal(Overflow::Auto);
-    let overflow_for_demo = overflow_mode.clone();
+    let overflow_for_memo = overflow_mode.clone();
     let set_overflow_visible = set_overflow_mode.clone();
     let set_overflow_hidden = set_overflow_mode.clone();
     let set_overflow_scroll = set_overflow_mode.clone();
@@ -372,28 +372,29 @@ fn create_styled_view() -> ViewStruct {
 
                 // 切換按鈕
                 <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
-                    <Button class="primary" on_click=move || set_overflow_visible.set(Overflow::Visible)>
+                    <Button class="primary" on_click=move || { println!("Visible clicked!"); set_overflow_visible.set(Overflow::Visible); }>
                         <Text content="Visible" />
                     </Button>
-                    <Button class="secondary" on_click=move || set_overflow_hidden.set(Overflow::Hidden)>
+                    <Button class="secondary" on_click=move || { println!("Hidden clicked!"); set_overflow_hidden.set(Overflow::Hidden); }>
                         <Text content="Hidden" />
                     </Button>
-                    <Button class="primary" on_click=move || set_overflow_scroll.set(Overflow::Scroll)>
+                    <Button class="primary" on_click=move || { println!("Scroll clicked!"); set_overflow_scroll.set(Overflow::Scroll); }>
                         <Text content="Scroll" />
                     </Button>
-                    <Button class="success" on_click=move || set_overflow_auto.set(Overflow::Auto)>
+                    <Button class="success" on_click=move || { println!("Auto clicked!"); set_overflow_auto.set(Overflow::Auto); }>
                         <Text content="Auto" />
                     </Button>
                 </Flex>
 
                 // 目前模式顯示
-                <Text content=create_memo(move || format!("Current Mode: {:?}", overflow_mode.get()))
+                <Text content=create_memo(move || format!("Current Mode: {:?}", overflow_for_memo.get()))
                       style=text_style(TextColor(Color::rgb(0, 123, 255))) />
 
                 // 可滾動的長列表
                 <Flex
                     direction="column"
                     gap=8.0
+                    overflow_y=overflow_mode.clone()
                     styles=ReactiveStyles::new()
                         .set_height(Height(Size::Pixels(800.0)))
                         .set_width(Width(Size::Pixels(400.0)))
@@ -402,7 +403,6 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_width(BorderWidth(1.0))
                         .set_border_style(BorderStyle::Solid)
                         .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
-                        .set_overflow_y(overflow_for_demo.get())
                 >
                     <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 1" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
                     <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 2" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>

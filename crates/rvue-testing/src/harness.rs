@@ -389,18 +389,18 @@ impl TestHarness {
 
         let show_horizontal = match overflow {
             Overflow::Visible => false,
-            Overflow::Hidden => scroll_state.scroll_width > 0.0,
+            Overflow::Hidden => false,
             Overflow::Auto => scroll_state.scroll_width > 0.0,
-            Overflow::Scroll => scroll_state.scroll_width > 0.0,
-            Overflow::Clip => scroll_state.scroll_width > 0.0,
+            Overflow::Scroll => true,
+            Overflow::Clip => false,
         };
 
         let show_vertical = match overflow {
             Overflow::Visible => false,
-            Overflow::Hidden => scroll_state.scroll_height > 0.0,
+            Overflow::Hidden => false,
             Overflow::Auto => scroll_state.scroll_height > 0.0,
-            Overflow::Scroll => scroll_state.scroll_height > 0.0,
-            Overflow::Clip => scroll_state.scroll_height > 0.0,
+            Overflow::Scroll => true,
+            Overflow::Clip => false,
         };
 
         show_horizontal || show_vertical

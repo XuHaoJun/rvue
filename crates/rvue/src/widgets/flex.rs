@@ -318,7 +318,10 @@ impl Widget for Flex {
         // Setup overflow effect (for reactive overflow values)
         // This handles ReactiveValue::Signal which uses rvue::signal::SignalRead::get()
         // which properly tracks effects
-        let overflow_effect = if self.overflow_x.is_reactive() || self.overflow_y.is_reactive() {
+        let overflow_x_is_reactive = self.overflow_x.is_reactive();
+        let overflow_y_is_reactive = self.overflow_y.is_reactive();
+
+        let overflow_effect = if overflow_x_is_reactive || overflow_y_is_reactive {
             let comp = Gc::clone(&component);
             let overflow_x = self.overflow_x.clone();
             let overflow_y = self.overflow_y.clone();
