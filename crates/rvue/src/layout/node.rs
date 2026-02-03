@@ -27,8 +27,6 @@ fn read_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dimensio
     let height =
         computed.height.as_ref().map(|h| size_to_dimension(&h.0)).unwrap_or(Dimension::auto());
 
-    eprintln!("[DEBUG-SCROLL] read_size_from_styles - width: {:?}, height: {:?}", width, height);
-
     Size { width, height }
 }
 

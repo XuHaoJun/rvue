@@ -1400,9 +1400,6 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
                     let container_width = layout.size.width;
                     let container_height = layout.size.height;
 
-                    eprintln!("[DEBUG-SCROLL] propagate_layout_results - id: {}, scroll_w: {}, scroll_h: {}",
-                        component.id, scroll_width, scroll_height);
-
                     // 讀取現有的 scroll_state，保留 offset
                     let existing_state = component.scroll_state();
 

@@ -175,10 +175,32 @@ impl<T: Clone + 'static> ReactiveSignalWrite<T> for ReactiveWriteSignal<T> {
     }
 }
 
+/// Wrapper for dynamic value retrieval using a closure
+pub struct DynamicValue<T: Clone + 'static> {
+    getter: Rc<dyn Fn() -> T>,
+}
+
+impl<T: Clone + 'static> DynamicValue<T> {
+    pub fn new(getter: Rc<dyn Fn() -> T>) -> Self {
+        Self { getter }
+    }
+
+    pub fn get(&self) -> T {
+        (self.getter)()
+    }
+}
+
+impl<T: Clone + 'static> Clone for DynamicValue<T> {
+    fn clone(&self) -> Self {
+        Self { getter: Rc::clone(&self.getter) }
+    }
+}
+
 #[derive(Clone)]
 pub enum ReactiveProperty<T: Clone + 'static> {
     Static(T),
     Reactive(ReactiveReadSignal<T>),
+    Dynamic(Rc<dyn Fn() -> T>),
 }
 
 impl<T: Clone + 'static> ReactiveProperty<T> {
@@ -190,6 +212,11 @@ impl<T: Clone + 'static> ReactiveProperty<T> {
         ReactiveProperty::Reactive(signal)
     }
 
+    /// Create a ReactiveProperty from a closure that gets the value
+    pub fn with_getter(getter: Rc<dyn Fn() -> T>) -> Self {
+        ReactiveProperty::Dynamic(getter)
+    }
+
     pub fn get(&self) -> T
     where
         T: Clone,
@@ -197,6 +224,7 @@ impl<T: Clone + 'static> ReactiveProperty<T> {
         match self {
             ReactiveProperty::Static(value) => value.clone(),
             ReactiveProperty::Reactive(signal) => signal.get(),
+            ReactiveProperty::Dynamic(getter) => getter(),
         }
     }
 
@@ -207,6 +235,7 @@ impl<T: Clone + 'static> ReactiveProperty<T> {
         match self {
             ReactiveProperty::Static(value) => value.clone(),
             ReactiveProperty::Reactive(signal) => signal.get_untracked(),
+            ReactiveProperty::Dynamic(getter) => getter(),
         }
     }
 
@@ -479,6 +508,13 @@ impl ReactiveStyles {
 
     pub fn set_overflow_y(mut self, value: impl Into<ReactiveProperty<Overflow>>) -> Self {
         self.overflow_y = value.into();
+        self.flags |= StyleFlags::OVERFLOW_Y;
+        self
+    }
+
+    /// Set overflow_y with a dynamic getter closure
+    pub fn set_overflow_y_dynamic(mut self, getter: Rc<dyn Fn() -> Overflow>) -> Self {
+        self.overflow_y = ReactiveProperty::with_getter(getter);
         self.flags |= StyleFlags::OVERFLOW_Y;
         self
     }

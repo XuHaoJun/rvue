@@ -3,13 +3,12 @@
 //! This example demonstrates the scroll/overflow functionality in Rvue.
 //! It shows how to create scrollable containers with different overflow modes.
 
+use std::rc::Rc;
+
 use rvue::prelude::*;
 use rvue_macro::view;
 use rvue_style::properties::Overflow;
-use rvue_style::{
-    BackgroundColor, BorderColor, BorderRadius, BorderStyle, BorderWidth, Height, Padding,
-    ReactiveStyles, Size, TextColor, Width,
-};
+use rvue_style::{BorderWidth, Height, ReactiveStyles, Size, Width};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rudo_gc::test_util::reset();
@@ -94,7 +93,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_border_width(BorderWidth(1.0))
                     .set_border_style(BorderStyle::Solid)
                     .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
-                    .set_overflow_y(overflow_for_demo.get())
+                    .set_overflow_y_dynamic(Rc::new(move || overflow_for_demo.get()))
             >
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
