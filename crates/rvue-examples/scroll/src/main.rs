@@ -37,7 +37,7 @@ fn create_scroll_view() -> ViewStruct {
         >
             <Text
                 content="Rvue Scroll Demo"
-                style=ReactiveStyles::new()
+                styles=ReactiveStyles::new()
                     .set_font_size(24.0)
                     .set_font_weight(700)
                     .set_text_color(TextColor(Color::rgb(33, 37, 41)))
@@ -45,7 +45,7 @@ fn create_scroll_view() -> ViewStruct {
 
             <Text
                 content="Overflow Mode:"
-                style=ReactiveStyles::new()
+                styles=ReactiveStyles::new()
                     .set_font_size(16.0)
                     .set_text_color(TextColor(Color::rgb(73, 80, 87)))
             />
@@ -67,14 +67,14 @@ fn create_scroll_view() -> ViewStruct {
 
             <Text
                 content=create_memo(move || format!("Current Mode: {:?}", overflow_mode_for_memo.get()))
-                style=ReactiveStyles::new()
+                styles=ReactiveStyles::new()
                     .set_font_size(14.0)
                     .set_text_color(TextColor(Color::rgb(0, 123, 255)))
             />
 
             <Text
                 content="Scroll the container below:"
-                style=ReactiveStyles::new()
+                styles=ReactiveStyles::new()
                     .set_font_size(14.0)
                     .set_text_color(TextColor(Color::rgb(108, 117, 125)))
             />
@@ -100,7 +100,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 1 - Pink background is scrollable container" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 1 - Pink background is scrollable container" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -108,7 +108,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 2 - Try scrolling with mouse wheel" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 2 - Try scrolling with mouse wheel" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -116,7 +116,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 3 - Click and drag scrollbar when visible" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 3 - Click and drag scrollbar when visible" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -124,7 +124,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 4 - Hidden: content clipped, no scrollbar" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 4 - Hidden: content clipped, no scrollbar" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -132,7 +132,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 5 - Auto: scrollbar when needed" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 5 - Auto: scrollbar when needed" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -140,7 +140,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 6 - Scroll: always shows scrollbar" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 6 - Scroll: always shows scrollbar" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -148,7 +148,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 7 - Scroll behavior matches CSS" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 7 - Scroll behavior matches CSS" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -156,7 +156,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 8 - Fine-grained reactivity" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 8 - Fine-grained reactivity" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -164,7 +164,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 9 - GPU-accelerated rendering" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 9 - GPU-accelerated rendering" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -172,7 +172,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 10 - Rust + Vello rendering" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 10 - Rust + Vello rendering" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -180,7 +180,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 11 - Component-based architecture" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 11 - Component-based architecture" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -188,7 +188,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 12 - Declarative UI with view! macro" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 12 - Declarative UI with view! macro" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -196,7 +196,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 13 - Inspired by Vue and SolidJS" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 13 - Inspired by Vue and SolidJS" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -204,7 +204,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 14 - Taffy for CSS-like layouts" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 14 - Taffy for CSS-like layouts" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -212,7 +212,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 15 - Hybrid GC with rudo-gc" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 15 - Hybrid GC with rudo-gc" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -220,7 +220,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 16 - Type-safe styling system" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 16 - Type-safe styling system" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -228,7 +228,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 17 - Reactive signal updates" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 17 - Reactive signal updates" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -236,7 +236,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 18 - Effect tracking for reactivity" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 18 - Effect tracking for reactivity" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -244,7 +244,7 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 19 - End of scrollable content" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 19 - End of scrollable content" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
                 <Flex styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(40.0)))
@@ -252,13 +252,13 @@ fn create_scroll_view() -> ViewStruct {
                     .set_background_color(BackgroundColor(Color::rgb(240, 240, 240)))
                     .set_width(Width(Size::Percent(100.0)))
                 >
-                    <Text content="Item 20 - Thank you for trying Rvue!" style=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
+                    <Text content="Item 20 - Thank you for trying Rvue!" styles=ReactiveStyles::new().set_text_color(TextColor(Color::rgb(50, 50, 50))) />
                 </Flex>
             </Flex>
 
             <Text
                 content="Instructions: Click buttons to change overflow mode. Scroll with mouse wheel or drag scrollbar."
-                style=ReactiveStyles::new()
+                styles=ReactiveStyles::new()
                     .set_font_size(12.0)
                     .set_text_color(TextColor(Color::rgb(134, 142, 150)))
             />

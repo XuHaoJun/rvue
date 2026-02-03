@@ -135,8 +135,8 @@ fn create_styled_view() -> ViewStruct {
                 .set_overflow_y(Overflow::Auto)
         >
             <Flex direction="column" gap=16.0 align_items="start" justify_content="start" styles=ReactiveStyles::new().set_padding(Padding(24.0)).set_border_width(BorderWidth(1.0)).set_border_style(BorderStyle::Solid).set_border_color(BorderColor(Color::rgb(230, 230, 230)))>
-                <Text content="Interactive Reactive Style Design" style=text_style(TextColor(Color::rgb(33, 37, 41))).set_font_size(FontSize(24.0)).set_font_weight(FontWeight::Bold) />
-                <Text content="This section demonstrates how Rvue styles react to signal changes." style=text_style(TextColor(Color::rgb(108, 117, 125))) />
+                <Text content="Interactive Reactive Style Design" styles=text_style(TextColor(Color::rgb(33, 37, 41))).set_font_size(FontSize(24.0)).set_font_weight(FontWeight::Bold) />
+                <Text content="This section demonstrates how Rvue styles react to signal changes." styles=text_style(TextColor(Color::rgb(108, 117, 125))) />
 
                 <Flex direction="row" gap=24.0 align_items="center" justify_content="start">
                     // Demonstrating Color Reactivity using Show (conditional styling)
@@ -179,26 +179,26 @@ fn create_styled_view() -> ViewStruct {
 
             <Text
                 content="Rvue Styling System Showcase"
-                style=text_style(TextColor(Color::rgb(33, 37, 41)))
+                styles=text_style(TextColor(Color::rgb(33, 37, 41)))
             />
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Theme:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
-                <Text content="[Light / Dark toggle buttons]" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="Theme:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="[Light / Dark toggle buttons]" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Font Size Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Font Size Examples:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
-                    <Text content="12px" style=ReactiveStyles::new().set_font_size(FontSize(12.0)) />
-                    <Text content="Aa" style=text_style(TextColor(Color::rgb(33, 37, 41))) />
-                    <Text content="24px" style=ReactiveStyles::new().set_font_size(FontSize(24.0)) />
-                    <Text content="48px" style=ReactiveStyles::new().set_font_size(FontSize(48.0)) />
+                    <Text content="12px" styles=ReactiveStyles::new().set_font_size(FontSize(12.0)) />
+                    <Text content="Aa" styles=text_style(TextColor(Color::rgb(33, 37, 41))) />
+                    <Text content="24px" styles=ReactiveStyles::new().set_font_size(FontSize(24.0)) />
+                    <Text content="48px" styles=ReactiveStyles::new().set_font_size(FontSize(48.0)) />
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Border Radius Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Border Radius Examples:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -206,7 +206,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="0" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
+                        <Text content="0" styles=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -214,7 +214,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="4" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
+                        <Text content="4" styles=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -222,7 +222,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="8" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
+                        <Text content="8" styles=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -230,7 +230,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="16" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
+                        <Text content="16" styles=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -238,13 +238,13 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="32" style=text_style(TextColor(Color::rgb(255, 255, 255))) />
+                        <Text content="32" styles=text_style(TextColor(Color::rgb(255, 255, 255))) />
                     </Flex>
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Border Color Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Border Color Examples:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
@@ -254,7 +254,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(60.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="Default" style=text_style(TextColor(Color::rgb(100, 100, 100))) />
+                        <Text content="Default" styles=text_style(TextColor(Color::rgb(100, 100, 100))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(0, 123, 255)))
@@ -264,7 +264,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(60.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="Primary" style=text_style(TextColor(Color::rgb(0, 123, 255))) />
+                        <Text content="Primary" styles=text_style(TextColor(Color::rgb(0, 123, 255))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(40, 167, 69)))
@@ -274,7 +274,7 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(60.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="Success" style=text_style(TextColor(Color::rgb(40, 167, 69))) />
+                        <Text content="Success" styles=text_style(TextColor(Color::rgb(40, 167, 69))) />
                     </Flex>
                     <Flex styles=ReactiveStyles::new()
                         .set_border_color(BorderColor(Color::rgb(220, 53, 69)))
@@ -284,13 +284,13 @@ fn create_styled_view() -> ViewStruct {
                         .set_width(Width(Size::Pixels(60.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
-                        <Text content="Danger" style=text_style(TextColor(Color::rgb(220, 53, 69))) />
+                        <Text content="Danger" styles=text_style(TextColor(Color::rgb(220, 53, 69))) />
                     </Flex>
                 </Flex>
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Color Palette:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Color Palette:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
                 <Flex direction="row" gap=12.0 align_items="center" justify_content="start">
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
@@ -321,8 +321,8 @@ fn create_styled_view() -> ViewStruct {
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="CSS Selector Matching (hover buttons below):" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
-                <Text content="These buttons demonstrate class and ID selectors with pseudo-classes" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="CSS Selector Matching (hover buttons below):" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="These buttons demonstrate class and ID selectors with pseudo-classes" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
 
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start">
                     <Button class="primary" on_click=move || { println!("Primary clicked!"); }>
@@ -340,7 +340,7 @@ fn create_styled_view() -> ViewStruct {
                 </Flex>
 
                 <Flex direction="row" gap=16.0 align_items="center" justify_content="start" styles=ReactiveStyles::new().set_margin(Margin(8.0))>
-                    <Text content="ID Selector:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                    <Text content="ID Selector:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
                     <Button id="special-button" on_click=move || { println!("Special button clicked!"); }>
                         <Text>Special Gold Button</Text>
                     </Button>
@@ -357,18 +357,18 @@ fn create_styled_view() -> ViewStruct {
             </Flex>
 
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="How CSS Selector Matching Works:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
-                <Text content="1. Create a Stylesheet and add CSS rules with selectors" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
-                <Text content="2. Use class=\"classname\" on components for class selectors" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
-                <Text content="3. Use id=\"idname\" for ID selectors (#idname)" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
-                <Text content="4. Pseudo-classes (:hover, :focus, :active, :disabled) are tracked automatically" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
-                <Text content="5. Run app with run_app_with_stylesheet(view, Some(stylesheet))" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="How CSS Selector Matching Works:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="1. Create a Stylesheet and add CSS rules with selectors" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="2. Use class=\"classname\" on components for class selectors" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="3. Use id=\"idname\" for ID selectors (#idname)" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="4. Pseudo-classes (:hover, :focus, :active, :disabled) are tracked automatically" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="5. Run app with run_app_with_stylesheet(view, Some(stylesheet))" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
             </Flex>
 
             // === OVERFLOW DEMO SECTION ===
             <Flex direction="column" gap=16.0 align_items="stretch" justify_content="start">
-                <Text content="Overflow Examples:" style=text_style(TextColor(Color::rgb(73, 80, 87))) />
-                <Text content="Interactive demo - click buttons to change overflow mode" style=text_style(TextColor(Color::rgb(134, 142, 150))) />
+                <Text content="Overflow Examples:" styles=text_style(TextColor(Color::rgb(73, 80, 87))) />
+                <Text content="Interactive demo - click buttons to change overflow mode" styles=text_style(TextColor(Color::rgb(134, 142, 150))) />
 
                 // 切換按鈕
                 <Flex direction="row" gap=8.0 align_items="center" justify_content="start">
@@ -388,7 +388,7 @@ fn create_styled_view() -> ViewStruct {
 
                 // 目前模式顯示
                 <Text content=create_memo(move || format!("Current Mode: {:?}", overflow_for_memo.get()))
-                      style=text_style(TextColor(Color::rgb(0, 123, 255))) />
+                      styles=text_style(TextColor(Color::rgb(0, 123, 255))) />
 
                 // 可滾動的長列表
                 <Flex
@@ -404,21 +404,21 @@ fn create_styled_view() -> ViewStruct {
                         .set_border_style(BorderStyle::Solid)
                         .set_border_color(BorderColor(Color::rgb(200, 200, 200)))
                 >
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 1" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 2" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 3" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 4" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 5" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 6" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 7" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 8" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 9" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 10" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 11" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 12" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 13" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 14" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
-                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 15" style=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 1" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 2" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 3" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 4" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 5" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 6" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 7" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 8" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 9" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 10" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 11" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 12" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 13" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(230, 230, 230))).set_width(Width(Size::Percent(100.0)))><Text content="Item 14" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
+                    <Flex styles=ReactiveStyles::new().set_height(Height(Size::Pixels(32.0))).set_padding(Padding(8.0)).set_background_color(BackgroundColor(Color::rgb(255, 255, 255))).set_width(Width(Size::Percent(100.0)))><Text content="Item 15" styles=text_style(TextColor(Color::rgb(50, 50, 50))) /></Flex>
                 </Flex>
             </Flex>
             // === END OVERFLOW DEMO ===
