@@ -626,10 +626,10 @@ fn render_flex_background(
                 let width = flex_layout.size.width as f64;
                 let height = flex_layout.size.height as f64;
 
-                // Render background at LOCAL (0,0) - transform will position it correctly
-                // This fixes the coordinate mismatch where background was at layout.location
-                // but children use transforms
-                let rect = Rect::new(0.0, 0.0, width, height);
+                let border_radius =
+                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(0.0);
+
+                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
 
                 if let Some(bg) = styles.background_color.as_ref() {
                     let rgb = bg.0 .0;
@@ -639,12 +639,9 @@ fn render_flex_background(
                         Affine::IDENTITY,
                         bg_color,
                         None,
-                        &rect,
+                        &rounded_rect,
                     );
                 }
-
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(0.0);
 
                 render_border(
                     scene,

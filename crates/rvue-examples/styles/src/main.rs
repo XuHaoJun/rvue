@@ -203,6 +203,9 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(0.0))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(255, 255, 255)))
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
@@ -211,6 +214,9 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(4.0))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(255, 255, 255)))
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
@@ -219,6 +225,9 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(8.0))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(255, 255, 255)))
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
@@ -227,6 +236,9 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(16.0))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(255, 255, 255)))
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
@@ -235,6 +247,9 @@ fn create_styled_view() -> ViewStruct {
                     <Flex styles=ReactiveStyles::new()
                         .set_background_color(BackgroundColor(Color::rgb(0, 123, 255)))
                         .set_border_radius(BorderRadius(32.0))
+                        .set_border_width(BorderWidth(2.0))
+                        .set_border_style(BorderStyle::Solid)
+                        .set_border_color(BorderColor(Color::rgb(255, 255, 255)))
                         .set_width(Width(Size::Pixels(40.0)))
                         .set_height(Height(Size::Pixels(40.0)))
                     >
