@@ -204,7 +204,11 @@ pub fn convert_pointer_event_from_ui_events(
     event: &ui_events::pointer::PointerEvent,
     scale_factor: f64,
 ) -> PointerEvent {
-    match event {
+    eprintln!(
+        "[DEBUG-SCROLL] convert_pointer_event_from_ui_events - input: {:?}",
+        std::mem::discriminant(event)
+    );
+    let result = match event {
         ui_events::pointer::PointerEvent::Down(e) => PointerEvent::Down(PointerButtonEvent {
             button: convert_pointer_button(e.button),
             position: Point::new(
@@ -237,18 +241,21 @@ pub fn convert_pointer_event_from_ui_events(
         ui_events::pointer::PointerEvent::Leave(_) => {
             PointerEvent::Leave(PointerInfo { position: Point::ZERO })
         }
-        ui_events::pointer::PointerEvent::Scroll(e) => PointerEvent::Scroll(PointerScrollEvent {
-            delta: match e.delta {
-                ui_events::ScrollDelta::PageDelta(_, y) => ScrollDelta::Line(y as f64),
-                ui_events::ScrollDelta::LineDelta(_, y) => ScrollDelta::Line(y as f64),
-                ui_events::ScrollDelta::PixelDelta(p) => ScrollDelta::Pixel(p.x, p.y),
-            },
-            position: Point::new(
-                e.state.position.x / scale_factor,
-                e.state.position.y / scale_factor,
-            ),
-            modifiers: convert_modifiers(&e.state.modifiers),
-        }),
+        ui_events::pointer::PointerEvent::Scroll(e) => {
+            eprintln!("[DEBUG-SCROLL] Converting Scroll event - delta: {:?}", e.delta);
+            PointerEvent::Scroll(PointerScrollEvent {
+                delta: match e.delta {
+                    ui_events::ScrollDelta::PageDelta(_, y) => ScrollDelta::Line(y as f64),
+                    ui_events::ScrollDelta::LineDelta(_, y) => ScrollDelta::Line(y as f64),
+                    ui_events::ScrollDelta::PixelDelta(p) => ScrollDelta::Pixel(p.x, p.y),
+                },
+                position: Point::new(
+                    e.state.position.x / scale_factor,
+                    e.state.position.y / scale_factor,
+                ),
+                modifiers: convert_modifiers(&e.state.modifiers),
+            })
+        }
         ui_events::pointer::PointerEvent::Gesture(e) => PointerEvent::Down(PointerButtonEvent {
             button: PointerButton::Primary,
             position: Point::new(
@@ -261,7 +268,12 @@ pub fn convert_pointer_event_from_ui_events(
         ui_events::pointer::PointerEvent::Cancel(_) => {
             PointerEvent::Cancel(PointerInfo { position: Point::ZERO })
         }
-    }
+    };
+    eprintln!(
+        "[DEBUG-SCROLL] convert_pointer_event_from_ui_events - output: {:?}",
+        std::mem::discriminant(&result)
+    );
+    result
 }
 
 fn convert_pointer_button(button: Option<ui_events::pointer::PointerButton>) -> PointerButton {

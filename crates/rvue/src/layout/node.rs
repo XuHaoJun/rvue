@@ -5,6 +5,7 @@ use crate::style::Stylesheet;
 use crate::text::{BrushIndex, ParleyLayoutWrapper, TextContext};
 use parley::Layout;
 use rudo_gc::Trace;
+use rvue_style::ComputedStyles;
 use rvue_style::Size as RvueSize;
 use taffy::geometry::Point;
 use taffy::prelude::*;
@@ -25,6 +26,9 @@ fn read_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dimensio
         computed.width.as_ref().map(|w| size_to_dimension(&w.0)).unwrap_or(Dimension::auto());
     let height =
         computed.height.as_ref().map(|h| size_to_dimension(&h.0)).unwrap_or(Dimension::auto());
+
+    eprintln!("[DEBUG-SCROLL] read_size_from_styles - width: {:?}, height: {:?}", width, height);
+
     Size { width, height }
 }
 
@@ -44,37 +48,14 @@ fn read_max_size_from_styles(computed: &rvue_style::ComputedStyles) -> Size<Dime
     Size { width, height }
 }
 
-fn get_computed_styles_from_stylesheet(
-    component: &Component,
-    stylesheet: &Stylesheet,
-) -> Option<rvue_style::ComputedStyles> {
-    Some(crate::style::resolve_styles_for_component(component, stylesheet))
-}
-
 fn get_computed_styles_for_component(
     component: &Component,
     stylesheet: Option<&Stylesheet>,
-) -> Option<rvue_style::ComputedStyles> {
-    eprintln!(
-        "[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, stylesheet: {}",
-        component.id,
-        stylesheet.is_some()
-    );
-
-    // First try to get styles from stylesheet (includes inline styles via resolve_styles_for_component)
+) -> Option<ComputedStyles> {
     if let Some(sheet) = stylesheet {
-        let result = crate::style::resolve_styles_for_component(component, sheet);
-        eprintln!("[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, from_stylesheet overflow: x: {:?}, y: {:?}",
-                  component.id, result.overflow_x, result.overflow_y);
-        return Some(result);
+        return Some(crate::style::resolve_styles_for_component(component, sheet));
     }
-    // Fall back to inline styles only if stylesheet is not available
-    let result = crate::style::get_inline_styles(component);
-    eprintln!("[DEBUG-SCROLL] get_computed_styles_for_component - component_id: {}, from_inline overflow: {:?}, {:?}",
-              component.id,
-              result.as_ref().map(|s| s.overflow_x.clone()).unwrap_or(None),
-              result.as_ref().map(|s| s.overflow_y.clone()).unwrap_or(None));
-    result
+    crate::style::get_inline_styles(component)
 }
 
 fn align_items_to_taffy(ai: &rvue_style::AlignItems) -> AlignItems {
@@ -298,12 +279,11 @@ impl LayoutNode {
                         style.max_size = read_max_size_from_styles(&computed);
 
                         // Apply overflow settings
-                        let overflow_x = computed.overflow_x;
-                        let overflow_y = computed.overflow_y;
+                        let _overflow_x = computed.overflow_x;
+                        let _overflow_y = computed.overflow_y;
                         let overflow_x_taffy = overflow_to_taffy(&computed.overflow_x);
                         let overflow_y_taffy = overflow_to_taffy(&computed.overflow_y);
                         let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
-                        eprintln!("[DEBUG-SCROLL] overflow_to_taffy - component_id: {}, overflow_x: {:?}, overflow_y: {:?}, result: {:?}", component.id, overflow_x, overflow_y, overflow);
                         style.overflow = overflow;
 
                         // Reserve space for scrollbar if overflow is Scroll or Auto

@@ -150,39 +150,13 @@ pub fn resolve_styles_for_component(
     stylesheet: &Stylesheet,
 ) -> ComputedStyles {
     let element = component_to_element(component);
-
     let resolver = StyleResolver::new();
-
     let inline_styles = get_inline_styles(component);
-    eprintln!(
-        "[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, inline_styles: {:?}",
-        component.id,
-        inline_styles
-            .as_ref()
-            .map(|s| format!(
-                "Some(overflow_x: {:?}, overflow_y: {:?})",
-                s.overflow_x, s.overflow_y
-            ))
-            .unwrap_or_else(|| "None".to_string())
-    );
-
     let inner_sheet = stylesheet.inner.borrow();
-
     let resolved = resolver.resolve_styles(&element, &inner_sheet);
-    eprintln!("[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, resolved overflow: x: {:?}, y: {:?}",
-              component.id, resolved.overflow_x, resolved.overflow_y);
-
     let mut merged = resolved;
 
-    eprintln!("[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, BEFORE merge: merged.overflow_x={:?}, merged.overflow_y={:?}",
-              component.id, merged.overflow_x, merged.overflow_y);
-
     if let Some(inline) = inline_styles {
-        eprintln!("[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, inline.overflow_x={:?}, inline.overflow_y={:?}",
-                  component.id, inline.overflow_x, inline.overflow_y);
-
-        // Only merge inline properties that differ from defaults
-        // This prevents default values (like Width(Auto)) from overriding stylesheet values
         if let Some(w) = inline.width.as_ref() {
             if !matches!(w.0, rvue_style::Size::Auto) {
                 merged.width = Some(w.clone());
@@ -274,13 +248,7 @@ pub fn resolve_styles_for_component(
         if inline.overflow_y.is_some() {
             merged.overflow_y = inline.overflow_y;
         }
-
-        eprintln!("[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, AFTER merge: merged.overflow_x={:?}, merged.overflow_y={:?}",
-                  component.id, merged.overflow_x, merged.overflow_y);
     }
-
-    eprintln!("[DEBUG-SCROLL] resolve_styles_for_component - component_id: {}, RETURNING: merged.overflow_x={:?}, merged.overflow_y={:?}",
-              component.id, merged.overflow_x, merged.overflow_y);
 
     merged
 }
@@ -300,18 +268,6 @@ pub fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
         ComponentProps::Flex { styles, .. } => styles.clone(),
         _ => None,
     };
-
-    eprintln!(
-        "[DEBUG-SCROLL] get_inline_styles - component_id: {}, result: {:?}",
-        component.id,
-        result
-            .as_ref()
-            .map(|s| format!(
-                "Some(overflow_x: {:?}, overflow_y: {:?})",
-                s.overflow_x, s.overflow_y
-            ))
-            .unwrap_or_else(|| "None".to_string())
-    );
 
     result
 }

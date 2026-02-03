@@ -11,6 +11,7 @@ members = [
     "crates/rvue-examples/form",
     "crates/rvue-examples/slots",
     "crates/rvue-examples/styles",
+    "crates/rvue-examples/scroll",
 ]
 resolver = "2"
 

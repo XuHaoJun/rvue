@@ -16,6 +16,7 @@ use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, GcCell};
 use std::cell::RefMut;
+use std::io::Write;
 use std::sync::Arc;
 use vello::kurbo::Affine;
 use vello::kurbo::{Point, Vec2};
@@ -256,11 +257,6 @@ impl<'a> AppState<'a> {
         event: &ui_events::pointer::PointerEvent,
         scale_factor: f64,
     ) {
-        eprintln!(
-            "[DEBUG-SCROLL] handle_translated_pointer_event: {:?}",
-            std::mem::discriminant(event)
-        );
-
         if let Some(pos) = get_pointer_event_position(event) {
             let logical_x = pos.x / scale_factor;
             let logical_y = pos.y / scale_factor;
@@ -268,7 +264,6 @@ impl<'a> AppState<'a> {
             self.last_pointer_pos = Some(logical_pos);
 
             let new_hovered = hit_test(&self.root_component(), logical_pos);
-            eprintln!("[DEBUG-SCROLL]   hit_test result: {:?}", new_hovered.as_ref().map(|c| c.id));
             *self.hovered_component.borrow_mut() = new_hovered;
         }
 
@@ -276,11 +271,6 @@ impl<'a> AppState<'a> {
 
         let converted_event =
             crate::event::types::convert_pointer_event_from_ui_events(event, scale_factor);
-
-        eprintln!(
-            "[DEBUG-SCROLL]   converted_event: {:?}",
-            std::mem::discriminant(&converted_event)
-        );
 
         run_pointer_event_pass(self, &converted_event);
         self.request_redraw_if_dirty();
@@ -301,73 +291,41 @@ impl ApplicationHandler for AppState<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+        let scale_factor =
+            self.window.as_ref().map(|w: &Arc<Window>| w.scale_factor()).unwrap_or(1.0);
 
-        // Comprehensive event type detection
-        let event_type = match &event {
-            WindowEvent::MouseWheel { delta, phase, .. } => {
-                eprintln!("[DEBUG-SCROLL] === MouseWheel Event DETECTED! ===");
-                eprintln!("[DEBUG-SCROLL]   delta: {:?}", delta);
-                eprintln!("[DEBUG-SCROLL]   phase: {:?}", phase);
-                "MouseWheel"
+        // Check if this is a MouseWheel event BEFORE translation
+        use winit::event::WindowEvent;
+        let is_wheel_event = matches!(event, WindowEvent::MouseWheel { .. });
+        if is_wheel_event {
+            if let WindowEvent::MouseWheel { delta, .. } = event {
+                let scroll_event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
+                    delta: map_scroll_delta(delta),
+                    position: self.last_pointer_pos.unwrap_or_default(),
+                    modifiers: self.current_modifiers(),
+                });
+                run_pointer_event_pass(self, &scroll_event);
+                self.request_redraw_if_dirty();
+                return;
             }
-            WindowEvent::CursorMoved { .. } => "CursorMoved",
-            WindowEvent::MouseInput { .. } => "MouseInput",
-            WindowEvent::KeyboardInput { .. } => "KeyboardInput",
-            WindowEvent::Focused(_) => "Focused",
-            WindowEvent::Resized(_) => "Resized",
-            WindowEvent::Touch(touch) => {
-                eprintln!("[DEBUG-SCROLL] Touch event: phase={:?}", touch.phase);
-                "Touch"
-            }
-            WindowEvent::AxisMotion { .. } => "AxisMotion",
-            WindowEvent::HoveredFile(_) => "HoveredFile",
-            WindowEvent::HoveredFileCancelled => "HoveredFileCancelled",
-            WindowEvent::DroppedFile(_) => "DroppedFile",
-            WindowEvent::ModifiersChanged(_) => "ModifiersChanged",
-            WindowEvent::Ime(_) => "Ime",
-            WindowEvent::CloseRequested => "CloseRequested",
-            WindowEvent::Destroyed => "Destroyed",
-            WindowEvent::ThemeChanged(_) => "ThemeChanged",
-            WindowEvent::Occluded(_) => "Occluded",
-            WindowEvent::RedrawRequested => "RedrawRequested",
-            _ => {
-                // For any unrecognized events, try to get the discriminant name
-                let disc = std::mem::discriminant(&event);
-                eprintln!("[DEBUG-SCROLL] Unrecognized event: {:?}", disc);
-                "Other"
-            }
-        };
-        eprintln!("[DEBUG-EVENT] window_event: {}", event_type);
+        }
 
-        // ==== DEBUG: After event_translator.translate() - what was returned? ====
         let translated = self.event_translator.translate(scale_factor, &event);
-        eprintln!(
-            "[DEBUG-SCROLL] event_translator.translate() result: {:?}",
-            translated.as_ref().map(|t| std::mem::discriminant(t))
-        );
 
         if let Some(ref translated_event) = translated {
             match translated_event {
                 ui_events_winit::WindowEventTranslation::Pointer(pointer_event) => {
-                    eprintln!(
-                        "[DEBUG-SCROLL]   -> Translated to Pointer event: {:?}",
-                        std::mem::discriminant(pointer_event)
-                    );
-                    self.handle_translated_pointer_event(&pointer_event, scale_factor);
+                    self.handle_translated_pointer_event(pointer_event, scale_factor);
                     return;
                 }
                 ui_events_winit::WindowEventTranslation::Keyboard(_) => {
-                    eprintln!("[DEBUG-SCROLL]   -> Translated to Keyboard event (ignoring)");
                     return;
                 }
             }
-        } else if event_type == "MouseWheel" {
-            eprintln!("[DEBUG-SCROLL]   -> translate() returned None for MouseWheel!");
-            eprintln!("[DEBUG-SCROLL]   -> Will fall through to fallback WindowEvent match arm");
         }
 
-        // ==== DEBUG: What happens in the fallback WindowEvent match arms? ====
+        std::io::stderr().flush().ok();
+
         match event {
             WindowEvent::CloseRequested => {
                 // Clear GC resources before exiting to prevent double-free
@@ -472,28 +430,15 @@ impl ApplicationHandler for AppState<'_> {
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                eprintln!(
-                    "[DEBUG-SCROLL] === Fallback WindowEvent::MouseWheel handler ENTERED ==="
-                );
-                eprintln!("[DEBUG-SCROLL]   delta: {:?}", delta);
                 let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
                     delta: map_scroll_delta(delta),
                     position: self.last_pointer_pos.unwrap_or_default(),
                     modifiers: self.current_modifiers(),
                 });
-                eprintln!(
-                    "[DEBUG-SCROLL]   Dispatching PointerScrollEvent: {:?}",
-                    std::mem::discriminant(&event)
-                );
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
-                eprintln!(
-                    "[DEBUG-SCROLL] === Fallback WindowEvent::MouseWheel handler COMPLETE ==="
-                );
             }
             WindowEvent::AxisMotion { axis, value, .. } => {
-                eprintln!("[DEBUG-SCROLL] === AxisMotion Event === axis={}, value={}", axis, value);
-                // Axis 0 = horizontal, Axis 1 = vertical (standard mouse wheel)
                 if axis == 1 && value != 0.0 {
                     let scroll_delta = crate::event::types::ScrollDelta::Line(value as f64);
                     let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
@@ -501,17 +446,11 @@ impl ApplicationHandler for AppState<'_> {
                         position: self.last_pointer_pos.unwrap_or_default(),
                         modifiers: self.current_modifiers(),
                     });
-                    eprintln!("[DEBUG-SCROLL]   Dispatching AxisMotion-derived PointerScrollEvent");
                     run_pointer_event_pass(self, &event);
                     self.request_redraw_if_dirty();
                 }
             }
-            _ => {
-                eprintln!(
-                    "[DEBUG-SCROLL] Event fell through to wildcard match arm: {:?}",
-                    std::mem::discriminant(&event)
-                );
-            }
+            _ => {}
         }
     }
 

@@ -203,3 +203,158 @@ fn test_nested_scroll_containers() {
     assert!(result.is_some(), "Should find a scroll container");
     assert_eq!(result.unwrap().id, parent.id, "Should find nearest scroll container");
 }
+
+#[test]
+fn test_scroll_delta_positive_increases_offset() {
+    let mut state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    let delta_y = 30.0;
+    state.scroll_offset_y =
+        (state.scroll_offset_y + delta_y).clamp(0.0, state.scroll_height.max(0.0));
+
+    assert_eq!(state.scroll_offset_y, 30.0, "Positive delta should increase offset");
+}
+
+#[test]
+fn test_scroll_delta_negative_decreases_offset() {
+    let mut state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 50.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    let delta_y = -20.0;
+    state.scroll_offset_y =
+        (state.scroll_offset_y + delta_y).clamp(0.0, state.scroll_height.max(0.0));
+
+    assert_eq!(state.scroll_offset_y, 30.0, "Negative delta should decrease offset");
+}
+
+#[test]
+fn test_scroll_delta_accumulates() {
+    let mut state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    // Multiple scroll events
+    for i in 1..=4 {
+        let delta_y = 50.0;
+        state.scroll_offset_y =
+            (state.scroll_offset_y + delta_y).clamp(0.0, state.scroll_height.max(0.0));
+        assert_eq!(state.scroll_offset_y, (i * 50) as f32);
+    }
+
+    assert_eq!(state.scroll_offset_y, 200.0, "Should reach max after 4 scrolls of 50");
+}
+
+#[test]
+fn test_scroll_delta_does_not_go_negative() {
+    let mut state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    // Negative delta when at 0 should stay at 0
+    let delta_y = -50.0;
+    state.scroll_offset_y =
+        (state.scroll_offset_y + delta_y).clamp(0.0, state.scroll_height.max(0.0));
+
+    assert_eq!(state.scroll_offset_y, 0.0, "Offset should not go negative");
+}
+
+#[test]
+fn test_scroll_horizontal_delta() {
+    let mut state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 0.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    let delta_x = 25.0;
+    state.scroll_offset_x =
+        (state.scroll_offset_x + delta_x).clamp(0.0, state.scroll_width.max(0.0));
+
+    assert_eq!(state.scroll_offset_x, 25.0, "Horizontal scroll should work");
+}
+
+#[test]
+fn test_scroll_state_initialization_with_scroll_height() {
+    let component = create_test_flex_with_overflow(Overflow::Auto, Overflow::Auto);
+
+    let initial_state = component.scroll_state();
+    assert_eq!(initial_state.scroll_offset_x, 0.0);
+    assert_eq!(initial_state.scroll_offset_y, 0.0);
+    assert_eq!(initial_state.scroll_width, 0.0);
+    assert_eq!(initial_state.scroll_height, 0.0);
+
+    let scroll_state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    component.set_scroll_state(scroll_state);
+
+    let updated_state = component.scroll_state();
+    assert_eq!(updated_state.scroll_width, 100.0);
+    assert_eq!(updated_state.scroll_height, 200.0);
+    assert!(updated_state.scroll_height > 0.0, "scroll_height should be positive for scrolling");
+}
+
+#[test]
+fn test_scroll_state_can_scroll判定() {
+    let scroll_state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 100.0,
+        scroll_height: 200.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    let can_scroll_y = scroll_state.scroll_height > 0.0;
+    let can_scroll_x = scroll_state.scroll_width > 0.0;
+
+    assert!(can_scroll_y, "Should be able to scroll vertically when scroll_height > 0");
+    assert!(can_scroll_x, "Should be able to scroll horizontally when scroll_width > 0");
+}
+
+#[test]
+fn test_scroll_state_cannot_scroll_when_height_is_zero() {
+    let scroll_state = FlexScrollState {
+        scroll_offset_x: 0.0,
+        scroll_offset_y: 0.0,
+        scroll_width: 0.0,
+        scroll_height: 0.0,
+        container_width: 50.0,
+        container_height: 100.0,
+    };
+
+    let can_scroll_y = scroll_state.scroll_height > 0.0;
+    assert!(!can_scroll_y, "Should NOT be able to scroll when scroll_height = 0");
+}

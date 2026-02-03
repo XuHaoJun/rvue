@@ -8,15 +8,11 @@ use crate::style::get_inline_styles;
 use rudo_gc::Gc;
 use winit::keyboard::{Key, NamedKey};
 
-/// Find the nearest parent component that is a scroll container
 pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>> {
     let mut parent = component.parent.borrow().clone();
-    let mut depth = 0;
     while let Some(p) = parent {
-        depth += 1;
         let props = p.props.borrow();
         if let ComponentProps::Flex { .. } = &*props {
-            // Check inline styles for overflow settings
             let inline_styles = get_inline_styles(&p);
             let overflow_x = inline_styles
                 .as_ref()
@@ -27,17 +23,45 @@ pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>>
                 .and_then(|s| s.overflow_y)
                 .unwrap_or(rvue_style::properties::Overflow::Visible);
 
-            eprintln!("[DEBUG-SCROLL] find_scroll_container depth={}: id={}, overflow_x={:?}, overflow_y={:?}, should_clip={}",
-                depth, p.id, overflow_x, overflow_y, overflow_x.should_clip() || overflow_y.should_clip());
-
             if overflow_x.should_clip() || overflow_y.should_clip() {
                 return Some(Gc::clone(&p));
             }
         }
         parent = p.parent.borrow().clone();
     }
-    eprintln!("[DEBUG-SCROLL] find_scroll_container: no scroll container found");
     None
+}
+
+/// Find any scroll container in the component tree (for scroll events with no target)
+fn find_any_scroll_container(root: &Gc<Component>) -> Option<Gc<Component>> {
+    fn find_recursive(comp: &Gc<Component>) -> Option<Gc<Component>> {
+        let props = comp.props.borrow();
+        if let ComponentProps::Flex { .. } = &*props {
+            let inline_styles = get_inline_styles(comp);
+            let overflow_x = inline_styles
+                .as_ref()
+                .and_then(|s| s.overflow_x)
+                .unwrap_or(rvue_style::properties::Overflow::Visible);
+            let overflow_y = inline_styles
+                .as_ref()
+                .and_then(|s| s.overflow_y)
+                .unwrap_or(rvue_style::properties::Overflow::Visible);
+
+            if overflow_x.should_clip() || overflow_y.should_clip() {
+                return Some(Gc::clone(comp));
+            }
+        }
+
+        for child in comp.children.borrow().iter() {
+            if let Some(found) = find_recursive(child) {
+                return Some(found);
+            }
+        }
+
+        None
+    }
+
+    find_recursive(root)
 }
 
 /// Find a component by its ID in the tree
@@ -81,12 +105,10 @@ pub fn run_pointer_event_pass(
                     }
                     component.set_scroll_state(scroll_state);
                     component.mark_dirty();
-                    eprintln!("[DEBUG-SCROLL] Drag scroll - new_offset: {}", new_offset);
                 }
                 return Handled::Yes;
             }
             PointerEvent::Up(_) | PointerEvent::Cancel(_) => {
-                eprintln!("[DEBUG-SCROLL] Ending scroll drag");
                 app_state.set_scroll_drag_state(None);
                 return Handled::Yes;
             }
@@ -101,6 +123,15 @@ pub fn run_pointer_event_pass(
     }
 
     let target = get_pointer_target(app_state);
+
+    // Special handling for scroll events: if no target found, find scroll container
+    if target.is_none() && matches!(event, PointerEvent::Scroll(_)) {
+        let root = app_state.root_component();
+        if let Some(container) = find_any_scroll_container(&root) {
+            return dispatch_pointer_event(app_state, &container, event);
+        }
+        return Handled::No;
+    }
 
     if let Some(target) = target {
         let result = dispatch_pointer_event(app_state, &target, event);
@@ -137,12 +168,6 @@ fn dispatch_pointer_event(
     target: &Gc<Component>,
     event: &PointerEvent,
 ) -> Handled {
-    eprintln!(
-        "[DEBUG-SCROLL] dispatch_pointer_event - target_id: {:?}, event: {:?}",
-        target.id,
-        std::mem::discriminant(event)
-    );
-
     let mut current = Some(Gc::clone(target));
     let mut handled = Handled::No;
 
@@ -193,7 +218,6 @@ fn dispatch_pointer_event(
                 }
             }
             PointerEvent::Scroll(e) => {
-                // Calculate scroll delta (convert to f32)
                 let delta_y = match e.delta {
                     ScrollDelta::Line(lines) => (lines * 20.0) as f32,
                     ScrollDelta::Pixel(_, dy) => (dy * 20.0) as f32,
@@ -203,111 +227,60 @@ fn dispatch_pointer_event(
                     ScrollDelta::Pixel(dx, _) => (dx * 20.0) as f32,
                 };
 
-                eprintln!("[DEBUG-SCROLL] PointerScrollEvent - Component ID: {:?}", component.id);
-                eprintln!("[DEBUG-SCROLL]   delta_x: {}, delta_y: {}", delta_x, delta_y);
-
-                // Try to scroll this component first
                 let scroll_state = component.scroll_state();
                 let can_scroll_y = scroll_state.scroll_height > 0.0;
                 let can_scroll_x = scroll_state.scroll_width > 0.0;
 
-                eprintln!("[DEBUG-SCROLL]   Current scroll_state - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}, container_w: {}, container_h: {}",
-                    scroll_state.scroll_offset_x, scroll_state.scroll_offset_y,
-                    scroll_state.scroll_width, scroll_state.scroll_height,
-                    scroll_state.container_width, scroll_state.container_height);
-                eprintln!(
-                    "[DEBUG-SCROLL]   can_scroll_x: {}, can_scroll_y: {}",
-                    can_scroll_x, can_scroll_y
-                );
-
                 if can_scroll_y || can_scroll_x {
-                    // Update scroll offset
-                    // Apply delta with inverted sign to match Web behavior
-                    // Wheel up (negative delta) should increase scroll offset (content moves up)
                     let mut new_state = scroll_state;
                     if can_scroll_y {
                         new_state.scroll_offset_y = (new_state.scroll_offset_y - delta_y)
                             .clamp(0.0, scroll_state.scroll_height.max(0.0));
                     }
                     if can_scroll_x {
-                        new_state.scroll_offset_x = (new_state.scroll_offset_x - delta_x)
+                        new_state.scroll_offset_x = (new_state.scroll_offset_x + delta_x)
                             .clamp(0.0, scroll_state.scroll_width.max(0.0));
                     }
-                    eprintln!("[DEBUG-SCROLL]   Scroll applied to component - new_offset_x: {}, new_offset_y: {}",
-                        new_state.scroll_offset_x, new_state.scroll_offset_y);
                     component.set_scroll_state(new_state);
-                    eprintln!("[DEBUG-SCROLL]   Component marked dirty: {:?}", component.id);
                     component.mark_dirty();
 
-                    // Mark parent as dirty too (for clipping)
                     if let Some(parent) = component.parent.borrow().clone() {
-                        eprintln!("[DEBUG-SCROLL]   Parent marked dirty: {:?}", parent.id);
                         parent.mark_dirty();
                     }
 
-                    // Mark as handled (stop propagation)
                     handled = Handled::Yes;
                     ctx.stop_propagation();
                     break;
                 }
 
-                // If this component can't scroll, try to delegate to parent scroll container
-                eprintln!("[DEBUG-SCROLL]   Calling find_scroll_container...");
                 if let Some(scroll_container) = find_scroll_container(&component) {
-                    eprintln!(
-                        "[DEBUG-SCROLL]   Found scroll container: id={}",
-                        scroll_container.id
-                    );
                     let container_scroll_state = scroll_container.scroll_state();
                     let container_can_scroll_y = container_scroll_state.scroll_height > 0.0;
                     let container_can_scroll_x = container_scroll_state.scroll_width > 0.0;
 
-                    eprintln!("[DEBUG-SCROLL]   Container scroll_state - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}",
-                        container_scroll_state.scroll_offset_x, container_scroll_state.scroll_offset_y,
-                        container_scroll_state.scroll_width, container_scroll_state.scroll_height);
-
                     if container_can_scroll_y || container_can_scroll_x {
-                        // Update container scroll offset
                         let mut new_state = container_scroll_state;
                         if container_can_scroll_y {
-                            new_state.scroll_offset_y = (new_state.scroll_offset_y + delta_y)
+                            new_state.scroll_offset_y = (new_state.scroll_offset_y - delta_y)
                                 .clamp(0.0, container_scroll_state.scroll_height.max(0.0));
                         }
                         if container_can_scroll_x {
                             new_state.scroll_offset_x = (new_state.scroll_offset_x + delta_x)
                                 .clamp(0.0, container_scroll_state.scroll_width.max(0.0));
                         }
-                        eprintln!("[DEBUG-SCROLL]   Scroll applied to container - new_offset_x: {}, new_offset_y: {}",
-                            new_state.scroll_offset_x, new_state.scroll_offset_y);
                         scroll_container.set_scroll_state(new_state);
-                        eprintln!(
-                            "[DEBUG-SCROLL]   Container marked dirty: {:?}",
-                            scroll_container.id
-                        );
                         scroll_container.mark_dirty();
 
-                        // Mark parent of container as dirty too
                         if let Some(parent) = scroll_container.parent.borrow().clone() {
-                            eprintln!(
-                                "[DEBUG-SCROLL]   Container's parent marked dirty: {:?}",
-                                parent.id
-                            );
                             parent.mark_dirty();
                         }
 
-                        // Mark as handled (stop propagation)
                         handled = Handled::Yes;
                         ctx.stop_propagation();
                         break;
-                    } else {
-                        eprintln!("[DEBUG-SCROLL]   Container can't scroll - can_scroll_x: {}, can_scroll_y: {}",
-                            container_can_scroll_x, container_can_scroll_y);
                     }
-                } else {
-                    eprintln!("[DEBUG-SCROLL]   No scroll container found");
                 }
 
-                // If not a scroll container, call on_scroll handler if exists
                 if let Some(handler) = handlers.get_scroll() {
                     handler.call(e, &mut ctx);
                 }

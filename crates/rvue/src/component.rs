@@ -366,11 +366,9 @@ impl Component {
     /// Create a new component with the given type and props
     /// Optimized: Pre-allocate with capacity hints for common component trees
     pub fn new(id: ComponentId, component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
-        // Pre-allocate children vector with small capacity for common case
-        // This reduces reallocations during component tree construction
         let initial_children_capacity = match component_type {
-            ComponentType::Flex => 8, // Only real containers have multiple children
-            _ => 0,                   // Leaf components typically have no children
+            ComponentType::Flex => 8,
+            _ => 0,
         };
 
         let mut flags = ComponentFlags::empty();
@@ -384,8 +382,6 @@ impl Component {
             }
             _ => {}
         }
-
-        eprintln!("[DEBUG-SCROLL] Component::new - id: {}, type: {:?}", id, component_type);
 
         Gc::new(Self {
             id,
@@ -1397,39 +1393,27 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
 
                 // === 新增：更新 Flex Scroll State ===
                 if matches!(component.component_type, ComponentType::Flex) {
-                    // Calculate scrollable amount (content - container)
-                    let content_width = layout.size.width + layout.scroll_width();
-                    let content_height = layout.size.height + layout.scroll_height();
+                    // Use Taffy's scroll dimensions directly
+                    // scroll_width/scroll_height already account for content overflow
+                    let scroll_width = layout.scroll_width();
+                    let scroll_height = layout.scroll_height();
                     let container_width = layout.size.width;
                     let container_height = layout.size.height;
 
-                    let scroll_width = if content_width > container_width {
-                        content_width - container_width
-                    } else {
-                        0.0
-                    };
-                    let scroll_height = if content_height > container_height {
-                        content_height - container_height
-                    } else {
-                        0.0
-                    };
+                    eprintln!("[DEBUG-SCROLL] propagate_layout_results - id: {}, scroll_w: {}, scroll_h: {}",
+                        component.id, scroll_width, scroll_height);
 
                     // 讀取現有的 scroll_state，保留 offset
                     let existing_state = component.scroll_state();
 
                     let scroll_state = FlexScrollState {
-                        scroll_offset_x: existing_state.scroll_offset_x, // 保留現有 offset
-                        scroll_offset_y: existing_state.scroll_offset_y, // 保留現有 offset
+                        scroll_offset_x: existing_state.scroll_offset_x,
+                        scroll_offset_y: existing_state.scroll_offset_y,
                         scroll_width,
                         scroll_height,
                         container_width,
                         container_height,
                     };
-
-                    eprintln!("[DEBUG-SCROLL]   New FlexScrollState - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}, container_w: {}, container_h: {}",
-                        scroll_state.scroll_offset_x, scroll_state.scroll_offset_y,
-                        scroll_state.scroll_width, scroll_state.scroll_height,
-                        scroll_state.container_width, scroll_state.container_height);
 
                     component.set_scroll_state(scroll_state);
                 }

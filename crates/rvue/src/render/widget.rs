@@ -148,7 +148,6 @@ fn render_children(
 
     let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
 
-    // Get scroll offset if clipping - only apply when non-zero
     let scroll_offset = if should_clip {
         let mut user_data = component.user_data.borrow_mut();
         if let Some(scroll_state) =
@@ -167,10 +166,6 @@ fn render_children(
     } else {
         None
     };
-
-    let children_count = component.children.borrow().len();
-    eprintln!("[DEBUG-SCROLL] render_children - Component ID: {:?}, overflow_x: {:?}, overflow_y: {:?}, should_clip: {}, scroll_offset: {:?}, children_count: {}",
-        component.id, overflow_x, overflow_y, should_clip, scroll_offset, children_count);
 
     // Get container layout for clipping
     let container_rect = if should_clip {
@@ -191,10 +186,6 @@ fn render_children(
     // Push clip layer if needed
     if should_clip {
         if let Some(ref rect) = container_rect {
-            eprintln!(
-                "[DEBUG-SCROLL] render_children - pushing clip layer for component {:?}",
-                component.id
-            );
             scene.push_clip_layer(vello::peniko::Fill::NonZero, Affine::IDENTITY, rect);
         }
     }
@@ -233,10 +224,6 @@ fn render_children(
 
     // Pop clip layer if it was pushed
     if should_clip && container_rect.is_some() {
-        eprintln!(
-            "[DEBUG-SCROLL] render_children - popping clip layer for component {:?}",
-            component.id
-        );
         scene.pop_layer();
     }
 }
@@ -638,12 +625,15 @@ fn render_flex_background(
 
         if let Some(layout) = layout_node {
             if let Some(flex_layout) = layout.layout() {
-                let x = flex_layout.location.x as f64;
-                let y = flex_layout.location.y as f64;
+                let _layout_x = flex_layout.location.x as f64;
+                let _layout_y = flex_layout.location.y as f64;
                 let width = flex_layout.size.width as f64;
                 let height = flex_layout.size.height as f64;
 
-                let rect = Rect::new(x, y, x + width, y + height);
+                // Render background at LOCAL (0,0) - transform will position it correctly
+                // This fixes the coordinate mismatch where background was at layout.location
+                // but children use transforms
+                let rect = Rect::new(0.0, 0.0, width, height);
 
                 if let Some(bg) = styles.background_color.as_ref() {
                     let rgb = bg.0 .0;
@@ -664,8 +654,8 @@ fn render_flex_background(
                     scene,
                     Affine::IDENTITY,
                     &Some(styles.clone()),
-                    x,
-                    y,
+                    0.0,
+                    0.0,
                     width,
                     height,
                     border_radius,
@@ -693,23 +683,12 @@ fn render_flex_background(
                             || (matches!(overflow_x, rvue_style::properties::Overflow::Auto)
                                 && scroll_state.scroll_width > 0.0);
 
-                    eprintln!(
-                        "[DEBUG-SCROLL] render_flex_background - Component ID: {:?}",
-                        component.id
-                    );
-                    eprintln!("[DEBUG-SCROLL]   scroll_state - offset_x: {}, offset_y: {}, scroll_w: {}, scroll_h: {}, container_w: {}, container_h: {}",
-                        scroll_state.scroll_offset_x, scroll_state.scroll_offset_y,
-                        scroll_state.scroll_width, scroll_state.scroll_height,
-                        scroll_state.container_width, scroll_state.container_height);
-                    eprintln!("[DEBUG-SCROLL]   show_vertical: {}, show_horizontal: {}, overflow_x: {:?}, overflow_y: {:?}",
-                        show_vertical, show_horizontal, overflow_x, overflow_y);
-
                     // Render vertical scrollbar if needed
                     if show_vertical {
                         render_vertical_scrollbar(
                             scene,
-                            x,
-                            y,
+                            0.0,
+                            0.0,
                             width,
                             height,
                             scroll_state.scroll_offset_y as f64,
@@ -721,8 +700,8 @@ fn render_flex_background(
                     if show_horizontal {
                         render_horizontal_scrollbar(
                             scene,
-                            x,
-                            y,
+                            0.0,
+                            0.0,
                             width,
                             height,
                             scroll_state.scroll_offset_x as f64,

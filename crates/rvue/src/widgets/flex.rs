@@ -211,10 +211,6 @@ impl Widget for Flex {
 
         // Always include overflow values (even if not set via styles)
         if overflow_x != Overflow::Visible || overflow_y != Overflow::Visible {
-            eprintln!(
-                "[DEBUG-SCROLL] Flex::build including overflow - id: {}, x: {:?}, y: {:?}",
-                id, overflow_x, overflow_y
-            );
             if let Some(ref mut styles) = computed_styles {
                 styles.overflow_x = Some(overflow_x);
                 styles.overflow_y = Some(overflow_y);
@@ -238,16 +234,8 @@ impl Widget for Flex {
             },
         );
 
-        eprintln!("[DEBUG-SCROLL] Flex::build created component id: {}, is_root: {}", id, id == 0);
-
-        // Set ACCEPTS_POINTER flag if this is a scroll container
-        // This allows the component to receive scroll events without requiring prior pointer interaction
         if overflow_x.should_clip() || overflow_y.should_clip() {
             component.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
-            eprintln!(
-                "[DEBUG-SCROLL] Flex component {} marked as scroll container (accepts scroll events)",
-                component.id
-            );
         }
 
         // Setup reactive updates for each property
