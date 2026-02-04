@@ -89,10 +89,15 @@ impl Widget for Radio {
             ComponentProps::Radio {
                 value: self.value.clone(),
                 checked: initial_checked,
-                styles: computed_styles,
+                styles: computed_styles.clone(),
             },
             properties,
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         let checked_effect = if is_reactive {
             let comp = Gc::clone(&component);

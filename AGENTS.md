@@ -202,3 +202,9 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - All 252+ tests pass across all crates
 - Removed unused `as_any` method from `DynProperty`
 - Cleaned up unused imports in widgets
+
+#### Bug Fix: WidgetStyles Initialization
+- **Issue**: Widget styles (height, width) not applied because `WidgetStyles` was not initialized in PropertyMap
+- **Fix**: Updated all widget builders (Text, Flex, Button, Checkbox, Radio, TextInput, NumberInput) to call `component.set_widget_styles(styles)` after component creation
+- **Also fixed**: `styles_effect` in Flex now properly updates PropertyMap when styles change
+- **Result**: Scroll container height/width now correctly applied (scroll example works)

@@ -87,9 +87,14 @@ impl Widget for TextInput {
         let component = Component::with_properties(
             id,
             ComponentType::TextInput,
-            ComponentProps::TextInput { value: initial_value, styles: computed_styles },
+            ComponentProps::TextInput { value: initial_value, styles: computed_styles.clone() },
             properties,
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
@@ -206,9 +211,14 @@ impl Widget for NumberInput {
         let component = Component::with_properties(
             id,
             ComponentType::NumberInput,
-            ComponentProps::NumberInput { value: initial_value, styles: computed_styles },
+            ComponentProps::NumberInput { value: initial_value, styles: computed_styles.clone() },
             properties,
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);

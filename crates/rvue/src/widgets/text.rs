@@ -88,9 +88,17 @@ impl Widget for Text {
         let component = Component::with_properties(
             id,
             ComponentType::Text,
-            ComponentProps::Text { content: initial_content, styles: computed_styles },
+            ComponentProps::Text {
+                content: initial_content.clone(),
+                styles: computed_styles.clone(),
+            },
             properties,
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         let content_effect = if is_reactive {
             let comp = Gc::clone(&component);

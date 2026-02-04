@@ -218,13 +218,13 @@ impl Widget for Flex {
         let is_align_reactive = self.align_items.is_reactive();
         let is_justify_reactive = self.justify_content.is_reactive();
 
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
+
         let properties = PropertyMap::new()
             .and(FlexDirectionProp(direction_str.clone()))
             .and(FlexGap(gap))
             .and(FlexAlignItems(align_items_str.clone()))
             .and(FlexJustifyContent(justify_content_str.clone()));
-
-        let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
         let component = Component::with_properties(
             id,
@@ -234,10 +234,15 @@ impl Widget for Flex {
                 gap,
                 align_items: align_items_str,
                 justify_content: justify_content_str,
-                styles: computed_styles,
+                styles: computed_styles.clone(),
             },
             properties,
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         if overflow_x.should_clip() || overflow_y.should_clip() {
             component.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
@@ -296,22 +301,14 @@ impl Widget for Flex {
         };
 
         // Setup reactive styles effect
-        // Always create effect to ensure styles changes trigger re-render
+        // Update WidgetStyles in PropertyMap when styles change
         let styles_effect = if let Some(ref styles) = self.styles {
             let comp = Gc::clone(&component);
             let styles = styles.clone();
             let effect = crate::effect::create_effect(move || {
-                // Read all style values to establish dependencies
-                // This ensures any style change (reactive or not) triggers re-render
-                let _ = styles.background_color.get();
-                let _ = styles.border_color.get();
-                let _ = styles.border_radius.get();
-                let _ = styles.border_style.get();
-                let _ = styles.border_width.get();
-                let _ = styles.overflow_x.get();
-                let _ = styles.overflow_y.get();
-                // Mark component as dirty to trigger re-render
-                comp.mark_dirty();
+                // Compute new styles and update PropertyMap
+                let computed = styles.compute();
+                comp.set_widget_styles(computed);
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -324,6 +321,9 @@ impl Widget for Flex {
         // which properly tracks effects
         let overflow_x_is_reactive = self.overflow_x.is_reactive();
         let overflow_y_is_reactive = self.overflow_y.is_reactive();
+
+        // Store initial overflow values in PropertyMap (needed for first layout calculation)
+        component.set_flex_overflow(overflow_x, overflow_y);
 
         let overflow_effect = if overflow_x_is_reactive || overflow_y_is_reactive {
             let comp = Gc::clone(&component);

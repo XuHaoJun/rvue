@@ -94,8 +94,13 @@ impl Widget for Button {
         let component = Component::new(
             id,
             ComponentType::Button,
-            ComponentProps::Button { styles: computed_styles },
+            ComponentProps::Button { styles: computed_styles.clone() },
         );
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
 
         if let Some(ref cls) = class {
             // Split class string by whitespace to support multiple classes (e.g., "primary large")

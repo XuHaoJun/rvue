@@ -86,7 +86,7 @@ fn create_scroll_view() -> ViewStruct {
                 justify_content="start"
                 overflow_y=overflow_mode_for_flex
                 styles=ReactiveStyles::new()
-                    .set_height(Height(Size::Pixels(300.0)))
+                    .set_height(Height(Size::Pixels(200.0)))
                     .set_width(Width(Size::Pixels(400.0)))
                     .set_background_color(BackgroundColor(Color::rgb(255, 182, 193)))
                     .set_border_radius(BorderRadius(8.0))
