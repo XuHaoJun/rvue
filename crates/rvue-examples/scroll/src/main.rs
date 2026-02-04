@@ -6,7 +6,7 @@
 use rvue::prelude::*;
 use rvue_macro::view;
 use rvue_style::properties::Overflow;
-use rvue_style::{BorderWidth, Height, ReactiveStyles, Size, Width};
+use rvue_style::{BorderWidth, FontSize, Height, ReactiveStyles, Size, Width};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rudo_gc::test_util::reset();
@@ -38,15 +38,15 @@ fn create_scroll_view() -> ViewStruct {
             <Text
                 content="Rvue Scroll Demo"
                 styles=ReactiveStyles::new()
-                    .set_font_size(24.0)
-                    .set_font_weight(700)
+                    .set_font_size(FontSize(24.0))
+                    .set_font_weight(FontWeight::Bold)
                     .set_text_color(TextColor(Color::rgb(33, 37, 41)))
             />
 
             <Text
                 content="Overflow Mode:"
                 styles=ReactiveStyles::new()
-                    .set_font_size(16.0)
+                    .set_font_size(FontSize(16.0))
                     .set_text_color(TextColor(Color::rgb(73, 80, 87)))
             />
 
@@ -68,14 +68,14 @@ fn create_scroll_view() -> ViewStruct {
             <Text
                 content=create_memo(move || format!("Current Mode: {:?}", overflow_mode_for_memo.get()))
                 styles=ReactiveStyles::new()
-                    .set_font_size(14.0)
+                    .set_font_size(FontSize(14.0))
                     .set_text_color(TextColor(Color::rgb(0, 123, 255)))
             />
 
             <Text
                 content="Scroll the container below:"
                 styles=ReactiveStyles::new()
-                    .set_font_size(14.0)
+                    .set_font_size(FontSize(14.0))
                     .set_text_color(TextColor(Color::rgb(108, 117, 125)))
             />
 
@@ -259,7 +259,7 @@ fn create_scroll_view() -> ViewStruct {
             <Text
                 content="Instructions: Click buttons to change overflow mode. Scroll with mouse wheel or drag scrollbar."
                 styles=ReactiveStyles::new()
-                    .set_font_size(12.0)
+                    .set_font_size(FontSize(12.0))
                     .set_text_color(TextColor(Color::rgb(134, 142, 150)))
             />
         </Flex>
