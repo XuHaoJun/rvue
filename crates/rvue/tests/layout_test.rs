@@ -1,5 +1,6 @@
 //! Integration test for Flexbox layout
 
+#[allow(deprecated)]
 use rvue::layout::node::overflow_to_taffy;
 use rvue::{Component, ComponentProps, ComponentType};
 use rvue_style::properties::Overflow;

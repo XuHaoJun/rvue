@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use rudo_gc::{collect_full, Gc};
 use rvue::context::{inject, provide_context};
 use rvue::prelude::*;
@@ -20,6 +21,7 @@ fn test_context_gc_on_unmount_with_i32() {
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
     let root = ctx.create_component(
+        #[allow(deprecated)]
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "row".to_string(),
@@ -31,6 +33,7 @@ fn test_context_gc_on_unmount_with_i32() {
     );
 
     let child_comp = ctx.create_component(
+        #[allow(deprecated)]
         ComponentType::Custom("Child".to_string()),
         ComponentProps::Custom { data: String::new() },
     );
@@ -74,6 +77,7 @@ fn test_context_nested_injection() {
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
     let root = ctx.create_component(
+        #[allow(deprecated)]
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "column".to_string(),
@@ -85,6 +89,7 @@ fn test_context_nested_injection() {
     );
 
     let mid_comp = ctx.create_component(
+        #[allow(deprecated)]
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "column".to_string(),
@@ -98,6 +103,7 @@ fn test_context_nested_injection() {
     root.add_child(mid_comp.clone());
 
     let leaf_comp = ctx.create_component(
+        #[allow(deprecated)]
         ComponentType::Custom("Leaf".to_string()),
         ComponentProps::Custom { data: String::new() },
     );

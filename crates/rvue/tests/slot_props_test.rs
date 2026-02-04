@@ -2,6 +2,7 @@
 
 #![allow(unused)]
 
+#[allow(deprecated)]
 use rudo_gc::Gc;
 use rvue::prelude::*;
 use rvue::text::TextContext;

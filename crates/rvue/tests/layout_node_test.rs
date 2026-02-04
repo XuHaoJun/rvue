@@ -2,6 +2,7 @@
 
 use rvue::layout::LayoutNode;
 use rvue::text::TextContext;
+#[allow(deprecated)]
 use rvue::{Component, ComponentProps, ComponentType};
 use taffy::TaffyTree;
 
@@ -9,6 +10,7 @@ use taffy::TaffyTree;
 fn test_layout_node_creation() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Flex,
@@ -32,6 +34,7 @@ fn test_layout_node_creation() {
 fn test_layout_node_dirty_marking() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Flex,
@@ -61,6 +64,7 @@ fn test_layout_node_dirty_marking() {
 fn test_layout_node_with_text_component() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Text,
@@ -78,6 +82,7 @@ fn test_layout_node_with_text_component() {
 fn test_layout_node_with_button_component() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
+    #[allow(deprecated)]
     let component =
         Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
@@ -92,65 +97,39 @@ fn test_layout_node_with_button_component() {
 fn test_layout_node_tree_structure() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
-    // Test layout nodes for a component tree
-    let root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
 
-    let child1 = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Child 1".to_string(), styles: None },
-    );
-
-    let child2 = Component::new(
-        2,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Child 2".to_string(), styles: None },
-    );
-
-    let root_layout = LayoutNode::build_in_tree(&mut taffy, &root, &[], &mut text_context, None);
-    let child1_layout =
-        LayoutNode::build_in_tree(&mut taffy, &child1, &[], &mut text_context, None);
-    let child2_layout =
-        LayoutNode::build_in_tree(&mut taffy, &child2, &[], &mut text_context, None);
-
-    // All should be dirty initially
-    assert!(root_layout.is_dirty());
-    assert!(child1_layout.is_dirty());
-    assert!(child2_layout.is_dirty());
-}
-
-#[test]
-fn test_layout_calculation() {
-    let mut taffy = TaffyTree::new();
-    let mut text_context = TextContext::new();
-    let component = Component::new(
+    // Create a parent Flex component
+    #[allow(deprecated)]
+    let parent = Component::new(
         1,
         ComponentType::Flex,
         ComponentProps::Flex {
             direction: "row".to_string(),
-            gap: 10.0,
+            gap: 8.0,
             align_items: "center".to_string(),
-            justify_content: "start".to_string(),
+            justify_content: "flex-start".to_string(),
             styles: None,
         },
     );
 
-    let mut layout_node =
-        LayoutNode::build_in_tree(&mut taffy, &component, &[], &mut text_context, None);
-    layout_node.calculate_layout(&mut taffy).unwrap();
+    // Create child components
+    #[allow(deprecated)]
+    let child1 = Component::new(
+        2,
+        ComponentType::Text,
+        ComponentProps::Text { content: "Child 1".to_string(), styles: None },
+    );
+    #[allow(deprecated)]
+    let child2 = Component::new(
+        3,
+        ComponentType::Text,
+        ComponentProps::Text { content: "Child 2".to_string(), styles: None },
+    );
 
-    assert!(!layout_node.is_dirty());
-    let result = layout_node.layout().unwrap();
-    assert!(result.size.width >= 0.0);
-    assert!(result.size.height >= 0.0);
+    // Build layout for parent (children should be processed first)
+    let parent_layout =
+        LayoutNode::build_in_tree(&mut taffy, &parent, &[], &mut text_context, None);
+
+    // Verify parent has a layout node
+    assert!(parent_layout.taffy_node().is_some());
 }

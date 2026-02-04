@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use rvue::prelude::*;
 use std::sync::{Arc, Mutex};
 

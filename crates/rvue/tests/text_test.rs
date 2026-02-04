@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentProps, ComponentType};
 use rvue::Scene;

@@ -1,5 +1,6 @@
 //! Integration test for Show component
 
+#[allow(deprecated)]
 use rvue::{create_signal, ComponentLifecycle};
 use rvue::{Component, ComponentProps, ComponentType};
 

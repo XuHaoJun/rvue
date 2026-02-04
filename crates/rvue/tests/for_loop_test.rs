@@ -1,5 +1,6 @@
 //! Unit tests for For component key-based diffing
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]

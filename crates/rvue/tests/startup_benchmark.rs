@@ -1,5 +1,6 @@
 //! Benchmark test for application startup time
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
 use std::time::{Duration, Instant};
 

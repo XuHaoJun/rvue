@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use rvue::context::{inject, provide_context};
 use rvue::prelude::*;
 use rvue::{text::TextContext, widget::BuildContext, TaffyTree};

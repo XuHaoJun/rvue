@@ -1,5 +1,6 @@
 //! Unit tests for input components
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentProps, ComponentType};
 
 #[test]

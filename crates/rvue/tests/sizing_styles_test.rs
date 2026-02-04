@@ -1,5 +1,6 @@
 //! Tests for width/height styling system
 
+#[allow(deprecated)]
 use rvue::layout::node::LayoutNode;
 use rvue::style::{resolve_styles_for_component, Stylesheet};
 use rvue::{Component, ComponentProps, ComponentType};

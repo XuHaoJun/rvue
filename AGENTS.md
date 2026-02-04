@@ -208,3 +208,28 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - **Fix**: Updated all widget builders (Text, Flex, Button, Checkbox, Radio, TextInput, NumberInput) to call `component.set_widget_styles(styles)` after component creation
 - **Also fixed**: `styles_effect` in Flex now properly updates PropertyMap when styles change
 - **Result**: Scroll container height/width now correctly applied (scroll example works)
+
+### ComponentProps Deprecation Migration (IN PROGRESS)
+
+#### Phase 1: Added Deprecation Warnings (COMPLETED)
+- Marked `ComponentProps` enum as `#[deprecated]`
+- Marked all getters/setters as `#[deprecated]`
+- Added `#[allow(deprecated)]` blocks for backward compatibility
+
+#### Phase 2: Updated Tests (COMPLETED)
+- Updated `widget_api_test.rs` to use new API
+- Updated `component_test.rs` with `#[allow(deprecated)]`
+- Updated `button_widget_test.rs`, `layout_node_test.rs`, `slot_test.rs`, `context_gc_test.rs`
+- All 252+ tests pass
+
+#### Phase 3: Macro Codegen Update (PENDING)
+- [ ] Update `codegen.rs` to output `PropertyMap` instead of `ComponentProps`
+
+#### Phase 4: Core Refactoring (PENDING)
+- [ ] Remove `ComponentProps` fallback from `style.rs`
+- [ ] Simplify Component struct (remove `props` field)
+- [ ] Simplify getters/setters
+
+#### Phase 5: Cleanup (PENDING)
+- [ ] Remove `ComponentProps` enum definition
+- [ ] Verify all tests pass

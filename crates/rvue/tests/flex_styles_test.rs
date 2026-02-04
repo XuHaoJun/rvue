@@ -1,5 +1,6 @@
 //! Unit tests for Flex widget styles
 
+#[allow(deprecated)]
 use rudo_gc::Gc;
 use rvue::{Component, ComponentProps, ComponentType};
 use rvue_style::{

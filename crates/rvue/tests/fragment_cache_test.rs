@@ -1,4 +1,4 @@
-#![allow(unused_braces)]
+#![allow(deprecated, unused_braces)]
 
 use rudo_gc::Gc;
 use rvue::prelude::*;

@@ -6,6 +6,7 @@
 //! Bug: Text components were getting height=0 from Taffy when inside a Flex container
 //! with align_items: stretch, causing them to overlap with other text elements.
 
+#[allow(deprecated)]
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentProps, ComponentType};
 use rvue::Scene;

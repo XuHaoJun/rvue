@@ -1,5 +1,6 @@
 //! Unit tests for scroll event handling
 
+#[allow(deprecated)]
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentProps, ComponentType};
 use rvue::event::dispatch::find_scroll_container;

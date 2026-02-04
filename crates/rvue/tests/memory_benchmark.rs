@@ -1,5 +1,6 @@
 //! Benchmark test for initial memory usage
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};

@@ -1,5 +1,6 @@
 //! Unit tests for event handler type inference
 
+#[allow(deprecated)]
 use std::cell::RefCell;
 
 use rvue::{

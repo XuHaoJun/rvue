@@ -1,5 +1,6 @@
 //! Integration test for For component
 
+#[allow(deprecated)]
 use rvue::create_signal;
 use rvue::{Component, ComponentProps, ComponentType};
 

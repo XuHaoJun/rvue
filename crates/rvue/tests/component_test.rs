@@ -2,10 +2,12 @@
 
 use rudo_gc::Gc;
 use rvue::render::FlexScrollState;
+#[allow(deprecated)]
 use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]
 fn test_component_creation() {
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Text,
@@ -21,6 +23,7 @@ fn test_component_creation() {
 
 #[test]
 fn test_component_add_child() {
+    #[allow(deprecated)]
     let parent = Component::new(
         1,
         ComponentType::Flex,
@@ -33,6 +36,7 @@ fn test_component_add_child() {
         },
     );
 
+    #[allow(deprecated)]
     let child = Component::new(
         2,
         ComponentType::Text,
@@ -47,6 +51,7 @@ fn test_component_add_child() {
 
 #[test]
 fn test_component_lifecycle_mount() {
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Text,
@@ -60,6 +65,7 @@ fn test_component_lifecycle_mount() {
 
 #[test]
 fn test_component_lifecycle_unmount() {
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Text,
@@ -72,6 +78,7 @@ fn test_component_lifecycle_unmount() {
 
 #[test]
 fn test_component_lifecycle_update() {
+    #[allow(deprecated)]
     let component = Component::new(
         1,
         ComponentType::Text,
@@ -84,6 +91,7 @@ fn test_component_lifecycle_update() {
 
 #[test]
 fn test_component_types() {
+    #[allow(deprecated)]
     let text = Component::new(
         1,
         ComponentType::Text,
@@ -91,9 +99,11 @@ fn test_component_types() {
     );
     assert_eq!(text.component_type, ComponentType::Text);
 
+    #[allow(deprecated)]
     let button = Component::new(2, ComponentType::Button, ComponentProps::Button { styles: None });
     assert_eq!(button.component_type, ComponentType::Button);
 
+    #[allow(deprecated)]
     let flex = Component::new(
         3,
         ComponentType::Flex,

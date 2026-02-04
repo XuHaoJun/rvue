@@ -1,5 +1,6 @@
 //! Unit tests for Show widget component
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 
 #[test]

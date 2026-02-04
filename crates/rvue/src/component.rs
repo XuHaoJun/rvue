@@ -219,7 +219,11 @@ pub enum ComponentType {
 }
 
 /// Component properties (variant type for different widget types)
+///
+/// DEPRECATED: This enum is being replaced by the PropertyMap system.
+/// Use `Component::with_properties()` with `PropertyMap` instead.
 #[derive(Debug, Clone)]
+#[deprecated(since = "0.1.0", note = "Use PropertyMap with Component::with_properties() instead")]
 pub enum ComponentProps {
     Text {
         content: String,
@@ -590,27 +594,35 @@ impl Component {
     // Property-specific setters for fine-grained updates
 
     /// Set text content (for Text components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() directly")]
     pub fn set_text_content(&self, content: String) {
         self.properties.borrow_mut().insert(TextContent(content.clone()));
-        let mut props = self.props.borrow_mut();
-        if let ComponentProps::Text { content: existing_content, .. } = &mut *props {
-            *existing_content = content;
+        #[allow(deprecated)]
+        {
+            let mut props = self.props.borrow_mut();
+            if let ComponentProps::Text { content: existing_content, .. } = &mut *props {
+                *existing_content = content;
+            }
+            drop(props);
         }
-        drop(props);
         self.mark_dirty();
     }
 
     /// Get text content
+    #[deprecated(since = "0.1.0", note = "Use properties.borrow().get::<TextContent>() instead")]
     pub fn text_content(&self) -> String {
         // First try to get from PropertyMap
         if let Some(tc) = self.properties.borrow().get::<TextContent>() {
             return tc.0.clone();
         }
 
-        // Fall back to ComponentProps for backward compatibility
-        let props = self.props.borrow();
-        if let ComponentProps::Text { content, .. } = &*props {
-            return content.clone();
+        #[allow(deprecated)]
+        {
+            // Fall back to ComponentProps for backward compatibility
+            let props = self.props.borrow();
+            if let ComponentProps::Text { content, .. } = &*props {
+                return content.clone();
+            }
         }
 
         // Fall back to defaults
@@ -622,28 +634,36 @@ impl Component {
     }
 
     /// Set flex direction (for Flex components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() directly")]
     pub fn set_flex_direction(&self, direction: String) {
         self.properties.borrow_mut().insert(FlexDirection(direction.clone()));
-        let mut props = self.props.borrow_mut();
-        if let ComponentProps::Flex { direction: existing_direction, .. } = &mut *props {
-            *existing_direction = direction.clone();
+        #[allow(deprecated)]
+        {
+            let mut props = self.props.borrow_mut();
+            if let ComponentProps::Flex { direction: existing_direction, .. } = &mut *props {
+                *existing_direction = direction.clone();
+            }
+            drop(props);
         }
-        drop(props);
         self.mark_dirty();
     }
 
     /// Get flex direction
+    #[deprecated(since = "0.1.0", note = "Use properties.borrow().get::<FlexDirection>() instead")]
     pub fn flex_direction(&self) -> String {
         // First try to get from PropertyMap
         if let Some(d) = self.properties.borrow().get::<FlexDirection>() {
             return d.0.clone();
         }
 
-        // Fall back to ComponentProps for backward compatibility
-        let props = self.props.borrow();
-        match &*props {
-            ComponentProps::Flex { direction, .. } => return direction.clone(),
-            _ => {}
+        #[allow(deprecated)]
+        {
+            // Fall back to ComponentProps for backward compatibility
+            let props = self.props.borrow();
+            match &*props {
+                ComponentProps::Flex { direction, .. } => return direction.clone(),
+                _ => {}
+            }
         }
 
         // Fall back to defaults
@@ -655,17 +675,22 @@ impl Component {
     }
 
     /// Set flex gap (for Flex components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() directly")]
     pub fn set_flex_gap(&self, gap: f32) {
         self.properties.borrow_mut().insert(FlexGap(gap));
-        let mut props = self.props.borrow_mut();
-        if let ComponentProps::Flex { gap: existing_gap, .. } = &mut *props {
-            *existing_gap = gap;
+        #[allow(deprecated)]
+        {
+            let mut props = self.props.borrow_mut();
+            if let ComponentProps::Flex { gap: existing_gap, .. } = &mut *props {
+                *existing_gap = gap;
+            }
+            drop(props);
         }
-        drop(props);
         self.mark_dirty();
     }
 
     /// Get flex gap
+    #[deprecated(since = "0.1.0", note = "Use properties.borrow().get::<FlexGap>() instead")]
     pub fn flex_gap(&self) -> f32 {
         // First try to get from PropertyMap
         if let Some(g) = self.properties.borrow().get::<FlexGap>() {
@@ -681,17 +706,22 @@ impl Component {
     }
 
     /// Set flex align_items (for Flex components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() directly")]
     pub fn set_flex_align_items(&self, align_items: String) {
         self.properties.borrow_mut().insert(FlexAlignItems(align_items.clone()));
-        let mut props = self.props.borrow_mut();
-        if let ComponentProps::Flex { align_items: existing_align, .. } = &mut *props {
-            *existing_align = align_items.clone();
+        #[allow(deprecated)]
+        {
+            let mut props = self.props.borrow_mut();
+            if let ComponentProps::Flex { align_items: existing_align, .. } = &mut *props {
+                *existing_align = align_items.clone();
+            }
+            drop(props);
         }
-        drop(props);
         self.mark_dirty();
     }
 
     /// Get flex align_items
+    #[deprecated(since = "0.1.0", note = "Use properties.borrow().get::<FlexAlignItems>() instead")]
     pub fn flex_align_items(&self) -> String {
         // First try to get from PropertyMap
         if let Some(a) = self.properties.borrow().get::<FlexAlignItems>() {
@@ -707,17 +737,25 @@ impl Component {
     }
 
     /// Set flex justify_content (for Flex components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() directly")]
     pub fn set_flex_justify_content(&self, justify_content: String) {
         self.properties.borrow_mut().insert(FlexJustifyContent(justify_content.clone()));
-        let mut props = self.props.borrow_mut();
-        if let ComponentProps::Flex { justify_content: existing_justify, .. } = &mut *props {
-            *existing_justify = justify_content.clone();
+        #[allow(deprecated)]
+        {
+            let mut props = self.props.borrow_mut();
+            if let ComponentProps::Flex { justify_content: existing_justify, .. } = &mut *props {
+                *existing_justify = justify_content.clone();
+            }
+            drop(props);
         }
-        drop(props);
         self.mark_dirty();
     }
 
     /// Get flex justify_content
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use properties.borrow().get::<FlexJustifyContent>() instead"
+    )]
     pub fn flex_justify_content(&self) -> String {
         // First try to get from PropertyMap
         if let Some(j) = self.properties.borrow().get::<FlexJustifyContent>() {
@@ -733,6 +771,7 @@ impl Component {
     }
 
     /// Set flex overflow (for Flex components)
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() with WidgetStyles instead")]
     pub fn set_flex_overflow(
         &self,
         overflow_x: rvue_style::properties::Overflow,
@@ -751,11 +790,13 @@ impl Component {
     }
 
     /// Get widget styles
+    #[deprecated(since = "0.1.0", note = "Use properties.borrow().get::<WidgetStyles>() instead")]
     pub fn widget_styles(&self) -> Option<rvue_style::ComputedStyles> {
         self.properties.borrow().get::<WidgetStyles>().cloned().map(|w| w.0)
     }
 
     /// Set widget styles
+    #[deprecated(since = "0.1.0", note = "Use PropertyMap::insert() with WidgetStyles instead")]
     pub fn set_widget_styles(&self, styles: rvue_style::ComputedStyles) {
         self.properties.borrow_mut().insert(WidgetStyles(styles));
         self.mark_dirty();

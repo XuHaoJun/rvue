@@ -1,5 +1,6 @@
 //! Unit tests for Text widget rendering
 
+#[allow(deprecated)]
 use rvue::{Component, ComponentId, ComponentProps, ComponentType};
 
 #[test]
