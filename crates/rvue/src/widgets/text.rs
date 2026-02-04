@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{PropertyMap, TextContent};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::ReactiveStyles;
@@ -74,16 +75,24 @@ impl Widget for Text {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_content = self.content.get();
+        let is_reactive = self.content.is_reactive();
 
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
-        let component = Component::new(
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(TextContent(initial_content.clone()))
+        };
+
+        let component = Component::with_properties(
             id,
             ComponentType::Text,
-            ComponentProps::Text { content: initial_content.clone(), styles: computed_styles },
+            ComponentProps::Text { content: initial_content, styles: computed_styles },
+            properties,
         );
 
-        let content_effect = if self.content.is_reactive() {
+        let content_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let content = self.content.clone();
             let effect = create_effect(move || {

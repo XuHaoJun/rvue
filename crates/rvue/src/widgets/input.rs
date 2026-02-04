@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{NumberInputValue, PropertyMap, TextInputValue};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::ReactiveStyles;
@@ -74,15 +75,23 @@ impl Widget for TextInput {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_value = self.value.get();
+        let is_reactive = self.value.is_reactive();
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
-        let component = Component::new(
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(TextInputValue(initial_value.clone()))
+        };
+
+        let component = Component::with_properties(
             id,
             ComponentType::TextInput,
             ComponentProps::TextInput { value: initial_value, styles: computed_styles },
+            properties,
         );
 
-        let value_effect = if self.value.is_reactive() {
+        let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
             let effect = create_effect(move || {
@@ -185,15 +194,23 @@ impl Widget for NumberInput {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_value = self.value.get();
+        let is_reactive = self.value.is_reactive();
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
-        let component = Component::new(
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(NumberInputValue(initial_value))
+        };
+
+        let component = Component::with_properties(
             id,
             ComponentType::NumberInput,
             ComponentProps::NumberInput { value: initial_value, styles: computed_styles },
+            properties,
         );
 
-        let value_effect = if self.value.is_reactive() {
+        let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
             let effect = create_effect(move || {

@@ -3045,6 +3045,7 @@ dependencies = [
  "indexmap",
  "keyboard-types",
  "log",
+ "once_cell",
  "parley",
  "peniko 0.5.0",
  "pollster",

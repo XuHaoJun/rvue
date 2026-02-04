@@ -159,4 +159,46 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - N/A (in-memory style computation) (001-style-system)
 
 ## Recent Changes
-- 001-style-system: Added Rust 2021 Edition (minimum 1.75+) + `selectors = "0.35"` (Stylo), `cssparser = "0.36"`, `bitflags = "2"`, `rudo-gc`
+
+### Props Enum Migration (COMPLETED)
+
+#### Created PropertyMap Infrastructure
+- **`crates/rvue/src/properties/`** - Xilem-inspired trait-based property system
+  - `mod.rs` - Module exports with `defaults` submodule for global theming
+  - `traits.rs` - `WidgetProperty` trait with `static_default()` method
+  - `types.rs` - 20+ built-in properties:
+    - `TextContent`, `WidgetStyles`, `ShowCondition`, `ForItemCount`
+    - `TextInputValue`, `NumberInputValue`, `CheckboxChecked`, `RadioValue`
+    - `FlexDirection`, `FlexGap`, `FlexAlignItems`, `FlexJustifyContent`
+  - `map.rs` - `PropertyMap` with builder-style `.and()` method for chaining
+
+#### Updated Component
+- Added `properties: GcCell<PropertyMap>` field to `Component` struct
+- Added `Component::with_properties()` and `Component::with_global_id_and_properties()` constructors
+- Added getter/setter methods with full backward compatibility:
+  - PropertyMap → ComponentProps → Defaults (three-tier fallback)
+- Getters: `text_content()`, `flex_direction()`, `flex_gap()`, etc.
+- Setters: `set_text_content()`, `set_flex_direction()`, etc. (update both PropertyMap + ComponentProps)
+
+#### Updated Widgets to Initialize PropertyMap Directly
+- **Text**: Initializes `PropertyMap::with(TextContent(...))` for non-reactive content
+- **Flex**: Initializes all flex properties via `PropertyMap::new().and(...).and(...)`
+- **Checkbox**: Initializes `PropertyMap::with(CheckboxChecked(...))` for non-reactive state
+- **Radio**: Initializes `PropertyMap` with `RadioValue` and `CheckboxChecked`
+- **TextInput/NumberInput**: Initialize `PropertyMap` with input values
+- **Show**: Initializes `PropertyMap::with(ShowCondition(...))`
+- **For**: Initializes `PropertyMap::with(ForItemCount(...))`
+
+#### Global Theming (DefaultProperties)
+- Added `properties::defaults` module with thread-safe global defaults:
+  - `set_default_text_content()`, `get_default_text_content()`
+  - `set_default_flex_direction()`, `get_default_flex_direction()`
+  - `set_default_flex_gap()`, `get_default_flex_gap()`
+  - `set_default_flex_align_items()`, `get_default_flex_align_items()`
+  - `set_default_flex_justify_content()`, `get_default_flex_justify_content()`
+- Getters fall back to defaults when values not in PropertyMap or ComponentProps
+
+#### Tests & Quality
+- All 252+ tests pass across all crates
+- Removed unused `as_any` method from `DynProperty`
+- Cleaned up unused imports in widgets

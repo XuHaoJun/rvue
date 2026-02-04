@@ -16,6 +16,7 @@ pub mod ev;
 pub mod event;
 pub mod layout;
 pub mod prelude;
+pub mod properties;
 pub mod render;
 pub mod runtime;
 pub mod signal;
@@ -36,6 +37,11 @@ pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };
 pub use event::ScrollDragState;
+pub use properties::{
+    CheckboxChecked, FlexAlignItems, FlexDirection, FlexGap, FlexJustifyContent, ForItemCount,
+    GcPropertyMap, NumberInputValue, PropertyMap, RadioChecked, RadioValue, ShowCondition,
+    TextContent, TextInputValue, WidgetProperty, WidgetStyles,
+};
 pub use render::{render_component, FlexScrollState, Scene};
 pub use rudo_gc::Gc;
 pub use rvue_style::Overflow;

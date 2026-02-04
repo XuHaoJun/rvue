@@ -254,11 +254,15 @@ pub fn resolve_styles_for_component(
 }
 
 pub fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
+    // First try to get styles from the new PropertyMap API
+    if let Some(styles) = component.widget_styles() {
+        return Some(styles);
+    }
+
+    // Fall back to reading from ComponentProps for backward compatibility
     use crate::component::ComponentProps;
-
     let props = component.props.borrow();
-
-    let result = match &*props {
+    match &*props {
         ComponentProps::Text { styles, .. } => styles.clone(),
         ComponentProps::Button { styles, .. } => styles.clone(),
         ComponentProps::TextInput { styles, .. } => styles.clone(),
@@ -267,9 +271,7 @@ pub fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
         ComponentProps::Radio { styles, .. } => styles.clone(),
         ComponentProps::Flex { styles, .. } => styles.clone(),
         _ => None,
-    };
-
-    result
+    }
 }
 
 pub trait StylesheetProvider {

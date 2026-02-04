@@ -1,6 +1,6 @@
 //! Layout node wrapper around Taffy
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::style::Stylesheet;
 use crate::text::{BrushIndex, ParleyLayoutWrapper, TextContext};
 use parley::Layout;
@@ -166,15 +166,14 @@ impl LayoutNode {
         mut style: Style,
         text_context: &mut TextContext,
     ) -> Self {
-        let (content, styles) =
-            if let ComponentProps::Text { content, styles } = &*component.props.borrow() {
-                (content.clone(), styles.clone())
-            } else {
-                (String::new(), None)
-            };
+        let content = component.text_content();
 
-        let font_size =
-            styles.as_ref().and_then(|s| s.font_size.as_ref()).map(|fs| fs.0).unwrap_or(16.0);
+        let font_size = component
+            .widget_styles()
+            .as_ref()
+            .and_then(|s| s.font_size.as_ref())
+            .map(|fs| fs.0)
+            .unwrap_or(16.0);
 
         // Eagerly build text layout to get dimensions
         let mut layout_builder =
@@ -224,80 +223,77 @@ impl LayoutNode {
 
         match &component.component_type {
             ComponentType::Flex => {
-                if let ComponentProps::Flex {
-                    direction, gap, align_items, justify_content, ..
-                } = &*component.props.borrow()
-                {
-                    let flex_direction = match direction.to_lowercase().replace('_', "-").as_str() {
-                        "row" => taffy::prelude::FlexDirection::Row,
-                        "column" => taffy::prelude::FlexDirection::Column,
-                        "row-reverse" | "rowreverse" => taffy::prelude::FlexDirection::RowReverse,
-                        "column-reverse" | "columnreverse" => {
-                            taffy::prelude::FlexDirection::ColumnReverse
-                        }
-                        _ => taffy::prelude::FlexDirection::Row,
-                    };
+                let direction = component.flex_direction();
+                let gap = component.flex_gap();
+                let align_items = component.flex_align_items();
+                let justify_content = component.flex_justify_content();
 
-                    let align_items_taffy = match align_items.to_lowercase().as_str() {
-                        "start" => taffy::prelude::AlignItems::Start,
-                        "end" => taffy::prelude::AlignItems::End,
-                        "center" => taffy::prelude::AlignItems::Center,
-                        "stretch" => taffy::prelude::AlignItems::Stretch,
-                        "baseline" => taffy::prelude::AlignItems::Baseline,
-                        _ => taffy::prelude::AlignItems::Stretch,
-                    };
-
-                    let justify_content_taffy =
-                        match justify_content.to_lowercase().replace('_', "-").as_str() {
-                            "start" => taffy::prelude::JustifyContent::Start,
-                            "end" => taffy::prelude::JustifyContent::End,
-                            "center" => taffy::prelude::JustifyContent::Center,
-                            "space-between" | "spacebetween" => {
-                                taffy::prelude::JustifyContent::SpaceBetween
-                            }
-                            "space-around" | "spacearound" => {
-                                taffy::prelude::JustifyContent::SpaceAround
-                            }
-                            "space-evenly" | "spaceevenly" => {
-                                taffy::prelude::JustifyContent::SpaceEvenly
-                            }
-                            _ => taffy::prelude::JustifyContent::Start,
-                        };
-
-                    let mut style = Style {
-                        display: Display::Flex,
-                        flex_direction,
-                        gap: Size { width: length(*gap), height: length(*gap) },
-                        align_items: Some(align_items_taffy),
-                        justify_content: Some(justify_content_taffy),
-                        ..Default::default()
-                    };
-
-                    if let Some(computed) = computed {
-                        style.size = read_size_from_styles(&computed);
-                        style.min_size = read_min_size_from_styles(&computed);
-                        style.max_size = read_max_size_from_styles(&computed);
-
-                        // Apply overflow settings
-                        let _overflow_x = computed.overflow_x;
-                        let _overflow_y = computed.overflow_y;
-                        let overflow_x_taffy = overflow_to_taffy(&computed.overflow_x);
-                        let overflow_y_taffy = overflow_to_taffy(&computed.overflow_y);
-                        let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
-                        style.overflow = overflow;
-
-                        // Reserve space for scrollbar if overflow is Scroll or Auto
-                        if overflow.x == taffy::style::Overflow::Scroll
-                            || overflow.y == taffy::style::Overflow::Scroll
-                        {
-                            style.scrollbar_width = 10.0;
-                        }
+                let flex_direction = match direction.to_lowercase().replace('_', "-").as_str() {
+                    "row" => taffy::prelude::FlexDirection::Row,
+                    "column" => taffy::prelude::FlexDirection::Column,
+                    "row-reverse" | "rowreverse" => taffy::prelude::FlexDirection::RowReverse,
+                    "column-reverse" | "columnreverse" => {
+                        taffy::prelude::FlexDirection::ColumnReverse
                     }
+                    _ => taffy::prelude::FlexDirection::Row,
+                };
 
-                    style
-                } else {
-                    Style::default()
+                let align_items_taffy = match align_items.to_lowercase().as_str() {
+                    "start" => taffy::prelude::AlignItems::Start,
+                    "end" => taffy::prelude::AlignItems::End,
+                    "center" => taffy::prelude::AlignItems::Center,
+                    "stretch" => taffy::prelude::AlignItems::Stretch,
+                    "baseline" => taffy::prelude::AlignItems::Baseline,
+                    _ => taffy::prelude::AlignItems::Stretch,
+                };
+
+                let justify_content_taffy = match justify_content
+                    .to_lowercase()
+                    .replace('_', "-")
+                    .as_str()
+                {
+                    "start" => taffy::prelude::JustifyContent::Start,
+                    "end" => taffy::prelude::JustifyContent::End,
+                    "center" => taffy::prelude::JustifyContent::Center,
+                    "space-between" | "spacebetween" => {
+                        taffy::prelude::JustifyContent::SpaceBetween
+                    }
+                    "space-around" | "spacearound" => taffy::prelude::JustifyContent::SpaceAround,
+                    "space-evenly" | "spaceevenly" => taffy::prelude::JustifyContent::SpaceEvenly,
+                    _ => taffy::prelude::JustifyContent::Start,
+                };
+
+                let mut style = Style {
+                    display: Display::Flex,
+                    flex_direction,
+                    gap: Size { width: length(gap), height: length(gap) },
+                    align_items: Some(align_items_taffy),
+                    justify_content: Some(justify_content_taffy),
+                    ..Default::default()
+                };
+
+                if let Some(computed) = computed {
+                    style.size = read_size_from_styles(&computed);
+                    style.min_size = read_min_size_from_styles(&computed);
+                    style.max_size = read_max_size_from_styles(&computed);
+
+                    // Apply overflow settings
+                    let _overflow_x = computed.overflow_x;
+                    let _overflow_y = computed.overflow_y;
+                    let overflow_x_taffy = overflow_to_taffy(&computed.overflow_x);
+                    let overflow_y_taffy = overflow_to_taffy(&computed.overflow_y);
+                    let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
+                    style.overflow = overflow;
+
+                    // Reserve space for scrollbar if overflow is Scroll or Auto
+                    if overflow.x == taffy::style::Overflow::Scroll
+                        || overflow.y == taffy::style::Overflow::Scroll
+                    {
+                        style.scrollbar_width = 10.0;
+                    }
                 }
+
+                style
             }
             ComponentType::Text => Style { ..Default::default() },
             ComponentType::Button => {

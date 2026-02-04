@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{CheckboxChecked, PropertyMap};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::ReactiveStyles;
@@ -74,15 +75,23 @@ impl Widget for Checkbox {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_checked = self.checked.get();
+        let is_reactive = self.checked.is_reactive();
         let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
-        let component = Component::new(
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(CheckboxChecked(initial_checked))
+        };
+
+        let component = Component::with_properties(
             id,
             ComponentType::Checkbox,
             ComponentProps::Checkbox { checked: initial_checked, styles: computed_styles },
+            properties,
         );
 
-        let checked_effect = if self.checked.is_reactive() {
+        let checked_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let checked = self.checked.clone();
             let effect = create_effect(move || {

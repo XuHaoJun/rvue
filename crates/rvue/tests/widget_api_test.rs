@@ -178,16 +178,9 @@ fn test_fine_grained_text_update() {
         let updated_widget = Text::new("Updated");
         updated_widget.rebuild(&mut state);
 
-        // Verify the content was updated
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Text { content, .. } => {
-                    assert_eq!(content, "Updated");
-                }
-                _ => panic!("Expected Text props"),
-            }
-        }
+        // Verify the content was updated using new PropertyMap API
+        let content = state.component().text_content();
+        assert_eq!(content, "Updated");
     });
 }
 
@@ -221,15 +214,9 @@ fn test_fine_grained_flex_update() {
         let updated_widget = Flex::new().gap(20.0);
         updated_widget.rebuild(&mut state);
 
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Flex { gap, .. } => {
-                    assert_eq!(*gap, 20.0);
-                }
-                _ => panic!("Expected Flex props"),
-            }
-        }
+        // Verify the gap was updated using new PropertyMap API
+        let gap = state.component().flex_gap();
+        assert_eq!(gap, 20.0);
     });
 }
 
@@ -242,14 +229,10 @@ fn test_component_setters() {
         ComponentProps::Text { content: "Initial".to_string(), styles: None },
     );
 
-    // Test set_text_content
+    // Test set_text_content using new PropertyMap API
     component.set_text_content("Updated".to_string());
-    match &*component.props.borrow() {
-        ComponentProps::Text { content, .. } => {
-            assert_eq!(content, "Updated");
-        }
-        _ => panic!("Expected Text props"),
-    };
+    let content = component.text_content();
+    assert_eq!(content, "Updated");
 }
 
 #[test]

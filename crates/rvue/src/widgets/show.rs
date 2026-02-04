@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{PropertyMap, ShowCondition};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 
@@ -68,9 +69,20 @@ impl Widget for Show {
     fn build(self, ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_when = self.when.get();
+        let is_reactive = self.when.is_reactive();
 
-        let component =
-            Component::new(id, ComponentType::Show, ComponentProps::Show { when: initial_when });
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(ShowCondition(initial_when))
+        };
+
+        let component = Component::with_properties(
+            id,
+            ComponentType::Show,
+            ComponentProps::Show { when: initial_when },
+            properties,
+        );
 
         // Build children with access to the context
         let child_component = (self.children_fn)(ctx);
@@ -78,7 +90,7 @@ impl Widget for Show {
         child_component.set_parent(Some(Gc::clone(&component)));
 
         // Setup reactive update if when is reactive
-        let when_effect = if self.when.is_reactive() {
+        let when_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let when = self.when.clone();
             let effect = create_effect(move || {

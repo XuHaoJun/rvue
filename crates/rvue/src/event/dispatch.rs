@@ -1,4 +1,4 @@
-use crate::component::{Component, ComponentProps};
+use crate::component::{Component, ComponentType};
 use crate::event::context::EventContext;
 use crate::event::focus::find_next_focusable;
 use crate::event::hit_test::hit_test;
@@ -11,8 +11,7 @@ use winit::keyboard::{Key, NamedKey};
 pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>> {
     let mut parent = component.parent.borrow().clone();
     while let Some(p) = parent {
-        let props = p.props.borrow();
-        if let ComponentProps::Flex { .. } = &*props {
+        if matches!(p.component_type, ComponentType::Flex) {
             let inline_styles = get_inline_styles(&p);
             let overflow_x = inline_styles
                 .as_ref()
@@ -35,8 +34,7 @@ pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>>
 /// Find any scroll container in the component tree (for scroll events with no target)
 fn find_any_scroll_container(root: &Gc<Component>) -> Option<Gc<Component>> {
     fn find_recursive(comp: &Gc<Component>) -> Option<Gc<Component>> {
-        let props = comp.props.borrow();
-        if let ComponentProps::Flex { .. } = &*props {
+        if matches!(comp.component_type, ComponentType::Flex) {
             let inline_styles = get_inline_styles(comp);
             let overflow_x = inline_styles
                 .as_ref()

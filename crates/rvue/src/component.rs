@@ -4,6 +4,11 @@ use crate::effect::Effect;
 use crate::event::handler::EventHandlers;
 use crate::event::status::{ComponentFlags, StatusUpdate};
 use crate::layout::LayoutNode;
+use crate::properties::{
+    CheckboxChecked, FlexAlignItems, FlexDirection, FlexGap, FlexJustifyContent, ForItemCount,
+    NumberInputValue, PropertyMap, RadioChecked, RadioValue, ShowCondition, TextContent,
+    TextInputValue, WidgetStyles,
+};
 use crate::render::FlexScrollState;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
@@ -276,6 +281,7 @@ pub struct Component {
     pub parent: GcCell<Option<Gc<Component>>>,
     pub effects: GcCell<Vec<Gc<Effect>>>,
     pub props: GcCell<ComponentProps>,
+    pub properties: GcCell<PropertyMap>,
     pub is_dirty: AtomicBool,
     pub is_updating: AtomicBool,
     pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
@@ -305,6 +311,7 @@ unsafe impl Trace for Component {
         // self.parent.trace(visitor); // REMOVED: Tracing parent creates Component <-> Component cycles
         self.effects.trace(visitor);
         self.props.trace(visitor);
+        self.properties.trace(visitor);
         self.layout_node.trace(visitor);
         self.flags.trace(visitor);
         self.is_hovered.trace(visitor);
@@ -333,6 +340,7 @@ impl Clone for Component {
             parent: GcCell::new(None),
             effects: GcCell::new(self.effects.borrow().clone()),
             props: GcCell::new(self.props.borrow().clone()),
+            properties: GcCell::new(self.properties.borrow().clone()),
             is_dirty: AtomicBool::new(self.is_dirty.load(Ordering::SeqCst)),
             is_updating: AtomicBool::new(false),
             user_data: GcCell::new(None),
@@ -371,6 +379,16 @@ impl Component {
     /// Create a new component with the given type and props
     /// Optimized: Pre-allocate with capacity hints for common component trees
     pub fn new(id: ComponentId, component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
+        Self::with_properties(id, component_type, props, PropertyMap::new())
+    }
+
+    /// Create a new component with the given type, props, and properties
+    pub fn with_properties(
+        id: ComponentId,
+        component_type: ComponentType,
+        props: ComponentProps,
+        properties: PropertyMap,
+    ) -> Gc<Self> {
         let initial_children_capacity = match component_type {
             ComponentType::Flex => 8,
             _ => 0,
@@ -395,6 +413,7 @@ impl Component {
             parent: GcCell::new(None),
             effects: GcCell::new(Vec::new()),
             props: GcCell::new(props),
+            properties: GcCell::new(properties),
             is_dirty: AtomicBool::new(true),
             is_updating: AtomicBool::new(false),
             user_data: GcCell::new(None),
@@ -420,6 +439,16 @@ impl Component {
     pub fn with_global_id(component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
         let id = next_component_id();
         Self::new(id, component_type, props)
+    }
+
+    /// Create a new component with a globally unique ID and properties (for use in slots)
+    pub fn with_global_id_and_properties(
+        component_type: ComponentType,
+        props: ComponentProps,
+        properties: PropertyMap,
+    ) -> Gc<Self> {
+        let id = next_component_id();
+        Self::with_properties(id, component_type, props, properties)
     }
 
     /// Mark the component as dirty (needs re-render)
@@ -562,80 +591,145 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        let styles = {
-            if let ComponentProps::Text { styles, .. } = &*self.props.borrow() {
-                styles.clone()
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() = ComponentProps::Text { content, styles };
+        self.properties.borrow_mut().insert(TextContent(content.clone()));
+        let mut props = self.props.borrow_mut();
+        if let ComponentProps::Text { content: existing_content, .. } = &mut *props {
+            *existing_content = content;
+        }
+        drop(props);
         self.mark_dirty();
+    }
+
+    /// Get text content
+    pub fn text_content(&self) -> String {
+        // First try to get from PropertyMap
+        if let Some(tc) = self.properties.borrow().get::<TextContent>() {
+            return tc.0.clone();
+        }
+
+        // Fall back to ComponentProps for backward compatibility
+        let props = self.props.borrow();
+        if let ComponentProps::Text { content, .. } = &*props {
+            return content.clone();
+        }
+
+        // Fall back to defaults
+        if let Some(default) = crate::properties::defaults::get_default_text_content() {
+            return default;
+        }
+
+        String::new()
     }
 
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
-        let (gap, align_items, justify_content, styles) = {
-            if let ComponentProps::Flex { gap, align_items, justify_content, styles, .. } =
-                &*self.props.borrow()
-            {
-                (*gap, align_items.clone(), justify_content.clone(), styles.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
+        self.properties.borrow_mut().insert(FlexDirection(direction.clone()));
+        let mut props = self.props.borrow_mut();
+        if let ComponentProps::Flex { direction: existing_direction, .. } = &mut *props {
+            *existing_direction = direction.clone();
+        }
+        drop(props);
         self.mark_dirty();
+    }
+
+    /// Get flex direction
+    pub fn flex_direction(&self) -> String {
+        // First try to get from PropertyMap
+        if let Some(d) = self.properties.borrow().get::<FlexDirection>() {
+            return d.0.clone();
+        }
+
+        // Fall back to ComponentProps for backward compatibility
+        let props = self.props.borrow();
+        match &*props {
+            ComponentProps::Flex { direction, .. } => return direction.clone(),
+            _ => {}
+        }
+
+        // Fall back to defaults
+        if let Some(default) = crate::properties::defaults::get_default_flex_direction() {
+            return default;
+        }
+
+        "row".to_string()
     }
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
-        let (direction, align_items, justify_content, styles) = {
-            if let ComponentProps::Flex {
-                direction, align_items, justify_content, styles, ..
-            } = &*self.props.borrow()
-            {
-                (direction.clone(), align_items.clone(), justify_content.clone(), styles.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
+        self.properties.borrow_mut().insert(FlexGap(gap));
+        let mut props = self.props.borrow_mut();
+        if let ComponentProps::Flex { gap: existing_gap, .. } = &mut *props {
+            *existing_gap = gap;
+        }
+        drop(props);
         self.mark_dirty();
+    }
+
+    /// Get flex gap
+    pub fn flex_gap(&self) -> f32 {
+        // First try to get from PropertyMap
+        if let Some(g) = self.properties.borrow().get::<FlexGap>() {
+            return g.0;
+        }
+
+        // Fall back to defaults
+        if let Some(default) = crate::properties::defaults::get_default_flex_gap() {
+            return default;
+        }
+
+        0.0
     }
 
     /// Set flex align_items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
-        let (direction, gap, justify_content, styles) = {
-            if let ComponentProps::Flex { direction, gap, justify_content, styles, .. } =
-                &*self.props.borrow()
-            {
-                (direction.clone(), *gap, justify_content.clone(), styles.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
+        self.properties.borrow_mut().insert(FlexAlignItems(align_items.clone()));
+        let mut props = self.props.borrow_mut();
+        if let ComponentProps::Flex { align_items: existing_align, .. } = &mut *props {
+            *existing_align = align_items.clone();
+        }
+        drop(props);
         self.mark_dirty();
+    }
+
+    /// Get flex align_items
+    pub fn flex_align_items(&self) -> String {
+        // First try to get from PropertyMap
+        if let Some(a) = self.properties.borrow().get::<FlexAlignItems>() {
+            return a.0.clone();
+        }
+
+        // Fall back to defaults
+        if let Some(default) = crate::properties::defaults::get_default_flex_align_items() {
+            return default;
+        }
+
+        "stretch".to_string()
     }
 
     /// Set flex justify_content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
-        let (direction, gap, align_items, styles) = {
-            if let ComponentProps::Flex { direction, gap, align_items, styles, .. } =
-                &*self.props.borrow()
-            {
-                (direction.clone(), *gap, align_items.clone(), styles.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content, styles };
+        self.properties.borrow_mut().insert(FlexJustifyContent(justify_content.clone()));
+        let mut props = self.props.borrow_mut();
+        if let ComponentProps::Flex { justify_content: existing_justify, .. } = &mut *props {
+            *existing_justify = justify_content.clone();
+        }
+        drop(props);
         self.mark_dirty();
+    }
+
+    /// Get flex justify_content
+    pub fn flex_justify_content(&self) -> String {
+        // First try to get from PropertyMap
+        if let Some(j) = self.properties.borrow().get::<FlexJustifyContent>() {
+            return j.0.clone();
+        }
+
+        // Fall back to defaults
+        if let Some(default) = crate::properties::defaults::get_default_flex_justify_content() {
+            return default;
+        }
+
+        "flex-start".to_string()
     }
 
     /// Set flex overflow (for Flex components)
@@ -644,37 +738,26 @@ impl Component {
         overflow_x: rvue_style::properties::Overflow,
         overflow_y: rvue_style::properties::Overflow,
     ) {
-        let (direction, gap, align_items, justify_content, _styles) = {
-            if let ComponentProps::Flex {
-                direction,
-                gap,
-                align_items,
-                justify_content,
-                styles,
-                ..
-            } = &*self.props.borrow()
-            {
-                (
-                    direction.clone(),
-                    *gap,
-                    align_items.clone(),
-                    justify_content.clone(),
-                    styles.clone(),
-                )
-            } else {
-                return;
-            }
-        };
-        let mut new_styles = _styles.unwrap_or_default();
-        new_styles.overflow_x = Some(overflow_x);
-        new_styles.overflow_y = Some(overflow_y);
-        *self.props.borrow_mut() = ComponentProps::Flex {
-            direction,
-            gap,
-            align_items,
-            justify_content,
-            styles: Some(new_styles),
-        };
+        let mut styles = self
+            .properties
+            .borrow()
+            .get::<WidgetStyles>()
+            .cloned()
+            .unwrap_or_else(|| WidgetStyles(rvue_style::ComputedStyles::default()));
+        styles.0.overflow_x = Some(overflow_x);
+        styles.0.overflow_y = Some(overflow_y);
+        self.properties.borrow_mut().insert(styles);
+        self.mark_dirty();
+    }
+
+    /// Get widget styles
+    pub fn widget_styles(&self) -> Option<rvue_style::ComputedStyles> {
+        self.properties.borrow().get::<WidgetStyles>().cloned().map(|w| w.0)
+    }
+
+    /// Set widget styles
+    pub fn set_widget_styles(&self, styles: rvue_style::ComputedStyles) {
+        self.properties.borrow_mut().insert(WidgetStyles(styles));
         self.mark_dirty();
     }
 
@@ -710,81 +793,79 @@ impl Component {
 
     /// Set checkbox checked state (for Checkbox components)
     pub fn set_checkbox_checked(&self, checked: bool) {
-        if matches!(self.component_type, ComponentType::Checkbox) {
-            let styles = {
-                if let ComponentProps::Checkbox { styles, .. } = &*self.props.borrow() {
-                    styles.clone()
-                } else {
-                    return;
-                }
-            };
-            *self.props.borrow_mut() = ComponentProps::Checkbox { checked, styles };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(CheckboxChecked(checked));
+        self.mark_dirty();
+    }
+
+    /// Get checkbox checked state
+    pub fn checkbox_checked(&self) -> bool {
+        self.properties.borrow().get::<CheckboxChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
-        if let ComponentProps::Radio { value, styles, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() =
-                ComponentProps::Radio { value: value.clone(), checked, styles: styles.clone() };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(RadioChecked(checked));
+        self.mark_dirty();
+    }
+
+    /// Get radio checked state
+    pub fn radio_checked(&self) -> bool {
+        self.properties.borrow().get::<RadioChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio value (for Radio components)
     pub fn set_radio_value(&self, value: String) {
-        if let ComponentProps::Radio { checked, styles, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() =
-                ComponentProps::Radio { value, checked: *checked, styles: styles.clone() };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(RadioValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get radio value
+    pub fn radio_value(&self) -> String {
+        self.properties.borrow().get::<RadioValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
-        if matches!(self.component_type, ComponentType::TextInput) {
-            let styles = {
-                if let ComponentProps::TextInput { styles, .. } = &*self.props.borrow() {
-                    styles.clone()
-                } else {
-                    return;
-                }
-            };
-            *self.props.borrow_mut() = ComponentProps::TextInput { value, styles };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(TextInputValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get text input value
+    pub fn text_input_value(&self) -> String {
+        self.properties.borrow().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
-        if matches!(self.component_type, ComponentType::NumberInput) {
-            let styles = {
-                if let ComponentProps::NumberInput { styles, .. } = &*self.props.borrow() {
-                    styles.clone()
-                } else {
-                    return;
-                }
-            };
-            *self.props.borrow_mut() = ComponentProps::NumberInput { value, styles };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(NumberInputValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get number input value
+    pub fn number_input_value(&self) -> f64 {
+        self.properties.borrow().get::<NumberInputValue>().map(|v| v.0).unwrap_or(0.0)
     }
 
     /// Set show condition (for Show components)
     pub fn set_show_when(&self, when: bool) {
-        if matches!(self.component_type, ComponentType::Show) {
-            *self.props.borrow_mut() = ComponentProps::Show { when };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(ShowCondition(when));
+        self.mark_dirty();
+    }
+
+    /// Get show condition
+    pub fn show_when(&self) -> bool {
+        self.properties.borrow().get::<ShowCondition>().map(|w| w.0).unwrap_or(true)
     }
 
     /// Set for item count (for For components)
     pub fn set_for_item_count(&self, item_count: usize) {
-        if matches!(self.component_type, ComponentType::For) {
-            *self.props.borrow_mut() = ComponentProps::For { item_count };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(ForItemCount(item_count));
+        self.mark_dirty();
+    }
+
+    /// Get for item count
+    pub fn for_item_count(&self) -> usize {
+        self.properties.borrow().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
     }
 
     pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1243,13 +1324,11 @@ fn collect_child_node_ids(
         if let Some(node_id) = child_layout.taffy_node() {
             node_ids.push(node_id);
         } else if matches!(child.component_type, ComponentType::Show) {
-            if let ComponentProps::Show { when } = &*child.props.borrow() {
-                if *when {
-                    for grandchild in child.children.borrow().iter() {
-                        if let Some(grandchild_layout) = grandchild.layout_node() {
-                            if let Some(node_id) = grandchild_layout.taffy_node() {
-                                node_ids.push(node_id);
-                            }
+            if child.show_when() {
+                for grandchild in child.children.borrow().iter() {
+                    if let Some(grandchild_layout) = grandchild.layout_node() {
+                        if let Some(node_id) = grandchild_layout.taffy_node() {
+                            node_ids.push(node_id);
                         }
                     }
                 }
@@ -1324,12 +1403,10 @@ impl ComponentLifecycle for Component {
     fn mount(&self, _parent: Option<Gc<Component>>) {
         // For Show components, mount/unmount children based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &*self.props.borrow() {
-                if *when {
-                    // Mount children if visible
-                    for child in self.children.borrow().iter() {
-                        child.mount(None);
-                    }
+            if self.show_when() {
+                // Mount children if visible
+                for child in self.children.borrow().iter() {
+                    child.mount(None);
                 }
             }
         } else {
@@ -1374,17 +1451,15 @@ impl ComponentLifecycle for Component {
 
         // For Show components, update children mounting based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &*self.props.borrow() {
-                if *when {
-                    // Ensure children are mounted
-                    for child in self.children.borrow().iter() {
-                        child.mount(None);
-                    }
-                } else {
-                    // Unmount children if hidden
-                    for child in self.children.borrow().iter() {
-                        child.unmount();
-                    }
+            if self.show_when() {
+                // Ensure children are mounted
+                for child in self.children.borrow().iter() {
+                    child.mount(None);
+                }
+            } else {
+                // Unmount children if hidden
+                for child in self.children.borrow().iter() {
+                    child.unmount();
                 }
             }
         }

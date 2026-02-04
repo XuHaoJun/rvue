@@ -2,6 +2,9 @@
 
 use crate::component::{Component, ComponentProps, ComponentType};
 use crate::event::status::ComponentFlags;
+use crate::properties::{
+    FlexAlignItems, FlexDirection as FlexDirectionProp, FlexGap, FlexJustifyContent, PropertyMap,
+};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::{
@@ -206,40 +209,41 @@ impl Widget for Flex {
         let overflow_x = self.overflow_x.get();
         let overflow_y = self.overflow_y.get();
 
-        // Compute the styles if present and include overflow values
-        let mut computed_styles = self.styles.as_ref().map(|s| s.compute());
+        let direction_str = direction.as_str().to_string();
+        let align_items_str = align_items.as_str().to_string();
+        let justify_content_str = justify_content.as_str().to_string();
 
-        // Always include overflow values (even if not set via styles)
-        if overflow_x != Overflow::Visible || overflow_y != Overflow::Visible {
-            if let Some(ref mut styles) = computed_styles {
-                styles.overflow_x = Some(overflow_x);
-                styles.overflow_y = Some(overflow_y);
-            } else {
-                let mut new_styles = rvue_style::ComputedStyles::default();
-                new_styles.overflow_x = Some(overflow_x);
-                new_styles.overflow_y = Some(overflow_y);
-                computed_styles = Some(new_styles);
-            }
-        }
+        let is_direction_reactive = self.direction.is_reactive();
+        let is_gap_reactive = self.gap.is_reactive();
+        let is_align_reactive = self.align_items.is_reactive();
+        let is_justify_reactive = self.justify_content.is_reactive();
 
-        let component = Component::new(
+        let properties = PropertyMap::new()
+            .and(FlexDirectionProp(direction_str.clone()))
+            .and(FlexGap(gap))
+            .and(FlexAlignItems(align_items_str.clone()))
+            .and(FlexJustifyContent(justify_content_str.clone()));
+
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
+
+        let component = Component::with_properties(
             id,
             ComponentType::Flex,
             ComponentProps::Flex {
-                direction: direction.as_str().to_string(),
+                direction: direction_str,
                 gap,
-                align_items: align_items.as_str().to_string(),
-                justify_content: justify_content.as_str().to_string(),
+                align_items: align_items_str,
+                justify_content: justify_content_str,
                 styles: computed_styles,
             },
+            properties,
         );
 
         if overflow_x.should_clip() || overflow_y.should_clip() {
             component.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
         }
 
-        // Setup reactive updates for each property
-        let direction_effect = if self.direction.is_reactive() {
+        let direction_effect = if is_direction_reactive {
             let comp = Gc::clone(&component);
             let direction = self.direction.clone();
             let effect = crate::effect::create_effect(move || {
@@ -252,7 +256,7 @@ impl Widget for Flex {
             None
         };
 
-        let gap_effect = if self.gap.is_reactive() {
+        let gap_effect = if is_gap_reactive {
             let comp = Gc::clone(&component);
             let gap = self.gap.clone();
             let effect = crate::effect::create_effect(move || {
@@ -265,7 +269,7 @@ impl Widget for Flex {
             None
         };
 
-        let align_items_effect = if self.align_items.is_reactive() {
+        let align_items_effect = if is_align_reactive {
             let comp = Gc::clone(&component);
             let align_items = self.align_items.clone();
             let effect = crate::effect::create_effect(move || {
@@ -278,7 +282,7 @@ impl Widget for Flex {
             None
         };
 
-        let justify_content_effect = if self.justify_content.is_reactive() {
+        let justify_content_effect = if is_justify_reactive {
             let comp = Gc::clone(&component);
             let justify_content = self.justify_content.clone();
             let effect = crate::effect::create_effect(move || {

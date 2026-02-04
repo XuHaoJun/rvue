@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentLifecycle, ComponentProps, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{ForItemCount, PropertyMap};
 use crate::view::View;
 use crate::widget::{
     with_current_ctx, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
@@ -260,11 +261,19 @@ where
         let id = crate::component::next_component_id();
         let initial_items = self.items.get();
         let initial_count = initial_items.len();
+        let is_reactive = self.items.is_reactive();
 
-        let component = Component::new(
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(ForItemCount(initial_count))
+        };
+
+        let component = Component::with_properties(
             id,
             ComponentType::For,
             ComponentProps::KeyedFor { item_count: initial_count },
+            properties,
         );
 
         let mut keyed_state = KeyedState {

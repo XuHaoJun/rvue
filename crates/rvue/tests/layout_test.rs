@@ -191,16 +191,8 @@ fn test_show_conditional_rendering_with_flex_gap() {
     set_visible.set(false);
 
     let children = root.children.borrow();
-    let show1_when_after = if let ComponentProps::Show { when } = &*children[0].props.borrow() {
-        *when
-    } else {
-        panic!("Expected Show props")
-    };
-    let show2_when_after = if let ComponentProps::Show { when } = &*children[1].props.borrow() {
-        *when
-    } else {
-        panic!("Expected Show props")
-    };
+    let show1_when_after = children[0].show_when();
+    let show2_when_after = children[1].show_when();
     assert!(!show1_when_after, "Show1 should be hidden after toggle");
     assert!(show2_when_after, "Show2 should be visible after toggle");
     drop(children);
@@ -210,11 +202,7 @@ fn test_show_conditional_rendering_with_flex_gap() {
     root_layout2.calculate_layout(&mut taffy).unwrap();
 
     let children = root.children.borrow();
-    let show1_when_final = if let ComponentProps::Show { when } = &*children[0].props.borrow() {
-        *when
-    } else {
-        panic!("Expected Show props")
-    };
+    let show1_when_final = children[0].show_when();
     assert!(!show1_when_final, "Show1 should still be hidden after rebuild");
 }
 

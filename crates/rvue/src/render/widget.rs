@@ -1,6 +1,6 @@
 //! Widget-to-Vello mapping
 
-use crate::component::{Component, ComponentProps, ComponentType, SceneWrapper};
+use crate::component::{Component, ComponentType, SceneWrapper};
 use crate::style::{resolve_styles_for_component, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use crate::widgets::scroll_bar::{render_horizontal_scrollbar, render_vertical_scrollbar};
@@ -102,13 +102,7 @@ pub fn render_component(
     }
 
     let should_render_children = match &component.component_type {
-        ComponentType::Show => {
-            if let ComponentProps::Show { when } = &*component.props.borrow() {
-                *when
-            } else {
-                false
-            }
-        }
+        ComponentType::Show => component.show_when(),
         ComponentType::For => true,
         ComponentType::Flex => true,
         _ => !component.children.borrow().is_empty(),
@@ -218,17 +212,8 @@ fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> Com
             resolve_styles_for_component(component, sheet)
         }
         None => {
-            let props = component.props.borrow();
-            match &*props {
-                ComponentProps::Text { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::Button { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::TextInput { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::NumberInput { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::Checkbox { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::Radio { styles, .. } => styles.clone().unwrap_or_default(),
-                ComponentProps::Flex { styles, .. } => styles.clone().unwrap_or_default(),
-                _ => ComputedStyles::default(),
-            }
+            // Use new PropertyMap-based API
+            component.widget_styles().unwrap_or_default()
         }
     };
     result
@@ -240,38 +225,35 @@ fn render_text(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Text { content: _, styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let user_data = component.user_data.borrow();
-        let layout_wrapper =
-            user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
+    let styles = get_styles(component, stylesheet);
+    let user_data = component.user_data.borrow();
+    let layout_wrapper = user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
 
-        if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
-            let brush = styles
-                .text_color
-                .as_ref()
-                .map(|tc| {
-                    let rgb = tc.0 .0;
-                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                })
-                .unwrap_or(Color::BLACK);
+    if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
+        let brush = styles
+            .text_color
+            .as_ref()
+            .map(|tc| {
+                let rgb = tc.0 .0;
+                Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+            })
+            .unwrap_or(Color::BLACK);
 
-            if layout.lines().next().is_none() {
-                let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-                let bg_color = Color::from_rgb8(255, 165, 0);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
-            } else {
-                render_text_layout(layout, scene, transform, brush);
-            }
-        } else if user_data.is_some() {
+        if layout.lines().next().is_none() {
             let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-            let bg_color = Color::from_rgb8(255, 0, 0);
+            let bg_color = Color::from_rgb8(255, 165, 0);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
         } else {
-            let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-            let bg_color = Color::from_rgba8(200, 200, 200, 255);
-            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+            render_text_layout(layout, scene, transform, brush);
         }
+    } else if user_data.is_some() {
+        let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+        let bg_color = Color::from_rgb8(255, 0, 0);
+        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
+    } else {
+        let rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+        let bg_color = Color::from_rgba8(200, 200, 200, 255);
+        scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rect);
     }
 }
 
@@ -329,42 +311,30 @@ fn render_button(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Button { styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(button_layout) = layout.layout() {
-                let width = button_layout.size.width as f64;
-                let height = button_layout.size.height as f64;
-                let _rect = Rect::new(0.0, 0.0, width, height);
+    if let Some(layout) = layout_node {
+        if let Some(button_layout) = layout.layout() {
+            let width = button_layout.size.width as f64;
+            let height = button_layout.size.height as f64;
+            let _rect = Rect::new(0.0, 0.0, width, height);
 
-                let bg_color = styles
-                    .background_color
-                    .as_ref()
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
-                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                    })
-                    .unwrap_or_else(|| Color::from_rgb8(70, 130, 180));
+            let bg_color = styles
+                .background_color
+                .as_ref()
+                .map(|bg| {
+                    let rgb = bg.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or_else(|| Color::from_rgb8(70, 130, 180));
 
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
+            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
-                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+            let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(
-                    scene,
-                    transform,
-                    &Some(styles),
-                    0.0,
-                    0.0,
-                    width,
-                    height,
-                    border_radius,
-                );
-            }
+            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
         }
     }
 }
@@ -375,42 +345,30 @@ fn render_text_input(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::TextInput { value: _, styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(input_layout) = layout.layout() {
-                let width = input_layout.size.width as f64;
-                let height = input_layout.size.height as f64;
-                let _rect = Rect::new(0.0, 0.0, width, height);
+    if let Some(layout) = layout_node {
+        if let Some(input_layout) = layout.layout() {
+            let width = input_layout.size.width as f64;
+            let height = input_layout.size.height as f64;
+            let _rect = Rect::new(0.0, 0.0, width, height);
 
-                let bg_color = styles
-                    .background_color
-                    .as_ref()
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
-                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                    })
-                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+            let bg_color = styles
+                .background_color
+                .as_ref()
+                .map(|bg| {
+                    let rgb = bg.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
+            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
-                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+            let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(
-                    scene,
-                    transform,
-                    &Some(styles),
-                    0.0,
-                    0.0,
-                    width,
-                    height,
-                    border_radius,
-                );
-            }
+            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
         }
     }
 }
@@ -421,42 +379,30 @@ fn render_number_input(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::NumberInput { value: _, styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(input_layout) = layout.layout() {
-                let width = input_layout.size.width as f64;
-                let height = input_layout.size.height as f64;
-                let _rect = Rect::new(0.0, 0.0, width, height);
+    if let Some(layout) = layout_node {
+        if let Some(input_layout) = layout.layout() {
+            let width = input_layout.size.width as f64;
+            let height = input_layout.size.height as f64;
+            let _rect = Rect::new(0.0, 0.0, width, height);
 
-                let bg_color = styles
-                    .background_color
-                    .as_ref()
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
-                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                    })
-                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+            let bg_color = styles
+                .background_color
+                .as_ref()
+                .map(|bg| {
+                    let rgb = bg.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
+            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
-                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+            let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(
-                    scene,
-                    transform,
-                    &Some(styles),
-                    0.0,
-                    0.0,
-                    width,
-                    height,
-                    border_radius,
-                );
-            }
+            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
         }
     }
 }
@@ -467,34 +413,31 @@ fn render_checkbox(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Checkbox { checked: _, styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(checkbox_layout) = layout.layout() {
-                let width = checkbox_layout.size.width as f64;
-                let height = checkbox_layout.size.height as f64;
+    if let Some(layout) = layout_node {
+        if let Some(checkbox_layout) = layout.layout() {
+            let width = checkbox_layout.size.width as f64;
+            let height = checkbox_layout.size.height as f64;
 
-                let bg_color = styles
-                    .background_color
-                    .as_ref()
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
-                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                    })
-                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+            let bg_color = styles
+                .background_color
+                .as_ref()
+                .map(|bg| {
+                    let rgb = bg.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
+            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
-                let _rect = Rect::new(0.0, 0.0, width.min(height), height.min(width));
-                let size = width.min(height);
-                let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
+            let _rect = Rect::new(0.0, 0.0, width.min(height), height.min(width));
+            let size = width.min(height);
+            let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-                render_border(scene, transform, &Some(styles), 0.0, 0.0, size, size, border_radius);
-            }
+            render_border(scene, transform, &Some(styles), 0.0, 0.0, size, size, border_radius);
         }
     }
 }
@@ -505,53 +448,50 @@ fn render_radio(
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Radio { value: _, checked: _, styles: _ } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(radio_layout) = layout.layout() {
-                let size = radio_layout.size.width.min(radio_layout.size.height) as f64;
-                let center_x = radio_layout.size.width / 2.0;
-                let center_y = radio_layout.size.height / 2.0;
+    if let Some(layout) = layout_node {
+        if let Some(radio_layout) = layout.layout() {
+            let size = radio_layout.size.width.min(radio_layout.size.height) as f64;
+            let center_x = radio_layout.size.width / 2.0;
+            let center_y = radio_layout.size.height / 2.0;
 
-                let bg_color = styles
-                    .background_color
+            let bg_color = styles
+                .background_color
+                .as_ref()
+                .map(|bg| {
+                    let rgb = bg.0 .0;
+                    Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                })
+                .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+
+            let circle = Circle::new((center_x, center_y), size / 2.0);
+            scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
+
+            let border_style = styles.border_style.as_ref().copied().unwrap_or(BorderStyle::None);
+
+            if border_style != BorderStyle::None {
+                let border_color = styles
+                    .border_color
                     .as_ref()
-                    .map(|bg| {
-                        let rgb = bg.0 .0;
+                    .map(|border| {
+                        let rgb = border.0 .0;
                         Color::from_rgb8(rgb.r, rgb.g, rgb.b)
                     })
-                    .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
+                    .unwrap_or_else(|| Color::from_rgb8(100, 100, 100));
 
-                let circle = Circle::new((center_x, center_y), size / 2.0);
-                scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &circle);
+                let border_width = styles.border_width.as_ref().map(|bw| bw.0).unwrap_or(1.0);
 
-                let border_style =
-                    styles.border_style.as_ref().copied().unwrap_or(BorderStyle::None);
-
-                if border_style != BorderStyle::None {
-                    let border_color = styles
-                        .border_color
-                        .as_ref()
-                        .map(|border| {
-                            let rgb = border.0 .0;
-                            Color::from_rgb8(rgb.r, rgb.g, rgb.b)
-                        })
-                        .unwrap_or_else(|| Color::from_rgb8(100, 100, 100));
-
-                    let border_width = styles.border_width.as_ref().map(|bw| bw.0).unwrap_or(1.0);
-
-                    let half_width = border_width as f64 / 2.0;
-                    let border_circle = Circle::new((center_x, center_y), size / 2.0 - half_width);
-                    scene.stroke(
-                        &Stroke::new(border_width as f64),
-                        transform,
-                        border_color,
-                        None,
-                        &border_circle,
-                    );
-                }
+                let half_width = border_width as f64 / 2.0;
+                let border_circle = Circle::new((center_x, center_y), size / 2.0 - half_width);
+                scene.stroke(
+                    &Stroke::new(border_width as f64),
+                    transform,
+                    border_color,
+                    None,
+                    &border_circle,
+                );
             }
         }
     }
@@ -601,92 +541,86 @@ fn render_flex_background(
     scene: &mut vello::Scene,
     stylesheet: Option<&Stylesheet>,
 ) {
-    if let ComponentProps::Flex { styles: _, .. } = &*component.props.borrow() {
-        let styles = get_styles(component, stylesheet);
-        let layout_node = component.layout_node();
+    let styles = get_styles(component, stylesheet);
+    let layout_node = component.layout_node();
 
-        if let Some(layout) = layout_node {
-            if let Some(flex_layout) = layout.layout() {
-                let _layout_x = flex_layout.location.x as f64;
-                let _layout_y = flex_layout.location.y as f64;
-                let width = flex_layout.size.width as f64;
-                let height = flex_layout.size.height as f64;
+    if let Some(layout) = layout_node {
+        if let Some(flex_layout) = layout.layout() {
+            let _layout_x = flex_layout.location.x as f64;
+            let _layout_y = flex_layout.location.y as f64;
+            let width = flex_layout.size.width as f64;
+            let height = flex_layout.size.height as f64;
 
-                let border_radius =
-                    styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(0.0);
+            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(0.0);
 
-                let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
+            let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
 
-                if let Some(bg) = styles.background_color.as_ref() {
-                    let rgb = bg.0 .0;
-                    let bg_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
-                    scene.fill(
-                        vello::peniko::Fill::NonZero,
-                        Affine::IDENTITY,
-                        bg_color,
-                        None,
-                        &rounded_rect,
+            if let Some(bg) = styles.background_color.as_ref() {
+                let rgb = bg.0 .0;
+                let bg_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
+                scene.fill(
+                    vello::peniko::Fill::NonZero,
+                    Affine::IDENTITY,
+                    bg_color,
+                    None,
+                    &rounded_rect,
+                );
+            }
+
+            render_border(
+                scene,
+                Affine::IDENTITY,
+                &Some(styles.clone()),
+                0.0,
+                0.0,
+                width,
+                height,
+                border_radius,
+            );
+
+            // Render scrollbars if overflow is set
+            let overflow_x = styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);
+            let overflow_y = styles.overflow_y.unwrap_or(rvue_style::properties::Overflow::Visible);
+
+            let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
+
+            if should_clip {
+                // Get scroll state from user_data
+                let scroll_state = get_or_create_scroll_state(component);
+
+                // Check if we need to show scrollbars
+                let show_vertical = matches!(overflow_y, rvue_style::properties::Overflow::Scroll)
+                    || (matches!(overflow_y, rvue_style::properties::Overflow::Auto)
+                        && scroll_state.scroll_height > 0.0);
+                let show_horizontal =
+                    matches!(overflow_x, rvue_style::properties::Overflow::Scroll)
+                        || (matches!(overflow_x, rvue_style::properties::Overflow::Auto)
+                            && scroll_state.scroll_width > 0.0);
+
+                // Render vertical scrollbar if needed
+                if show_vertical {
+                    render_vertical_scrollbar(
+                        scene,
+                        0.0,
+                        0.0,
+                        width,
+                        height,
+                        scroll_state.scroll_offset_y as f64,
+                        scroll_state.scroll_height as f64,
                     );
                 }
 
-                render_border(
-                    scene,
-                    Affine::IDENTITY,
-                    &Some(styles.clone()),
-                    0.0,
-                    0.0,
-                    width,
-                    height,
-                    border_radius,
-                );
-
-                // Render scrollbars if overflow is set
-                let overflow_x =
-                    styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);
-                let overflow_y =
-                    styles.overflow_y.unwrap_or(rvue_style::properties::Overflow::Visible);
-
-                let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
-
-                if should_clip {
-                    // Get scroll state from user_data
-                    let scroll_state = get_or_create_scroll_state(component);
-
-                    // Check if we need to show scrollbars
-                    let show_vertical =
-                        matches!(overflow_y, rvue_style::properties::Overflow::Scroll)
-                            || (matches!(overflow_y, rvue_style::properties::Overflow::Auto)
-                                && scroll_state.scroll_height > 0.0);
-                    let show_horizontal =
-                        matches!(overflow_x, rvue_style::properties::Overflow::Scroll)
-                            || (matches!(overflow_x, rvue_style::properties::Overflow::Auto)
-                                && scroll_state.scroll_width > 0.0);
-
-                    // Render vertical scrollbar if needed
-                    if show_vertical {
-                        render_vertical_scrollbar(
-                            scene,
-                            0.0,
-                            0.0,
-                            width,
-                            height,
-                            scroll_state.scroll_offset_y as f64,
-                            scroll_state.scroll_height as f64,
-                        );
-                    }
-
-                    // Render horizontal scrollbar if needed
-                    if show_horizontal {
-                        render_horizontal_scrollbar(
-                            scene,
-                            0.0,
-                            0.0,
-                            width,
-                            height,
-                            scroll_state.scroll_offset_x as f64,
-                            scroll_state.scroll_width as f64,
-                        );
-                    }
+                // Render horizontal scrollbar if needed
+                if show_horizontal {
+                    render_horizontal_scrollbar(
+                        scene,
+                        0.0,
+                        0.0,
+                        width,
+                        height,
+                        scroll_state.scroll_offset_x as f64,
+                        scroll_state.scroll_width as f64,
+                    );
                 }
             }
         }
