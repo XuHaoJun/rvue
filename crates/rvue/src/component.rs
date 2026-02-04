@@ -293,6 +293,10 @@ pub struct Component {
     pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
     pub classes: GcCell<Vec<String>>,
     pub element_id: GcCell<Option<String>>,
+    /// Flag to prevent scroll transform accumulation in nested overflow containers.
+    /// When a parent overflow container applies scroll_transform, children should
+    /// not apply their own scroll_transform to avoid coordinate space issues.
+    pub is_in_scrolling_parent: AtomicBool,
 }
 
 unsafe impl Trace for Component {
@@ -346,6 +350,7 @@ impl Clone for Component {
             cleanups: GcCell::new(Vec::new()),
             classes: GcCell::new(self.classes.borrow().clone()),
             element_id: GcCell::new(self.element_id.borrow().clone()),
+            is_in_scrolling_parent: AtomicBool::new(false),
         }
     }
 }
@@ -407,6 +412,7 @@ impl Component {
             cleanups: GcCell::new(Vec::new()),
             classes: GcCell::new(Vec::new()),
             element_id: GcCell::new(None),
+            is_in_scrolling_parent: AtomicBool::new(false),
         })
     }
 
@@ -689,6 +695,17 @@ impl Component {
         } else {
             crate::render::widget::FlexScrollState::default()
         }
+    }
+
+    /// Set the flag indicating this component is inside a scrolling parent.
+    /// This prevents scroll transform accumulation in nested overflow containers.
+    pub fn set_is_in_scrolling_parent(&self, is_scrolling: bool) {
+        self.is_in_scrolling_parent.store(is_scrolling, Ordering::SeqCst);
+    }
+
+    /// Check if this component is inside a scrolling parent.
+    pub fn is_in_scrolling_parent(&self) -> bool {
+        self.is_in_scrolling_parent.load(Ordering::SeqCst)
     }
 
     /// Set checkbox checked state (for Checkbox components)

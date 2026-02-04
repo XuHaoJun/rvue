@@ -39,30 +39,32 @@ fn hit_test_recursive(
     let (overflow_x, overflow_y) = get_overflow_for_component(component);
     let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
 
-    let scroll_offset = if should_clip {
-        let scroll_state = component.scroll_state();
-        Some(Point::new(scroll_state.scroll_offset_x as f64, scroll_state.scroll_offset_y as f64))
-    } else {
-        None
-    };
+    // Get scroll offset for this container
+    let scroll_offset_x =
+        if should_clip { component.scroll_state().scroll_offset_x as f64 } else { 0.0 };
+    let scroll_offset_y =
+        if should_clip { component.scroll_state().scroll_offset_y as f64 } else { 0.0 };
 
+    // Calculate visible bounds for clipping
+    // Clip is in local coordinates (0, 0 to container_size)
     let visible_bounds = if should_clip {
         let scroll_state = component.scroll_state();
         let visible_width = scroll_state.container_width as f64;
         let visible_height = scroll_state.container_height as f64;
-        let visible_x = global_origin.x;
-        let visible_y = global_origin.y;
-        Some(Rect::new(visible_x, visible_y, visible_x + visible_width, visible_y + visible_height))
+        // Clip rectangle in local coordinates
+        Some(Rect::new(0.0, 0.0, visible_width, visible_height))
     } else {
         None
     };
 
+    // New global offset includes this container's position
     let new_global_offset =
         Point::new(global_offset.x + local_origin.x, global_offset.y + local_origin.y);
 
     for child in component.children.borrow().iter().rev() {
-        let adjusted_offset = if let Some(scroll) = scroll_offset {
-            Point::new(new_global_offset.x - scroll.x, new_global_offset.y - scroll.y)
+        // Apply this container's scroll offset to direct children only
+        let adjusted_offset = if scroll_offset_x != 0.0 || scroll_offset_y != 0.0 {
+            Point::new(new_global_offset.x - scroll_offset_x, new_global_offset.y - scroll_offset_y)
         } else {
             new_global_offset
         };

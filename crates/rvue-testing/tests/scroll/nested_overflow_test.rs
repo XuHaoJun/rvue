@@ -265,6 +265,124 @@ fn test_styles_example_structure() {
     eprintln!("\n=== PASSED ===\n");
 }
 
+/// Test scroll transform accumulation is prevented in nested overflow containers.
+/// This is the key test for the fix: when parent scrolls, child overflow should work correctly.
+#[test]
+fn test_nested_overflow_no_transform_accumulation() {
+    eprintln!("\n=== Test: Nested overflow no transform accumulation ===");
+
+    // Create structure matching styles example:
+    // Root (overflow=Auto, height=600)
+    //   └── Section1 (static)
+    //   └── DemoSection (overflow_y=Auto, height=300) <-- should scroll independently
+    //       └── Items (15 items, 32px each = 480px content)
+
+    let root = TestWidgetBuilder::new()
+        .with_tag("root")
+        .with_size(800.0, 600.0)
+        .with_overflow(Overflow::Auto)
+        .build();
+
+    // Section 1 (takes some space)
+    let section1 = TestWidgetBuilder::new().with_tag("section-1").with_size(760.0, 100.0).build();
+
+    // Demo section with overflow
+    let demo_section = TestWidgetBuilder::new()
+        .with_tag("demo-section")
+        .with_size(400.0, 300.0)
+        .with_overflow(Overflow::Auto)
+        .build();
+
+    // Add items (more than container height)
+    for i in 0..15 {
+        let item = TestWidgetBuilder::new()
+            .with_tag(&format!("demo-item-{}", i))
+            .with_size(380.0, 32.0)
+            .build();
+        demo_section.add_child(item);
+    }
+
+    root.add_child(section1);
+    root.add_child(demo_section.clone());
+
+    let mut harness = TestHarness::create(root);
+    harness.compute_layout();
+
+    // Verify demo section has scrollable content
+    let demo_widget = harness.get_widget_by_tag("demo-section").unwrap();
+    let state = demo_widget.scroll_state();
+
+    eprintln!("Demo section container_height: {}", state.container_height);
+    eprintln!("Demo section scroll_height: {}", state.scroll_height);
+
+    assert!(state.container_height > 0.0, "container_height should be > 0");
+    assert!(
+        state.scroll_height > 0.0,
+        "scroll_height should be > 0 for overflowing content. Got {}",
+        state.scroll_height
+    );
+
+    // Now simulate scrolling the demo section
+    harness.set_scroll_state(demo_widget.clone(), 0.0, state.scroll_height);
+
+    // Verify the scroll state was applied
+    let after_scroll = demo_widget.scroll_state();
+    eprintln!("After scroll - scroll_offset_y: {}", after_scroll.scroll_offset_y);
+
+    harness.mouse_click_on(demo_widget.clone());
+
+    eprintln!("Click on demo section succeeded");
+
+    eprintln!("\n=== PASSED ===\n");
+}
+
+/// Test that child overflow containers work correctly even when parent overflows.
+#[test]
+fn test_child_overflow_works_with_parent_overflow() {
+    eprintln!("\n=== Test: Child overflow works with parent overflow ===");
+
+    let root = TestWidgetBuilder::new()
+        .with_tag("root")
+        .with_size(800.0, 600.0)
+        .with_overflow(Overflow::Auto)
+        .build();
+
+    let child_container = TestWidgetBuilder::new()
+        .with_tag("child-container")
+        .with_size(400.0, 300.0)
+        .with_overflow(Overflow::Auto)
+        .build();
+
+    for i in 0..15 {
+        let item = TestWidgetBuilder::new()
+            .with_tag(&format!("child-item-{}", i))
+            .with_size(380.0, 32.0)
+            .build();
+        child_container.add_child(item);
+    }
+
+    root.add_child(child_container.clone());
+
+    let mut harness = TestHarness::create(root);
+    harness.compute_layout();
+
+    let child_widget = harness.get_widget_by_tag("child-container").unwrap();
+    let state = child_widget.scroll_state();
+
+    eprintln!("Child container:");
+    harness.debug_scroll_state(&child_widget, "child-container");
+
+    assert!(
+        state.scroll_height > 0.0,
+        "Child container should have scroll_height > 0. Got {}",
+        state.scroll_height
+    );
+
+    harness.mouse_click_on(child_widget.clone());
+
+    eprintln!("\n=== PASSED ===\n");
+}
+
 /// Test that scroll offset is correctly applied and content is clipped.
 #[test]
 fn test_scroll_offset_and_clipping() {

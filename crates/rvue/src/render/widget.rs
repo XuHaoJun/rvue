@@ -119,46 +119,12 @@ pub fn render_component(
         ComponentType::For | ComponentType::Flex | ComponentType::Show
     );
 
-    // Calculate scroll transform for scrolling containers
-    // When scrolling, we move the entire container (including clip) by -scroll_offset
-    // This ensures clip and content stay synchronized
-    let scroll_transform = if matches!(component.component_type, ComponentType::Flex) {
-        let styles = get_styles(component, stylesheet);
-        let overflow_x = styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);
-        let overflow_y = styles.overflow_y.unwrap_or(rvue_style::properties::Overflow::Visible);
-        let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
-
-        if should_clip {
-            let mut user_data = component.user_data.borrow_mut();
-            if let Some(scroll_state) =
-                user_data.as_mut().and_then(|d| d.downcast_mut::<FlexScrollState>())
-            {
-                let sx = scroll_state.scroll_offset_x as f64;
-                let sy = scroll_state.scroll_offset_y as f64;
-                if sx != 0.0 || sy != 0.0 {
-                    Some(Affine::translate((-sx, -sy)))
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    // Apply scroll transform to the parent transform
-    let adjusted_transform =
-        if let Some(scroll_tx) = scroll_transform { transform * scroll_tx } else { transform };
-
+    // Render children
     if should_render_children {
         render_children(
             component,
             scene,
-            adjusted_transform,
+            transform,
             already_appended,
             force_render_children,
             stylesheet,
@@ -183,16 +149,17 @@ fn render_children(
 
     let should_clip = overflow_x.should_clip() || overflow_y.should_clip();
 
+    // Get scroll offset for this container
+    let scroll_state = component.scroll_state();
+    let scroll_offset_x = scroll_state.scroll_offset_x as f64;
+    let scroll_offset_y = scroll_state.scroll_offset_y as f64;
+
     // Get container layout for clipping
+    // Clip is in local coordinates relative to the container
     let container_rect = if should_clip {
         component.layout_node().and_then(|ln| {
             ln.layout().map(|layout| {
-                Rect::new(
-                    layout.location.x as f64,
-                    layout.location.y as f64,
-                    (layout.location.x + layout.size.width) as f64,
-                    (layout.location.y + layout.size.height) as f64,
-                )
+                Rect::new(0.0, 0.0, layout.size.width as f64, layout.size.height as f64)
             })
         })
     } else {
@@ -200,20 +167,26 @@ fn render_children(
     };
 
     // Push clip layer if needed
+    // Clip stays with container - use transform for positioning
     if should_clip {
         if let Some(ref rect) = container_rect {
-            scene.push_clip_layer(vello::peniko::Fill::NonZero, Affine::IDENTITY, rect);
+            scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, rect);
         }
     }
 
-    // Render children with the parent's transform (which already includes scroll offset)
+    // Render children
+    // Apply scroll offset to content (content moves opposite to scroll)
     for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
                 let tx = layout.location.x as f64;
                 let ty = layout.location.y as f64;
-                // Note: No scroll offset here - it's already in the parent transform
-                Affine::translate((tx, ty))
+                // Subtract scroll offset to move content in opposite direction
+                if scroll_offset_x != 0.0 || scroll_offset_y != 0.0 {
+                    Affine::translate((tx - scroll_offset_x, ty - scroll_offset_y))
+                } else {
+                    Affine::translate((tx, ty))
+                }
             } else {
                 Affine::IDENTITY
             }
