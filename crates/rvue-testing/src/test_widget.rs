@@ -5,7 +5,7 @@
 
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentProps, ComponentType};
-use rvue_style::properties::Overflow;
+use rvue_style::properties::{Height, MinHeight, MinWidth, Overflow, Size, Width};
 
 /// Builder for creating test widgets.
 pub struct TestWidgetBuilder {
@@ -107,12 +107,25 @@ impl TestWidgetBuilder {
     }
 
     fn create_styles(&self) -> Option<rvue_style::ComputedStyles> {
-        if self.overflow_x.is_none() && self.overflow_y.is_none() && self.styles.is_none() {
+        if self.width.is_none()
+            && self.height.is_none()
+            && self.overflow_x.is_none()
+            && self.overflow_y.is_none()
+            && self.styles.is_none()
+        {
             return None;
         }
 
         let mut styles = self.styles.clone().unwrap_or_default();
 
+        if let Some(width) = self.width {
+            styles.width = Some(Width(Size::Pixels(width as f32)));
+            styles.min_width = Some(MinWidth(Size::Pixels(width as f32)));
+        }
+        if let Some(height) = self.height {
+            styles.height = Some(Height(Size::Pixels(height as f32)));
+            styles.min_height = Some(MinHeight(Size::Pixels(height as f32)));
+        }
         if let Some(overflow) = self.overflow_x {
             styles.overflow_x = Some(overflow);
         }
@@ -151,12 +164,12 @@ impl TestWidgetBuilder {
     }
 
     /// Build a custom widget (for containers without specific type).
-    /// Uses ComponentProps::Flex internally to support styles like overflow.
+    /// Uses ComponentType::Flex internally to support styles like overflow.
     pub fn build_custom(self, data: &str) -> Gc<Component> {
         let styles = self.create_styles();
         let component = Component::new(
             rand::random(),
-            ComponentType::Custom(data.to_string()),
+            ComponentType::Flex,
             ComponentProps::Flex {
                 direction: "column".to_string(),
                 gap: 0.0,

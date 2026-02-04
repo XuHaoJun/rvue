@@ -8,7 +8,7 @@ description = "Headless testing framework for rvue applications"
 repository = "https://github.com/your-org/rvue"
 
 [dependencies]
-rvue = { path = "../rvue" }
+rvue = { path = "../rvue", features = ["testing"] }
 rvue-style = { path = "../rvue-style" }
 rudo-gc = { version = "0.5", features = ["test-util"] }
 image = "0.25"

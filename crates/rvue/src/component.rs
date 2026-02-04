@@ -1424,3 +1424,30 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
         propagate_layout_results(child, taffy);
     }
 }
+
+/// Compute layout for a component tree (for testing purposes)
+/// This builds a Taffy tree, computes layout, and propagates results to update scroll_state
+#[cfg(feature = "testing")]
+pub fn compute_layout_for_testing(component: &Gc<Component>, size: vello::kurbo::Size) {
+    use crate::text::TextContext;
+    use taffy::{AvailableSpace, Size as TaffySize, TaffyTree};
+
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let stylesheet = None;
+
+    let root_layout_node = build_layout_tree(component, &mut taffy, &mut text_context, stylesheet);
+
+    component.set_layout_node(root_layout_node);
+
+    let taffy_size = TaffySize {
+        width: AvailableSpace::Definite(size.width as f32),
+        height: AvailableSpace::Definite(size.height as f32),
+    };
+
+    if let Some(root_id) = component.layout_node().and_then(|ln| ln.taffy_node()) {
+        let _ = taffy.compute_layout(root_id, taffy_size);
+    }
+
+    propagate_layout_results(component, &taffy);
+}

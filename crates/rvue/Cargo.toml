@@ -39,6 +39,7 @@ log = "0.4"
 
 [features]
 tracy = ["wgpu-profiler"]
+testing = []
 
 [dev-dependencies]
 rvue-macro = { path = "../rvue-macro" }

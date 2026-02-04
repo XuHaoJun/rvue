@@ -411,8 +411,8 @@ fn create_styled_view() -> ViewStruct {
                     gap=8.0
                     overflow_y=overflow_mode.clone()
                     styles=ReactiveStyles::new()
-                        .set_height(Height(Size::Pixels(800.0)))
-                        .set_width(Width(Size::Pixels(400.0)))
+                        .set_height(Height(Size::Pixels(300.0)))
+                        .set_width(Width(Size::Pixels(300.0)))
                         .set_background_color(BackgroundColor(Color::rgb(240, 140, 240)))
                         .set_border_radius(BorderRadius(8.0))
                         .set_border_width(BorderWidth(1.0))

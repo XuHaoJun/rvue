@@ -46,6 +46,13 @@ pub struct TestHarness {
     window_size: Size,
 }
 
+/// Layout information for a widget.
+#[derive(Debug, Clone)]
+pub struct LayoutInfo {
+    pub location: (f64, f64),
+    pub size: (f64, f64),
+}
+
 impl TestHarness {
     /// Create a test harness with the given root widget and default parameters.
     pub fn create(widget: Gc<Component>) -> Self {
@@ -437,6 +444,101 @@ impl TestHarness {
             container_height: 200.0,
         };
         widget.set_scroll_state(state);
+    }
+
+    // === Layout Computation ===
+
+    /// Trigger layout computation for the component tree.
+    /// This will compute layout and update scroll_state for overflow containers.
+    pub fn compute_layout(&mut self) {
+        let size =
+            vello::kurbo::Size { width: self.window_size.width, height: self.window_size.height };
+
+        rvue::component::compute_layout_for_testing(&self.root_component, size);
+    }
+
+    // === Debug Methods ===
+
+    /// Debug print the complete scroll state for a widget.
+    pub fn debug_scroll_state(&self, widget: &Gc<Component>, label: &str) {
+        let state = widget.scroll_state();
+
+        eprintln!("\n=== Scroll State Debug: {} ===", label);
+        eprintln!("Widget ID: {}", widget.id);
+        eprintln!("Scroll Offset: ({}, {})", state.scroll_offset_x, state.scroll_offset_y);
+        eprintln!("Scroll Size (overflow): ({}, {})", state.scroll_width, state.scroll_height);
+        eprintln!("Container Size: ({}, {})", state.container_width, state.container_height);
+
+        let overflow_y = self.get_overflow(widget);
+        let should_show_v = matches!(overflow_y, Overflow::Auto) && state.scroll_height > 0.0
+            || matches!(overflow_y, Overflow::Scroll);
+        eprintln!("Overflow Y: {:?}", overflow_y);
+        eprintln!("Should Show Vertical Scrollbar: {}", should_show_v);
+
+        if state.scroll_height > 0.0 {
+            let visible_ratio = state.container_height as f64
+                / (state.container_height + state.scroll_height) as f64;
+            eprintln!("Visible Content Ratio: {:.2}%", visible_ratio * 100.0);
+        }
+        eprintln!("=== End Debug ===\n");
+    }
+
+    /// Debug print scroll state for all widgets with overflow in the tree.
+    pub fn debug_all_scroll_states(&self) {
+        self._debug_scroll_state_recursive(&self.root_component, 0);
+    }
+
+    fn _debug_scroll_state_recursive(&self, component: &Gc<Component>, _depth: usize) {
+        let tag = component.element_id.borrow().clone().unwrap_or_default();
+
+        let props = component.props.borrow();
+        if let ComponentProps::Flex { styles, .. } = &*props {
+            let overflow = styles.as_ref().and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible);
+            if overflow != Overflow::Visible {
+                self.debug_scroll_state(component, &tag);
+            }
+        }
+
+        for child in component.children.borrow().iter() {
+            self._debug_scroll_state_recursive(child, _depth + 1);
+        }
+    }
+
+    // === Layout Info ===
+
+    /// Get layout information for a widget.
+    pub fn get_layout_info(&self, widget: &Gc<Component>) -> Option<LayoutInfo> {
+        let layout_node = widget.layout_node.borrow();
+        let layout = layout_node.as_ref()?.layout_result?;
+
+        Some(LayoutInfo {
+            location: (layout.location.x as f64, layout.location.y as f64),
+            size: (layout.size.width as f64, layout.size.height as f64),
+        })
+    }
+
+    /// Get all layout info for a widget and its children.
+    pub fn get_layout_info_tree(&self, widget: &Gc<Component>) -> Vec<(String, LayoutInfo)> {
+        self._get_layout_info_recursive(widget)
+    }
+
+    fn _get_layout_info_recursive(&self, component: &Gc<Component>) -> Vec<(String, LayoutInfo)> {
+        let mut result = Vec::new();
+
+        let tag = component
+            .element_id
+            .borrow()
+            .clone()
+            .unwrap_or_else(|| format!("widget-{}", component.id));
+        if let Some(info) = self.get_layout_info(component) {
+            result.push((tag.clone(), info));
+        }
+
+        for child in component.children.borrow().iter() {
+            result.extend(self._get_layout_info_recursive(child));
+        }
+
+        result
     }
 }
 
