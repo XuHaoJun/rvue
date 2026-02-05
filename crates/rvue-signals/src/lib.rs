@@ -61,19 +61,23 @@ impl<T: Clone + 'static> std::fmt::Debug for SignalData<T> {
     }
 }
 
-unsafe impl<T: Clone + 'static> Trace for SignalData<T> {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+unsafe impl<T: Clone + Trace + 'static> Trace for SignalData<T> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        // Trace the GcCell<T> field to ensure the value is marked as reachable
+        self.value.trace(visitor);
+        // AtomicU64 doesn't need tracing (it's a primitive)
+    }
 }
 
 /// Read handle for a signal.
 ///
 /// Cloneable reference to a signal's value.
 #[derive(Clone)]
-pub struct ReadSignal<T: Clone + 'static> {
+pub struct ReadSignal<T: Clone + Trace + 'static> {
     data: Gc<SignalData<T>>,
 }
 
-impl<T: Clone + 'static> ReadSignal<T> {
+impl<T: Clone + Trace + 'static> ReadSignal<T> {
     /// Get the current value
     pub fn get(&self) -> T
     where
@@ -97,7 +101,7 @@ impl<T: Clone + 'static> ReadSignal<T> {
     }
 }
 
-impl<T: Clone + 'static> std::fmt::Debug for ReadSignal<T> {
+impl<T: Clone + Trace + 'static> std::fmt::Debug for ReadSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReadSignal")
             .field("data_ptr", &Gc::as_ptr(&self.data))
@@ -106,19 +110,22 @@ impl<T: Clone + 'static> std::fmt::Debug for ReadSignal<T> {
     }
 }
 
-unsafe impl<T: Clone + 'static> Trace for ReadSignal<T> {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+unsafe impl<T: Clone + Trace + 'static> Trace for ReadSignal<T> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        // Trace the Gc<SignalData<T>> field to ensure the signal data is marked as reachable
+        self.data.trace(visitor);
+    }
 }
 
 /// Write handle for a signal.
 ///
 /// Allows modifying the signal's value and triggers version increment.
 #[derive(Clone)]
-pub struct WriteSignal<T: Clone + 'static> {
+pub struct WriteSignal<T: Clone + Trace + 'static> {
     data: Gc<SignalData<T>>,
 }
 
-impl<T: Clone + 'static> WriteSignal<T> {
+impl<T: Clone + Trace + 'static> WriteSignal<T> {
     /// Set a new value
     pub fn set(&self, value: T) {
         self.data.set(value);
@@ -139,7 +146,7 @@ impl<T: Clone + 'static> WriteSignal<T> {
     }
 }
 
-impl<T: Clone + 'static> std::fmt::Debug for WriteSignal<T> {
+impl<T: Clone + Trace + 'static> std::fmt::Debug for WriteSignal<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WriteSignal")
             .field("data_ptr", &Gc::as_ptr(&self.data))
@@ -148,10 +155,17 @@ impl<T: Clone + 'static> std::fmt::Debug for WriteSignal<T> {
     }
 }
 
+unsafe impl<T: Clone + Trace + 'static> Trace for WriteSignal<T> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        // Trace the Gc<SignalData<T>> field to ensure the signal data is marked as reachable
+        self.data.trace(visitor);
+    }
+}
+
 /// Trait for reading signal values.
 ///
 /// Provides common interface for reading from signal handles.
-pub trait SignalRead<T: Clone + 'static> {
+pub trait SignalRead<T: Clone + Trace + 'static> {
     /// Read the signal value
     fn get(&self) -> T;
     /// Read the signal value without effect tracking
@@ -161,7 +175,7 @@ pub trait SignalRead<T: Clone + 'static> {
 /// Trait for writing signal values.
 ///
 /// Provides common interface for writing to signal handles.
-pub trait SignalWrite<T: Clone + 'static> {
+pub trait SignalWrite<T: Clone + Trace + 'static> {
     /// Set a new value
     fn set(&self, value: T);
     /// Modify the value with a function
@@ -170,7 +184,7 @@ pub trait SignalWrite<T: Clone + 'static> {
         F: FnOnce(&mut T);
 }
 
-impl<T: Clone + 'static> SignalRead<T> for ReadSignal<T> {
+impl<T: Clone + Trace + 'static> SignalRead<T> for ReadSignal<T> {
     fn get(&self) -> T {
         self.data.get()
     }
@@ -180,7 +194,7 @@ impl<T: Clone + 'static> SignalRead<T> for ReadSignal<T> {
     }
 }
 
-impl<T: Clone + 'static> SignalWrite<T> for WriteSignal<T> {
+impl<T: Clone + Trace + 'static> SignalWrite<T> for WriteSignal<T> {
     fn set(&self, value: T) {
         self.data.set(value);
     }
@@ -196,7 +210,7 @@ impl<T: Clone + 'static> SignalWrite<T> for WriteSignal<T> {
 /// Create a new signal with an initial value.
 ///
 /// Returns a tuple of (read_handle, write_handle).
-pub fn create_signal<T: Clone + 'static>(initial_value: T) -> (ReadSignal<T>, WriteSignal<T>) {
+pub fn create_signal<T: Clone + Trace + 'static>(initial_value: T) -> (ReadSignal<T>, WriteSignal<T>) {
     let data = Gc::new(SignalData::new(initial_value));
     (ReadSignal { data: Gc::clone(&data) }, WriteSignal { data })
 }

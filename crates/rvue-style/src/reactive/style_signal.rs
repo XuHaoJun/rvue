@@ -58,7 +58,7 @@ thread_local! {
 pub type ReactiveReadSignal<T> = ReadSignal<T>;
 pub type ReactiveWriteSignal<T> = WriteSignal<T>;
 
-pub fn create_reactive_signal<T: Clone + 'static>(
+pub fn create_reactive_signal<T: Clone + Trace + 'static>(
     initial_value: T,
 ) -> (ReactiveReadSignal<T>, ReactiveWriteSignal<T>) {
     create_signal(initial_value)
@@ -140,19 +140,19 @@ where
     }
 }
 
-pub trait ReactiveSignal<T: Clone + 'static> {
+pub trait ReactiveSignal<T: Clone + Trace + 'static> {
     fn get(&self) -> T;
     fn get_untracked(&self) -> T;
 }
 
-pub trait ReactiveSignalWrite<T: Clone + 'static> {
+pub trait ReactiveSignalWrite<T: Clone + Trace + 'static> {
     fn set(&self, value: T);
     fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut T);
 }
 
-impl<T: Clone + 'static> ReactiveSignal<T> for ReactiveReadSignal<T> {
+impl<T: Clone + Trace + 'static> ReactiveSignal<T> for ReactiveReadSignal<T> {
     fn get(&self) -> T {
         SignalRead::get(self)
     }
@@ -162,7 +162,7 @@ impl<T: Clone + 'static> ReactiveSignal<T> for ReactiveReadSignal<T> {
     }
 }
 
-impl<T: Clone + 'static> ReactiveSignalWrite<T> for ReactiveWriteSignal<T> {
+impl<T: Clone + Trace + 'static> ReactiveSignalWrite<T> for ReactiveWriteSignal<T> {
     fn set(&self, value: T) {
         SignalWrite::set(self, value);
     }
@@ -197,13 +197,13 @@ impl<T: Clone + 'static> Clone for DynamicValue<T> {
 }
 
 #[derive(Clone)]
-pub enum ReactiveProperty<T: Clone + 'static> {
+pub enum ReactiveProperty<T: Clone + Trace + 'static> {
     Static(T),
     Reactive(ReactiveReadSignal<T>),
     Dynamic(Rc<dyn Fn() -> T>),
 }
 
-impl<T: Clone + 'static> ReactiveProperty<T> {
+impl<T: Clone + Trace + 'static> ReactiveProperty<T> {
     pub fn static_value(value: T) -> Self {
         ReactiveProperty::Static(value)
     }
@@ -244,19 +244,19 @@ impl<T: Clone + 'static> ReactiveProperty<T> {
     }
 }
 
-impl<T: Clone + 'static> From<T> for ReactiveProperty<T> {
+impl<T: Clone + Trace + 'static> From<T> for ReactiveProperty<T> {
     fn from(value: T) -> Self {
         ReactiveProperty::Static(value)
     }
 }
 
-impl<T: Clone + 'static> From<ReactiveReadSignal<T>> for ReactiveProperty<T> {
+impl<T: Clone + Trace + 'static> From<ReactiveReadSignal<T>> for ReactiveProperty<T> {
     fn from(signal: ReactiveReadSignal<T>) -> Self {
         ReactiveProperty::Reactive(signal)
     }
 }
 
-impl<T: Clone + 'static + Default> Default for ReactiveProperty<T> {
+impl<T: Clone + Trace + 'static + Default> Default for ReactiveProperty<T> {
     fn default() -> Self {
         ReactiveProperty::Static(T::default())
     }
@@ -693,8 +693,22 @@ impl From<ReactiveStyles> for ComputedStyles {
     }
 }
 
-unsafe impl<T: Clone + 'static> Trace for ReactiveProperty<T> {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+unsafe impl<T: Clone + Trace + 'static> Trace for ReactiveProperty<T> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        match self {
+            ReactiveProperty::Static(value) => {
+                // T is Trace, so trace it to mark any GC pointers it contains
+                T::trace(value, visitor);
+            }
+            ReactiveProperty::Reactive(signal) => {
+                // Trace the signal
+                signal.trace(visitor);
+            }
+            ReactiveProperty::Dynamic(_) => {
+                // Closures are conservatively scanned, nothing to trace here
+            }
+        }
+    }
 }
 
 unsafe impl Trace for ReactiveStyles {
