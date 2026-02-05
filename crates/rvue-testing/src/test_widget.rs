@@ -5,13 +5,14 @@
 
 use rudo_gc::Gc;
 use rvue::component::{Component, ComponentType};
-use rvue_style::properties::{Height, MinHeight, MinWidth, Overflow, Size, Width};
+use rvue_style::properties::{FlexDirection, Height, MinHeight, MinWidth, Overflow, Size, Width};
 
 /// Builder for creating test widgets.
 pub struct TestWidgetBuilder {
     tag: Option<String>,
     width: Option<f64>,
     height: Option<f64>,
+    flex_direction: Option<FlexDirection>,
     overflow_x: Option<Overflow>,
     overflow_y: Option<Overflow>,
     scroll_offset_x: f32,
@@ -27,6 +28,7 @@ impl Default for TestWidgetBuilder {
             tag: None,
             width: None,
             height: None,
+            flex_direction: None,
             overflow_x: None,
             overflow_y: None,
             scroll_offset_x: 0.0,
@@ -61,6 +63,11 @@ impl TestWidgetBuilder {
 
     pub fn with_height(mut self, height: f64) -> Self {
         self.height = Some(height);
+        self
+    }
+
+    pub fn with_flex_direction(mut self, direction: FlexDirection) -> Self {
+        self.flex_direction = Some(direction);
         self
     }
 
@@ -109,6 +116,7 @@ impl TestWidgetBuilder {
     fn create_styles(&self) -> Option<rvue_style::ComputedStyles> {
         if self.width.is_none()
             && self.height.is_none()
+            && self.flex_direction.is_none()
             && self.overflow_x.is_none()
             && self.overflow_y.is_none()
             && self.styles.is_none()
@@ -125,6 +133,9 @@ impl TestWidgetBuilder {
         if let Some(height) = self.height {
             styles.height = Some(Height(Size::Pixels(height as f32)));
             styles.min_height = Some(MinHeight(Size::Pixels(height as f32)));
+        }
+        if let Some(direction) = self.flex_direction {
+            styles.flex_direction = Some(direction);
         }
         if let Some(overflow) = self.overflow_x {
             styles.overflow_x = Some(overflow);

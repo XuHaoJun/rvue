@@ -8,7 +8,7 @@
 
 use rudo_gc::Gc;
 use rvue::component::Component;
-use rvue_style::properties::Overflow;
+use rvue_style::properties::{FlexDirection, Overflow};
 use rvue_testing::{TestHarness, TestWidgetBuilder};
 
 /// Test that a scroll container's children are positioned correctly after scrolling.
@@ -22,6 +22,7 @@ fn test_scroll_transform_positions() {
         .with_tag("root")
         .with_size(800.0, 600.0)
         .with_overflow(Overflow::Visible)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     let spacer = TestWidgetBuilder::new().with_tag("spacer").with_size(100.0, 100.0).build();
@@ -84,6 +85,7 @@ fn test_scrolled_container_at_offset() {
         .with_tag("root")
         .with_size(800.0, 600.0)
         .with_overflow(Overflow::Visible)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     let header = TestWidgetBuilder::new().with_tag("header").with_size(800.0, 150.0).build();
@@ -144,18 +146,21 @@ fn test_nested_scroll_containers() {
         .with_tag("root")
         .with_size(800.0, 600.0)
         .with_overflow(Overflow::Visible)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     let outer = TestWidgetBuilder::new()
         .with_tag("outer")
         .with_size(500.0, 300.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     let inner = TestWidgetBuilder::new()
         .with_tag("inner")
         .with_size(300.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     for i in 0..8 {

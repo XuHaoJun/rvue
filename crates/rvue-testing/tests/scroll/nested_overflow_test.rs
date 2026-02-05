@@ -3,7 +3,7 @@
 
 //! Tests for nested overflow containers - reproduces the styles example scenario.
 
-use rvue_style::properties::Overflow;
+use rvue_style::properties::{FlexDirection, Overflow};
 use rvue_testing::{TestHarness, TestWidgetBuilder};
 
 /// Test that nested overflow containers correctly compute scroll_height.
@@ -25,6 +25,7 @@ fn test_nested_overflow_scroll_height_computation() {
         .with_tag("demo-section")
         .with_size(400.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add enough items to overflow the container (200px height, items are ~40px each)
@@ -90,6 +91,7 @@ fn test_nested_overflow_shows_scrollbar() {
         .with_tag("inner-container")
         .with_size(380.0, 150.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add items that overflow 150px height (items are ~30px each)
@@ -158,6 +160,7 @@ fn test_overflow_demo_button_with_layout() {
         .with_tag("scroll-area")
         .with_size(400.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add items that overflow 200px (items are ~50px each)
@@ -224,6 +227,7 @@ fn test_styles_example_structure() {
         .with_tag("overflow-section")
         .with_size(760.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add items that overflow 200px (items are ~60px each)
@@ -291,6 +295,7 @@ fn test_nested_overflow_no_transform_accumulation() {
         .with_tag("demo-section")
         .with_size(400.0, 300.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add items (more than container height)
@@ -351,6 +356,7 @@ fn test_child_overflow_works_with_parent_overflow() {
         .with_tag("child-container")
         .with_size(400.0, 300.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     for i in 0..15 {
@@ -392,6 +398,7 @@ fn test_scroll_offset_and_clipping() {
         .with_tag("scroll-container")
         .with_size(400.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add items that overflow significantly (items are ~50px each, 8 items = 400px content)

@@ -285,6 +285,22 @@ impl LayoutNode {
                     let overflow = Point { x: overflow_x_taffy.x, y: overflow_y_taffy.y };
                     style.overflow = overflow;
 
+                    // Apply flex_direction from computed styles if set
+                    if let Some(fd) = computed.flex_direction {
+                        style.flex_direction = match fd {
+                            rvue_style::FlexDirection::Row => taffy::prelude::FlexDirection::Row,
+                            rvue_style::FlexDirection::RowReverse => {
+                                taffy::prelude::FlexDirection::RowReverse
+                            }
+                            rvue_style::FlexDirection::Column => {
+                                taffy::prelude::FlexDirection::Column
+                            }
+                            rvue_style::FlexDirection::ColumnReverse => {
+                                taffy::prelude::FlexDirection::ColumnReverse
+                            }
+                        };
+                    }
+
                     // Reserve space for scrollbar if overflow is Scroll or Auto
                     if overflow.x == taffy::style::Overflow::Scroll
                         || overflow.y == taffy::style::Overflow::Scroll

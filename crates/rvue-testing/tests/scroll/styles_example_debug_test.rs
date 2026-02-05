@@ -6,7 +6,7 @@
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::println_empty_string)]
 
-use rvue_style::properties::Overflow;
+use rvue_style::properties::{FlexDirection, Overflow};
 use rvue_testing::{TestHarness, TestWidgetBuilder};
 
 /// Test that replicates the exact styles example structure.
@@ -34,6 +34,7 @@ fn test_styles_example_debug() {
         .with_tag("root")
         .with_size(800.0, 600.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Section 1: Interactive Reactive Style Design (~150px with padding)
@@ -221,6 +222,7 @@ fn test_hit_test_below_color_palette() {
         .with_tag("container")
         .with_size(400.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Item 1: at y=0 (visible)
@@ -299,6 +301,7 @@ fn test_clip_rectangle_calculation() {
         .with_tag("test-container")
         .with_size(300.0, 200.0)
         .with_overflow(Overflow::Auto)
+        .with_flex_direction(FlexDirection::Column)
         .build();
 
     // Add content that overflows (total height = 400px, container = 200px)
