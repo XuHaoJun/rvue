@@ -48,7 +48,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         };
 
         if !already_subscribed {
-            let mut subscribers = self.subscribers.borrow_mut();
+            let mut subscribers = self.subscribers.borrow_mut_gen_only();
             subscribers.push(weak_effect.clone());
             effect.add_subscription(signal_ptr, &weak_effect);
         }
@@ -75,7 +75,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     pub(crate) fn unsubscribe_by_ptr(effect_ptr: *const (), weak_effect: &Weak<Effect>) {
         unsafe {
             let signal = &*effect_ptr.cast::<SignalDataInner<()>>();
-            let mut subscribers = signal.subscribers.borrow_mut();
+            let mut subscribers = signal.subscribers.borrow_mut_gen_only();
             subscribers.retain(|weak| !Weak::ptr_eq(weak, weak_effect));
         }
     }
@@ -151,7 +151,7 @@ pub struct WriteSignal<T: Trace + Clone + 'static> {
 
 impl<T: Trace + Clone + 'static> WriteSignal<T> {
     pub fn set(&self, value: T) {
-        *self.data.inner.value.borrow_mut() = value;
+        *self.data.inner.value.borrow_mut_gen_only() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -160,7 +160,7 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.inner.value.borrow_mut());
+        f(&mut *self.data.inner.value.borrow_mut_gen_only());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -190,7 +190,7 @@ impl<T: Trace + Clone + 'static> SignalRead<T> for ReadSignal<T> {
 
 impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     fn set(&self, value: T) {
-        *self.data.inner.value.borrow_mut() = value;
+        *self.data.inner.value.borrow_mut_gen_only() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -199,7 +199,7 @@ impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.inner.value.borrow_mut());
+        f(&mut *self.data.inner.value.borrow_mut_gen_only());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -255,7 +255,7 @@ where
         let new_value = f_clone();
         if is_first.replace(false) {
         } else if new_value != *last_value.borrow() {
-            *last_value.borrow_mut() = new_value.clone();
+            *last_value.borrow_mut_gen_only() = new_value.clone();
             write.set(new_value);
         }
     });

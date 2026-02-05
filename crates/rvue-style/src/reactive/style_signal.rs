@@ -95,7 +95,7 @@ impl StyleEffect {
         }
 
         let cleanups = {
-            let mut cleanups = gc_effect.cleanups.borrow_mut();
+            let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)
         };
         for cleanup in cleanups {
@@ -136,7 +136,7 @@ where
     F: FnOnce() + 'static,
 {
     if let Some(effect) = current_style_effect() {
-        effect.cleanups.borrow_mut().push(Box::new(f));
+        effect.cleanups.borrow_mut_gen_only().push(Box::new(f));
     }
 }
 

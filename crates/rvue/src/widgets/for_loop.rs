@@ -331,7 +331,7 @@ where
                         &mut temp_ctx,
                     );
                 }
-                comp_clone.properties.borrow_mut().insert(ForItemCount(new_count));
+                comp_clone.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
                 comp_clone.mark_dirty();
             });
             component.add_effect(Gc::clone(&effect));
@@ -379,7 +379,7 @@ where
                     let _new_keys =
                         state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
                 }
-                comp.properties.borrow_mut().insert(ForItemCount(new_count));
+                comp.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
                 comp.mark_dirty();
             });
             state.component.add_effect(Gc::clone(&effect));
@@ -393,7 +393,7 @@ where
             let mut temp_ctx =
                 BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
             let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);
-            state.component.properties.borrow_mut().insert(ForItemCount(new_count));
+            state.component.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
             state.component.mark_dirty();
         }
     }

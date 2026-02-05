@@ -128,7 +128,7 @@ impl Effect {
 
     /// Register a signal that this effect is subscribed to
     pub fn add_subscription(&self, signal_ptr: *const (), weak_effect: &Weak<Effect>) {
-        let mut subscriptions = self.subscriptions.borrow_mut();
+        let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
         let pair = (signal_ptr, weak_effect.clone());
         if !subscriptions
             .iter()
@@ -149,7 +149,7 @@ impl Effect {
 
         // Run cleanups from previous run
         let cleanups = {
-            let mut cleanups = gc_effect.cleanups.borrow_mut();
+            let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)
         };
         for cleanup in cleanups {
@@ -202,7 +202,7 @@ impl Effect {
 
     /// Unsubscribe from all signals this effect is subscribed to
     fn unsubscribe_all(&self) {
-        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut());
+        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut_gen_only());
         for (signal_ptr, weak_effect) in subscriptions {
             SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
         }
@@ -244,12 +244,12 @@ where
 {
     // Try Effect first
     if let Some(effect) = current_effect() {
-        effect.cleanups.borrow_mut().push(Box::new(f));
+        effect.cleanups.borrow_mut_gen_only().push(Box::new(f));
         return;
     }
 
     // Try Component
     if let Some(owner) = crate::runtime::current_owner() {
-        owner.cleanups.borrow_mut().push(Box::new(f));
+        owner.cleanups.borrow_mut_gen_only().push(Box::new(f));
     }
 }

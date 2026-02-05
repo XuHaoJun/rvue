@@ -4,8 +4,11 @@
 //! any type implementing `WidgetProperty`. It uses type erasure
 //! internally to store heterogeneous property types.
 
+use rudo_gc::cell::GcCapture;
+use rudo_gc::GcBox;
 use rudo_gc::{GcCell, Trace, Visitor};
 use std::any::{Any, TypeId};
+use std::ptr::NonNull;
 
 use super::{WidgetProperty, WidgetStyles};
 
@@ -187,6 +190,12 @@ unsafe impl Trace for PropertyMap {
         for prop in self.map.values() {
             prop.trace_inner(visitor);
         }
+    }
+}
+
+impl GcCapture for PropertyMap {
+    fn capture_gc_ptrs(&self) -> &[NonNull<GcBox<()>>] {
+        &[]
     }
 }
 

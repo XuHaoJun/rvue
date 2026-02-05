@@ -178,7 +178,7 @@ fn test_reactive_property_get_untracked() {
 fn test_reactive_signal_trait() {
     let (read, _write) = create_reactive_signal(42);
 
-    fn get_value<T: Clone + 'static, S: ReactiveSignal<T>>(signal: &S) -> T {
+    fn get_value<T: Clone + 'static + rudo_gc::Trace, S: ReactiveSignal<T>>(signal: &S) -> T {
         signal.get()
     }
 
@@ -189,7 +189,10 @@ fn test_reactive_signal_trait() {
 fn test_reactive_signal_write_trait() {
     let (read, write) = create_reactive_signal(10);
 
-    fn set_value<T: Clone + 'static, S: ReactiveSignalWrite<T>>(signal: &S, value: T) {
+    fn set_value<T: Clone + 'static + rudo_gc::Trace, S: ReactiveSignalWrite<T>>(
+        signal: &S,
+        value: T,
+    ) {
         signal.set(value);
     }
 

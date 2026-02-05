@@ -819,6 +819,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -833,6 +855,15 @@ name = "crossbeam-epoch"
 version = "0.9.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f58bbc28f91df819d0aa2a2c00cd19754769c2fad90579b3592b1c9ba7a3115"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -3006,21 +3037,24 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e7bbbe859adc76a82f8576b4c4d365c1ef8e859ad94296ea49132f259c4596a"
+checksum = "fa0565d3b363b527fcf79723e5764bd8699ee55bb84221ef0b5e5cc432c807e1"
 dependencies = [
+ "crossbeam",
+ "crossbeam-queue",
  "libc",
+ "parking_lot",
  "rudo-gc-derive",
  "sys_alloc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "rudo-gc-derive"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91c0992ec3102f6aa0f2eb3d2a63be28d78bf1963a04e0058250a8a51bc2f84b"
+checksum = "ad8dae9a24a52a01e9e72f6f1e175943f644d54c17be0f7ec7388526bb68c3db"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3097,6 +3131,7 @@ dependencies = [
  "peniko 0.5.0",
  "pollster",
  "rudo-gc",
+ "rudo-gc-derive",
  "rustc-hash 2.1.1",
  "rvue-macro",
  "rvue-signals",
@@ -3516,12 +3551,12 @@ dependencies = [
 
 [[package]]
 name = "sys_alloc"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21808b15276f59023d2935aef7bdd80d81089d951b463dc81d1df5ff08b243c4"
+checksum = "6829c243da89d28f10fa3cd88b6e54af9f795993dc245d39602cf9df6b7e0283"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

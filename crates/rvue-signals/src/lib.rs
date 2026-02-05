@@ -34,7 +34,7 @@ impl<T: Clone + 'static> SignalData<T> {
 
     /// Set a new value and increment version
     pub fn set(&self, value: T) {
-        *self.value.borrow_mut() = value;
+        *self.value.borrow_mut_gen_only() = value;
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -43,7 +43,7 @@ impl<T: Clone + 'static> SignalData<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.value.borrow_mut());
+        f(&mut *self.value.borrow_mut_gen_only());
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -210,7 +210,9 @@ impl<T: Clone + Trace + 'static> SignalWrite<T> for WriteSignal<T> {
 /// Create a new signal with an initial value.
 ///
 /// Returns a tuple of (read_handle, write_handle).
-pub fn create_signal<T: Clone + Trace + 'static>(initial_value: T) -> (ReadSignal<T>, WriteSignal<T>) {
+pub fn create_signal<T: Clone + Trace + 'static>(
+    initial_value: T,
+) -> (ReadSignal<T>, WriteSignal<T>) {
     let data = Gc::new(SignalData::new(initial_value));
     (ReadSignal { data: Gc::clone(&data) }, WriteSignal { data })
 }

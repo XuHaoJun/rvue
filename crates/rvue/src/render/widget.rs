@@ -45,7 +45,7 @@ impl FlexScrollState {
 }
 
 fn get_or_create_scroll_state(component: &Gc<Component>) -> FlexScrollState {
-    let mut user_data = component.user_data.borrow_mut();
+    let mut user_data = component.user_data.borrow_mut_gen_only();
     if let Some(state) = user_data.as_mut().and_then(|d| d.downcast_mut::<FlexScrollState>()) {
         return *state;
     }
@@ -90,7 +90,7 @@ pub fn render_component(
             _ => {}
         }
 
-        *component.vello_cache.borrow_mut() = Some(SceneWrapper(local_scene));
+        *component.vello_cache.borrow_mut_gen_only() = Some(SceneWrapper(local_scene));
         component.clear_dirty();
     }
 

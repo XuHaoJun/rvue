@@ -1,4 +1,7 @@
+use rudo_gc::cell::GcCapture;
+use rudo_gc::GcBox;
 use rudo_gc::{collect_full, Gc, GcCell, Trace};
+use std::ptr::NonNull;
 
 #[derive(Clone)]
 enum ValueEnum {
@@ -37,6 +40,19 @@ unsafe impl Trace for ValueEnum {
     }
 }
 
+impl GcCapture for ValueEnum {
+    fn capture_gc_ptrs(&self) -> &[NonNull<GcBox<()>>] {
+        &[]
+    }
+
+    fn capture_gc_ptrs_into(&self, ptrs: &mut Vec<NonNull<GcBox<()>>>) {
+        match self {
+            ValueEnum::I32(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ValueEnum::I64(gc) => gc.capture_gc_ptrs_into(ptrs),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct ContextEntry {
     #[allow(dead_code)]
@@ -47,6 +63,16 @@ struct ContextEntry {
 unsafe impl Trace for ContextEntry {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
+    }
+}
+
+impl GcCapture for ContextEntry {
+    fn capture_gc_ptrs(&self) -> &[NonNull<GcBox<()>>] {
+        &[]
+    }
+
+    fn capture_gc_ptrs_into(&self, ptrs: &mut Vec<NonNull<GcBox<()>>>) {
+        self.value.capture_gc_ptrs_into(ptrs);
     }
 }
 

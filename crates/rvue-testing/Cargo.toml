@@ -10,7 +10,7 @@ repository = "https://github.com/your-org/rvue"
 [dependencies]
 rvue = { path = "../rvue", features = ["testing"] }
 rvue-style = { path = "../rvue-style" }
-rudo-gc = { version = "0.5", features = ["test-util"] }
+rudo-gc.workspace = true
 image = "0.25"
 tempfile = "3"
 thiserror = "2"

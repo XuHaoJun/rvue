@@ -147,7 +147,7 @@ impl TestWidgetBuilder {
 
         // Set element_id if tag is provided
         if let Some(tag) = self.tag {
-            *component.element_id.borrow_mut() = Some(tag);
+            *component.element_id.borrow_mut_gen_only() = Some(tag);
         }
 
         if let Some(styles) = styles {
@@ -173,7 +173,7 @@ impl TestWidgetBuilder {
 
         // Set element_id if tag is provided
         if let Some(tag) = self.tag {
-            *component.element_id.borrow_mut() = Some(tag);
+            *component.element_id.borrow_mut_gen_only() = Some(tag);
         }
 
         if let Some(styles) = styles {
@@ -214,7 +214,7 @@ pub fn create_button(tag: &str, _text: &str) -> Gc<Component> {
         rvue::properties::PropertyMap::new(),
     );
 
-    *component.element_id.borrow_mut() = Some(tag.to_string());
+    *component.element_id.borrow_mut_gen_only() = Some(tag.to_string());
 
     component
 }

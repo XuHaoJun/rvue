@@ -29,6 +29,7 @@ pub fn next_component_id() -> ComponentId {
 
 pub type ComponentId = u64;
 
+#[derive(Clone)]
 pub struct ContextEntry {
     pub type_id: TypeId,
     pub value: ContextValueEnum,
@@ -178,6 +179,27 @@ unsafe impl Trace for ContextValueEnum {
             ContextValueEnum::Bool(gc) => gc.trace(visitor),
             ContextValueEnum::GcString(gc) => gc.trace(visitor),
             ContextValueEnum::GcVecString(gc) => gc.trace(visitor),
+        }
+    }
+}
+
+use rudo_gc::cell::GcCapture;
+use rudo_gc::GcBox;
+use std::ptr::NonNull;
+
+impl GcCapture for ContextValueEnum {
+    fn capture_gc_ptrs(&self) -> &[NonNull<GcBox<()>>] {
+        &[]
+    }
+
+    fn capture_gc_ptrs_into(&self, ptrs: &mut Vec<NonNull<GcBox<()>>>) {
+        match self {
+            ContextValueEnum::I32(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ContextValueEnum::I64(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ContextValueEnum::F64(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ContextValueEnum::Bool(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ContextValueEnum::GcString(gc) => gc.capture_gc_ptrs_into(ptrs),
+            ContextValueEnum::GcVecString(gc) => gc.capture_gc_ptrs_into(ptrs),
         }
     }
 }
@@ -392,7 +414,7 @@ impl Component {
         }
         self.is_dirty.store(true, Ordering::SeqCst);
         // Clear vello cache when dirty
-        *self.vello_cache.borrow_mut() = None;
+        *self.vello_cache.borrow_mut_gen_only() = None;
         // Propagate dirty flag to all children (Leptos-style)
         for child in self.children.borrow().iter() {
             child.mark_dirty();
@@ -446,7 +468,7 @@ impl Component {
 
     /// Set layout node
     pub fn set_layout_node(&self, layout_node: LayoutNode) {
-        *self.layout_node.borrow_mut() = Some(layout_node);
+        *self.layout_node.borrow_mut_gen_only() = Some(layout_node);
     }
 
     /// Clean up layout node from Taffy tree when component is unmounted
@@ -496,19 +518,19 @@ impl Component {
                 self.unmount();
             }
             StatusUpdate::HoveredChanged(hovered) => {
-                *self.is_hovered.borrow_mut() = *hovered;
+                *self.is_hovered.borrow_mut_gen_only() = *hovered;
                 self.mark_dirty();
             }
             StatusUpdate::ActiveChanged(active) => {
-                *self.is_active.borrow_mut() = *active;
+                *self.is_active.borrow_mut_gen_only() = *active;
                 self.mark_dirty();
             }
             StatusUpdate::FocusChanged(focused) => {
-                *self.is_focused.borrow_mut() = *focused;
+                *self.is_focused.borrow_mut_gen_only() = *focused;
                 self.mark_dirty();
             }
             StatusUpdate::DisabledChanged(disabled) => {
-                let mut flags = self.flags.borrow_mut();
+                let mut flags = self.flags.borrow_mut_gen_only();
                 if *disabled {
                     flags.insert(ComponentFlags::IS_DISABLED);
                 } else {
@@ -524,7 +546,7 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        self.properties.borrow_mut().insert(TextContent(content));
+        self.properties.borrow_mut_gen_only().insert(TextContent(content));
         self.mark_dirty();
     }
 
@@ -543,7 +565,7 @@ impl Component {
 
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
-        self.properties.borrow_mut().insert(FlexDirection(direction));
+        self.properties.borrow_mut_gen_only().insert(FlexDirection(direction));
         self.mark_dirty();
     }
 
@@ -562,7 +584,7 @@ impl Component {
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
-        self.properties.borrow_mut().insert(FlexGap(gap));
+        self.properties.borrow_mut_gen_only().insert(FlexGap(gap));
         self.mark_dirty();
     }
 
@@ -581,7 +603,7 @@ impl Component {
 
     /// Set flex align_items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
-        self.properties.borrow_mut().insert(FlexAlignItems(align_items));
+        self.properties.borrow_mut_gen_only().insert(FlexAlignItems(align_items));
         self.mark_dirty();
     }
 
@@ -600,7 +622,7 @@ impl Component {
 
     /// Set flex justify_content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
-        self.properties.borrow_mut().insert(FlexJustifyContent(justify_content));
+        self.properties.borrow_mut_gen_only().insert(FlexJustifyContent(justify_content));
         self.mark_dirty();
     }
 
@@ -631,7 +653,7 @@ impl Component {
             .unwrap_or_else(|| WidgetStyles(rvue_style::ComputedStyles::default()));
         styles.0.overflow_x = Some(overflow_x);
         styles.0.overflow_y = Some(overflow_y);
-        self.properties.borrow_mut().insert(styles);
+        self.properties.borrow_mut_gen_only().insert(styles);
         self.mark_dirty();
     }
 
@@ -642,13 +664,13 @@ impl Component {
 
     /// Set widget styles
     pub fn set_widget_styles(&self, styles: rvue_style::ComputedStyles) {
-        self.properties.borrow_mut().insert(WidgetStyles(styles));
+        self.properties.borrow_mut_gen_only().insert(WidgetStyles(styles));
         self.mark_dirty();
     }
 
     /// Set scroll state for a Flex component (used internally after layout calculation)
     pub fn set_scroll_state(&self, scroll_state: crate::render::widget::FlexScrollState) {
-        let mut user_data = self.user_data.borrow_mut();
+        let mut user_data = self.user_data.borrow_mut_gen_only();
         *user_data = Some(Box::new(scroll_state));
     }
 
@@ -678,7 +700,7 @@ impl Component {
 
     /// Set checkbox checked state (for Checkbox components)
     pub fn set_checkbox_checked(&self, checked: bool) {
-        self.properties.borrow_mut().insert(CheckboxChecked(checked));
+        self.properties.borrow_mut_gen_only().insert(CheckboxChecked(checked));
         self.mark_dirty();
     }
 
@@ -689,7 +711,7 @@ impl Component {
 
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
-        self.properties.borrow_mut().insert(RadioChecked(checked));
+        self.properties.borrow_mut_gen_only().insert(RadioChecked(checked));
         self.mark_dirty();
     }
 
@@ -700,7 +722,7 @@ impl Component {
 
     /// Set radio value (for Radio components)
     pub fn set_radio_value(&self, value: String) {
-        self.properties.borrow_mut().insert(RadioValue(value));
+        self.properties.borrow_mut_gen_only().insert(RadioValue(value));
         self.mark_dirty();
     }
 
@@ -711,7 +733,7 @@ impl Component {
 
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
-        self.properties.borrow_mut().insert(TextInputValue(value));
+        self.properties.borrow_mut_gen_only().insert(TextInputValue(value));
         self.mark_dirty();
     }
 
@@ -722,7 +744,7 @@ impl Component {
 
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
-        self.properties.borrow_mut().insert(NumberInputValue(value));
+        self.properties.borrow_mut_gen_only().insert(NumberInputValue(value));
         self.mark_dirty();
     }
 
@@ -733,7 +755,7 @@ impl Component {
 
     /// Set show condition (for Show components)
     pub fn set_show_when(&self, when: bool) {
-        self.properties.borrow_mut().insert(ShowCondition(when));
+        self.properties.borrow_mut_gen_only().insert(ShowCondition(when));
         self.mark_dirty();
     }
 
@@ -744,7 +766,7 @@ impl Component {
 
     /// Set for item count (for For components)
     pub fn set_for_item_count(&self, item_count: usize) {
-        self.properties.borrow_mut().insert(ForItemCount(item_count));
+        self.properties.borrow_mut_gen_only().insert(ForItemCount(item_count));
         self.mark_dirty();
     }
 
@@ -758,8 +780,8 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut().on_click = Some(handler);
-        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
+        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_click_1arg<F>(self: &Gc<Self>, handler: F)
@@ -767,8 +789,8 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut().on_click = Some(handler);
-        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
+        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_click<F>(self: &Gc<Self>, handler: F)
@@ -780,8 +802,8 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_click = Some(handler);
-        self.flags.borrow_mut().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
+        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_pointer_down_0arg<F>(self: &Gc<Self>, handler: F)
@@ -789,7 +811,7 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_down_1arg<F>(self: &Gc<Self>, handler: F)
@@ -797,7 +819,7 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_down<F>(self: &Gc<Self>, handler: F)
@@ -809,7 +831,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_up_0arg<F>(self: &Gc<Self>, handler: F)
@@ -817,7 +839,7 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_up_1arg<F>(self: &Gc<Self>, handler: F)
@@ -825,7 +847,7 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_up<F>(self: &Gc<Self>, handler: F)
@@ -837,7 +859,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_enter_0arg<F>(self: &Gc<Self>, handler: F)
@@ -848,7 +870,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_enter_1arg<F>(self: &Gc<Self>, handler: F)
@@ -859,7 +881,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_enter<F>(self: &Gc<Self>, handler: F)
@@ -869,7 +891,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
-        self.event_handlers.borrow_mut().on_pointer_enter = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_leave_0arg<F>(self: &Gc<Self>, handler: F)
@@ -880,7 +902,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_leave_1arg<F>(self: &Gc<Self>, handler: F)
@@ -891,7 +913,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_leave<F>(self: &Gc<Self>, handler: F)
@@ -901,7 +923,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
-        self.event_handlers.borrow_mut().on_pointer_leave = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_move_0arg<F>(self: &Gc<Self>, handler: F)
@@ -912,7 +934,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
     }
 
     pub fn on_pointer_move_1arg<F>(self: &Gc<Self>, handler: F)
@@ -923,7 +945,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
     }
 
     pub fn on_pointer_move<F>(self: &Gc<Self>, handler: F)
@@ -935,7 +957,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_pointer_move = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
     }
 
     pub fn on_key_down_0arg<F>(self: &Gc<Self>, handler: F)
@@ -946,7 +968,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_key_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
     }
 
     pub fn on_key_down_1arg<F>(self: &Gc<Self>, handler: F)
@@ -957,7 +979,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_key_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
     }
 
     pub fn on_key_down<F>(self: &Gc<Self>, handler: F)
@@ -967,7 +989,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_key_down = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
     }
 
     pub fn on_key_up_0arg<F>(self: &Gc<Self>, handler: F)
@@ -978,7 +1000,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_key_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
     }
 
     pub fn on_key_up_1arg<F>(self: &Gc<Self>, handler: F)
@@ -989,7 +1011,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_key_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
     }
 
     pub fn on_key_up<F>(self: &Gc<Self>, handler: F)
@@ -999,7 +1021,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_key_up = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
     }
 
     pub fn on_focus_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1010,7 +1032,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_focus = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
     }
 
     pub fn on_focus_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1021,7 +1043,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_focus = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
     }
 
     pub fn on_focus<F>(self: &Gc<Self>, handler: F)
@@ -1031,7 +1053,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_focus = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
     }
 
     pub fn on_blur_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1042,7 +1064,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_blur = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
     }
 
     pub fn on_blur_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1053,7 +1075,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_blur = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
     }
 
     pub fn on_blur<F>(self: &Gc<Self>, handler: F)
@@ -1063,7 +1085,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_blur = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
     }
 
     pub fn on_input_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1074,7 +1096,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_input = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
     }
 
     pub fn on_input_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1085,7 +1107,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_input = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
     }
 
     pub fn on_input<F>(self: &Gc<Self>, handler: F)
@@ -1095,7 +1117,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_input = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
     }
 
     pub fn on_change_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1106,7 +1128,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_change = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
     }
 
     pub fn on_change_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1117,7 +1139,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut().on_change = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
     }
 
     pub fn on_change<F>(self: &Gc<Self>, handler: F)
@@ -1127,11 +1149,11 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
-        self.event_handlers.borrow_mut().on_change = Some(handler);
+        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
     }
 
     pub fn add_class(self: &Gc<Self>, class: &str) {
-        let mut classes = self.classes.borrow_mut();
+        let mut classes = self.classes.borrow_mut_gen_only();
         if !classes.iter().any(|c| c == class) {
             classes.push(class.to_string());
             self.mark_dirty();
@@ -1139,7 +1161,7 @@ impl Component {
     }
 
     pub fn remove_class(self: &Gc<Self>, class: &str) {
-        let mut classes = self.classes.borrow_mut();
+        let mut classes = self.classes.borrow_mut_gen_only();
         if classes.iter().any(|c| c == class) {
             classes.retain(|c| c != class);
             self.mark_dirty();
@@ -1151,7 +1173,7 @@ impl Component {
     }
 
     pub fn set_id(self: &Gc<Self>, id: &str) {
-        *self.element_id.borrow_mut() = Some(id.to_string());
+        *self.element_id.borrow_mut_gen_only() = Some(id.to_string());
         self.mark_dirty();
     }
 
@@ -1171,7 +1193,7 @@ impl Component {
     {
         let type_id = TypeId::of::<T>();
         let context_value = ContextValueEnum::from_value(value);
-        self.contexts.borrow_mut().push(ContextEntry { type_id, value: context_value });
+        self.contexts.borrow_mut_gen_only().push(ContextEntry { type_id, value: context_value });
     }
 
     /// Find context of type T in this component or its ancestors
@@ -1313,7 +1335,7 @@ impl ComponentLifecycle for Component {
 
         // Run cleanups
         let cleanups = {
-            let mut cleanups = self.cleanups.borrow_mut();
+            let mut cleanups = self.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)
         };
         for cleanup in cleanups {

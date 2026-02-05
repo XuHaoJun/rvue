@@ -1,11 +1,12 @@
 use crate::component::{Component, ComponentLifecycle};
 use indexmap::IndexSet;
 use rudo_gc::{Gc, Trace};
+use rudo_gc_derive::GcCell;
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::hash::Hash;
 
-#[derive(Clone)]
+#[derive(Clone, GcCell)]
 pub struct KeyedState<K, T>
 where
     K: Eq + Hash + Clone + 'static,

@@ -294,8 +294,8 @@ mod tests {
             crate::properties::PropertyMap::new(),
         );
 
-        component.classes.borrow_mut().push("primary".into());
-        component.classes.borrow_mut().push("large".into());
+        component.classes.borrow_mut_gen_only().push("primary".into());
+        component.classes.borrow_mut_gen_only().push("large".into());
 
         let element = component_to_element(&component);
 
@@ -312,8 +312,8 @@ mod tests {
             crate::properties::PropertyMap::new(),
         );
 
-        *component.is_hovered.borrow_mut() = true;
-        *component.is_focused.borrow_mut() = true;
+        *component.is_hovered.borrow_mut_gen_only() = true;
+        *component.is_focused.borrow_mut_gen_only() = true;
 
         let element = component_to_element(&component);
 

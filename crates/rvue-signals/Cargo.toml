@@ -7,4 +7,4 @@ license.workspace = true
 description = "Core signal types for Rvue reactive system"
 
 [dependencies]
-rudo-gc = { version = "0.5", features = ["derive", "default"] }
+rudo-gc.workspace = true

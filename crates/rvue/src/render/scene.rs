@@ -117,7 +117,7 @@ impl Scene {
                 let cache_none = component.vello_cache.borrow().is_none();
 
                 if comp_dirty || force_rebuild_layout || cache_none {
-                    *component.vello_cache.borrow_mut() = None;
+                    *component.vello_cache.borrow_mut_gen_only() = None;
                     render_component(
                         component,
                         scene,

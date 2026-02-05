@@ -26,9 +26,9 @@ pub fn merge_state_up(component: &Gc<Component>) {
         let parent_has_focus_target =
             *parent.has_focus_target.borrow() || *component.has_focus_target.borrow();
 
-        *parent.has_hovered.borrow_mut() = parent_has_hovered;
-        *parent.has_active.borrow_mut() = parent_has_active;
-        *parent.has_focus_target.borrow_mut() = parent_has_focus_target;
+        *parent.has_hovered.borrow_mut_gen_only() = parent_has_hovered;
+        *parent.has_active.borrow_mut_gen_only() = parent_has_active;
+        *parent.has_focus_target.borrow_mut_gen_only() = parent_has_focus_target;
     }
 }
 

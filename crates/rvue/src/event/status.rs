@@ -1,4 +1,7 @@
 use bitflags::bitflags;
+use rudo_gc::cell::GcCapture;
+use rudo_gc::GcBox;
+use std::ptr::NonNull;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +23,12 @@ bitflags! {
 unsafe impl rudo_gc::Trace for ComponentFlags {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
         // ComponentFlags is a simple bitflag, no GC pointers to trace
+    }
+}
+
+impl GcCapture for ComponentFlags {
+    fn capture_gc_ptrs(&self) -> &[NonNull<GcBox<()>>] {
+        &[]
     }
 }
 
