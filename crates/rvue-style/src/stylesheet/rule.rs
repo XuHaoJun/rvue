@@ -69,7 +69,11 @@ impl Specificity {
                 }
                 '[' => {
                     class += 1;
-                    while chars.next() != Some(']') {}
+                    for c in chars.by_ref() {
+                        if c == ']' {
+                            break;
+                        }
+                    }
                 }
                 ':' => {
                     class += 1;
@@ -80,7 +84,11 @@ impl Specificity {
                         chars.next();
                     }
                     if chars.peek() == Some(&'(') {
-                        while chars.next() != Some(')') {}
+                        for c in chars.by_ref() {
+                            if c == ')' {
+                                break;
+                            }
+                        }
                     }
                 }
                 _ if c.is_alphabetic() || c == '_' => {
@@ -194,5 +202,21 @@ mod tests {
         assert!(element > universal);
         assert_eq!(universal, Specificity::new(0, 0, 0));
         assert_eq!(element, Specificity::new(0, 0, 1));
+    }
+
+    #[test]
+    fn test_malformed_selector_unclosed_bracket() {
+        // Should not hang on unclosed '[' bracket
+        let specificity = Specificity::from_selector("div[attr");
+        // Should still return a valid specificity (doesn't crash/hang)
+        assert_eq!(specificity.class, 1); // Attribute selector counts as class
+    }
+
+    #[test]
+    fn test_malformed_selector_unclosed_paren() {
+        // Should not hang on unclosed '(' parenthesis
+        let specificity = Specificity::from_selector("div:not(selector");
+        // Should still return a valid specificity (doesn't crash/hang)
+        assert_eq!(specificity.class, 1); // Pseudo-class counts as class
     }
 }
