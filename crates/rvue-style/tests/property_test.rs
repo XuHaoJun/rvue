@@ -1,8 +1,8 @@
 //! Property system tests.
 
 use rvue_style::{
-    BackgroundColor, Color, Display, FontSize, Height, Margin, Padding, Properties, Size,
-    TextColor, Width,
+    BackgroundColor, Color, Display, FontFamily, FontSize, Height, Margin, Padding, Properties,
+    Size, TextColor, Width,
 };
 use rvue_style::{StyledWidget, StyledWidgetExt, WidgetStyles};
 
@@ -205,4 +205,44 @@ fn test_widget_styles_width_height() {
     let props = styles.to_properties();
     assert!(props.contains::<Width>());
     assert!(props.contains::<Height>());
+}
+
+#[test]
+fn test_font_family_drop() {
+    // Test that FontFamily (which contains a String) is properly dropped
+    // This verifies that DynProperty correctly calls the destructor
+    let mut props = Properties::new();
+    props.insert(FontFamily("Arial".to_string()));
+    
+    // Verify it was inserted
+    assert!(props.contains::<FontFamily>());
+    let font = props.get::<FontFamily>().unwrap();
+    assert_eq!(font.0, "Arial");
+    
+    // Remove it - this should trigger the Drop implementation
+    props.remove::<FontFamily>();
+    assert!(!props.contains::<FontFamily>());
+    
+    // The String inside FontFamily should have been properly dropped
+    // If there was a memory leak, we'd see it in valgrind or similar tools
+}
+
+#[test]
+fn test_properties_clone_with_heap_allocated() {
+    // Test that cloning Properties with heap-allocated types works correctly
+    let mut props1 = Properties::new();
+    props1.insert(FontFamily("Helvetica".to_string()));
+    
+    let props2 = props1.clone();
+    
+    // Both should contain the same value
+    assert_eq!(props1.get::<FontFamily>().unwrap().0, "Helvetica");
+    assert_eq!(props2.get::<FontFamily>().unwrap().0, "Helvetica");
+    
+    // Modifying one shouldn't affect the other (deep copy)
+    props1.insert(FontFamily("Arial".to_string()));
+    assert_eq!(props1.get::<FontFamily>().unwrap().0, "Arial");
+    assert_eq!(props2.get::<FontFamily>().unwrap().0, "Helvetica");
+    
+    // Both should be properly dropped when they go out of scope
 }

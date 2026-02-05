@@ -7,6 +7,7 @@ use crate::properties::{
     Width, ZIndex,
 };
 use rudo_gc::{Trace, Visitor};
+use std::alloc::{self, Layout};
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -25,11 +26,10 @@ pub trait Property: Default + Clone + Send + Sync + 'static {
 
 struct DynProperty {
     type_id: TypeId,
-    value: Vec<u8>,
-    size: usize,
-    align: usize,
-    drop_fn: unsafe fn(*mut u8, usize), // Function to drop the value stored in bytes
-    clone_fn: unsafe fn(*const u8, usize) -> Vec<u8>, // Function to clone the value stored in bytes
+    ptr: *mut u8,        // Pointer to aligned memory containing the value
+    layout: Layout,      // Memory layout (size and alignment)
+    drop_fn: unsafe fn(*mut u8, Layout), // Function to drop the value stored in bytes
+    clone_fn: unsafe fn(*const u8, Layout) -> *mut u8, // Function to clone the value stored in bytes
 }
 
 impl DynProperty {
@@ -37,46 +37,57 @@ impl DynProperty {
     where
         P: Property,
     {
-        let size = std::mem::size_of::<P>();
-        let align = std::mem::align_of::<P>();
-        let mut bytes = vec![0u8; size];
+        let layout = Layout::new::<P>();
         unsafe {
+            // Allocate properly aligned memory
+            let ptr = alloc::alloc(layout);
+            if ptr.is_null() {
+                alloc::handle_alloc_error(layout);
+            }
+            
             // Use ManuallyDrop to prevent the original value from being dropped
-            // when it goes out of scope. The value is moved into the bytes buffer
+            // when it goes out of scope. The value is moved into the allocated memory
             // and will be dropped when DynProperty is dropped via the drop_fn.
             let value = std::mem::ManuallyDrop::new(value);
-            std::ptr::write(bytes.as_mut_ptr() as *mut P, std::ptr::read(&*value));
-        }
-        Self {
-            type_id: TypeId::of::<P>(),
-            value: bytes,
-            size,
-            align,
-            drop_fn: Self::drop_value::<P>,
-            clone_fn: Self::clone_value::<P>,
+            std::ptr::write(ptr as *mut P, std::ptr::read(&*value));
+            
+            Self {
+                type_id: TypeId::of::<P>(),
+                ptr,
+                layout,
+                drop_fn: Self::drop_value::<P>,
+                clone_fn: Self::clone_value::<P>,
+            }
         }
     }
 
     /// Drop function for a specific type P
-    unsafe fn drop_value<P>(ptr: *mut u8, _size: usize) {
+    unsafe fn drop_value<P>(ptr: *mut u8, layout: Layout) {
+        // Drop the value
         std::ptr::drop_in_place(ptr as *mut P);
+        // Deallocate the memory
+        alloc::dealloc(ptr, layout);
     }
 
     /// Clone function for a specific type P
-    unsafe fn clone_value<P: Clone>(ptr: *const u8, size: usize) -> Vec<u8> {
+    unsafe fn clone_value<P: Clone>(ptr: *const u8, layout: Layout) -> *mut u8 {
         let value = &*(ptr as *const P);
         let cloned = value.clone();
-        let mut bytes = vec![0u8; size];
-        std::ptr::write(bytes.as_mut_ptr() as *mut P, cloned);
-        bytes
+        // Allocate aligned memory for the clone
+        let new_ptr = alloc::alloc(layout);
+        if new_ptr.is_null() {
+            alloc::handle_alloc_error(layout);
+        }
+        std::ptr::write(new_ptr as *mut P, cloned);
+        new_ptr
     }
 
     fn downcast<P: Property>(&self) -> Option<&P> {
         if self.type_id == TypeId::of::<P>()
-            && self.size == std::mem::size_of::<P>()
-            && self.align == std::mem::align_of::<P>()
+            && self.layout.size() == std::mem::size_of::<P>()
+            && self.layout.align() == std::mem::align_of::<P>()
         {
-            unsafe { Some(&*(self.value.as_ptr() as *const P)) }
+            unsafe { Some(&*(self.ptr as *const P)) }
         } else {
             None
         }
@@ -84,10 +95,10 @@ impl DynProperty {
 
     fn downcast_mut<P: Property>(&mut self) -> Option<&mut P> {
         if self.type_id == TypeId::of::<P>()
-            && self.size == std::mem::size_of::<P>()
-            && self.align == std::mem::align_of::<P>()
+            && self.layout.size() == std::mem::size_of::<P>()
+            && self.layout.align() == std::mem::align_of::<P>()
         {
-            unsafe { Some(&mut *(self.value.as_mut_ptr() as *mut P)) }
+            unsafe { Some(&mut *(self.ptr as *mut P)) }
         } else {
             None
         }
@@ -96,13 +107,12 @@ impl DynProperty {
 
 impl Clone for DynProperty {
     fn clone(&self) -> Self {
-        // Use the clone function to properly clone the value stored in bytes
-        let new_bytes = unsafe { (self.clone_fn)(self.value.as_ptr(), self.size) };
+        // Use the clone function to properly clone the value stored in memory
+        let new_ptr = unsafe { (self.clone_fn)(self.ptr, self.layout) };
         Self {
             type_id: self.type_id,
-            value: new_bytes,
-            size: self.size,
-            align: self.align,
+            ptr: new_ptr,
+            layout: self.layout,
             drop_fn: self.drop_fn,
             clone_fn: self.clone_fn,
         }
@@ -112,8 +122,8 @@ impl Clone for DynProperty {
 impl Drop for DynProperty {
     fn drop(&mut self) {
         unsafe {
-            // Call the drop function to properly drop the value stored in bytes
-            (self.drop_fn)(self.value.as_mut_ptr(), self.size);
+            // Call the drop function to properly drop the value and deallocate memory
+            (self.drop_fn)(self.ptr, self.layout);
         }
     }
 }
