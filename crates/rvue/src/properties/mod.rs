@@ -65,7 +65,7 @@ pub mod defaults {
     /// Get the default flex gap, if set
     #[inline]
     pub fn get_default_flex_gap() -> Option<f32> {
-        DEFAULT_FLEX_GAP.read().unwrap().clone()
+        *DEFAULT_FLEX_GAP.read().unwrap()
     }
 
     /// Set a default flex align-items globally

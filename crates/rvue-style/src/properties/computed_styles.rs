@@ -260,5 +260,39 @@ impl ComputedStyles {
 }
 
 unsafe impl Trace for ComputedStyles {
-    fn trace(&self, _visitor: &mut impl Visitor) {}
+    fn trace(&self, visitor: &mut impl Visitor) {
+        self.background_color.trace(visitor);
+        self.color.trace(visitor);
+        self.text_color.trace(visitor);
+        self.font_size.trace(visitor);
+        self.font_family.trace(visitor);
+        self.font_weight.trace(visitor);
+        self.padding.trace(visitor);
+        self.margin.trace(visitor);
+        self.width.trace(visitor);
+        self.height.trace(visitor);
+        self.min_width.trace(visitor);
+        self.min_height.trace(visitor);
+        self.max_width.trace(visitor);
+        self.max_height.trace(visitor);
+        self.display.trace(visitor);
+        self.flex_direction.trace(visitor);
+        self.justify_content.trace(visitor);
+        self.align_items.trace(visitor);
+        self.align_self.trace(visitor);
+        self.flex_grow.trace(visitor);
+        self.flex_shrink.trace(visitor);
+        self.flex_basis.trace(visitor);
+        self.gap.trace(visitor);
+        self.border_color.trace(visitor);
+        self.border_width.trace(visitor);
+        self.border_radius.trace(visitor);
+        self.border_style.trace(visitor);
+        self.opacity.trace(visitor);
+        self.visibility.trace(visitor);
+        self.z_index.trace(visitor);
+        self.cursor.trace(visitor);
+        self.overflow_x.trace(visitor);
+        self.overflow_y.trace(visitor);
+    }
 }

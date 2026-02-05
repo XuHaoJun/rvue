@@ -61,6 +61,10 @@ unsafe impl Trace for DynProperty {
     fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
+unsafe impl Trace for Box<dyn DynClone> {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Default, Clone)]
 pub struct PropertyMap {
     map: std::collections::HashMap<TypeId, DynProperty>,
@@ -136,10 +140,11 @@ impl PropertyMap {
     }
 
     #[inline]
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Self {
         let mut new_map = std::collections::HashMap::new();
         for (type_id, prop) in &self.map {
-            new_map.insert(*type_id, prop.clone());
+            new_map.insert(*type_id, std::clone::Clone::clone(prop));
         }
         Self { map: new_map }
     }

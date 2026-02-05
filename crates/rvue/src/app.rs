@@ -440,7 +440,7 @@ impl ApplicationHandler for AppState<'_> {
             }
             WindowEvent::AxisMotion { axis, value, .. } => {
                 if axis == 1 && value != 0.0 {
-                    let scroll_delta = crate::event::types::ScrollDelta::Line(value as f64);
+                    let scroll_delta = crate::event::types::ScrollDelta::Line(value);
                     let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
                         delta: scroll_delta,
                         position: self.last_pointer_pos.unwrap_or_default(),

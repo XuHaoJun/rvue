@@ -1,6 +1,7 @@
 //! Font and text properties.
 
 use crate::property::Property;
+use rudo_gc::{Trace, Visitor};
 use std::fmt;
 
 /// Font family property.
@@ -25,6 +26,10 @@ impl Property for FontFamily {
     }
 }
 
+unsafe impl Trace for FontFamily {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 /// Font size property.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FontSize(pub f32);
@@ -39,6 +44,10 @@ impl Property for FontSize {
     fn initial_value() -> Self {
         Self(16.0)
     }
+}
+
+unsafe impl Trace for FontSize {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 /// Font weight property.
@@ -60,6 +69,10 @@ impl Property for FontWeight {
     fn initial_value() -> Self {
         Self::Normal
     }
+}
+
+unsafe impl Trace for FontWeight {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 impl FontWeight {

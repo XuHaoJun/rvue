@@ -204,7 +204,7 @@ pub fn convert_pointer_event_from_ui_events(
     event: &ui_events::pointer::PointerEvent,
     scale_factor: f64,
 ) -> PointerEvent {
-    let result = match event {
+    match event {
         ui_events::pointer::PointerEvent::Down(e) => PointerEvent::Down(PointerButtonEvent {
             button: convert_pointer_button(e.button),
             position: Point::new(
@@ -261,8 +261,7 @@ pub fn convert_pointer_event_from_ui_events(
         ui_events::pointer::PointerEvent::Cancel(_) => {
             PointerEvent::Cancel(PointerInfo { position: Point::ZERO })
         }
-    };
-    result
+    }
 }
 
 fn convert_pointer_button(button: Option<ui_events::pointer::PointerButton>) -> PointerButton {

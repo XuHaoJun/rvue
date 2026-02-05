@@ -205,18 +205,10 @@ fn render_children(
 }
 
 fn get_styles(component: &Gc<Component>, stylesheet: Option<&Stylesheet>) -> ComputedStyles {
-    let result = match stylesheet {
-        Some(sheet) => {
-            // Use resolve_styles_for_component which is the unified resolution path
-            // This ensures layout and rendering use the same style resolution
-            resolve_styles_for_component(component, sheet)
-        }
-        None => {
-            // Use new PropertyMap-based API
-            component.widget_styles().unwrap_or_default()
-        }
-    };
-    result
+    match stylesheet {
+        Some(sheet) => resolve_styles_for_component(component, sheet),
+        None => component.widget_styles().unwrap_or_default(),
+    }
 }
 
 fn render_text(

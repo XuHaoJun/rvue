@@ -1,6 +1,7 @@
 //! Spacing properties.
 
 use crate::property::Property;
+use rudo_gc::{Trace, Visitor};
 
 /// Padding.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -25,6 +26,10 @@ impl Property for Padding {
     }
 }
 
+unsafe impl Trace for Padding {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 /// Margin.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Margin(pub f32);
@@ -46,4 +51,8 @@ impl Property for Margin {
     fn initial_value() -> Self {
         Self(0.0)
     }
+}
+
+unsafe impl Trace for Margin {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }

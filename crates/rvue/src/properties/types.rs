@@ -4,6 +4,7 @@
 //! They are orthogonal to styling properties and can be combined freely.
 
 use crate::properties::WidgetProperty;
+use rudo_gc::{Trace, Visitor};
 use rvue_style::ComputedStyles;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -14,6 +15,10 @@ impl WidgetProperty for TextContent {
         static DEFAULT: TextContent = TextContent(String::new());
         &DEFAULT
     }
+}
+
+unsafe impl Trace for TextContent {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -27,6 +32,12 @@ impl WidgetProperty for WidgetStyles {
     }
 }
 
+unsafe impl Trace for WidgetStyles {
+    fn trace(&self, visitor: &mut impl Visitor) {
+        self.0.trace(visitor);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ShowCondition(pub bool);
 
@@ -35,6 +46,10 @@ impl WidgetProperty for ShowCondition {
         static DEFAULT: ShowCondition = ShowCondition(true);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for ShowCondition {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -47,6 +62,10 @@ impl WidgetProperty for ForItemCount {
     }
 }
 
+unsafe impl Trace for ForItemCount {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextInputValue(pub String);
 
@@ -55,6 +74,10 @@ impl WidgetProperty for TextInputValue {
         static DEFAULT: TextInputValue = TextInputValue(String::new());
         &DEFAULT
     }
+}
+
+unsafe impl Trace for TextInputValue {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +90,10 @@ impl WidgetProperty for NumberInputValue {
     }
 }
 
+unsafe impl Trace for NumberInputValue {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct CheckboxChecked(pub bool);
 
@@ -75,6 +102,10 @@ impl WidgetProperty for CheckboxChecked {
         static DEFAULT: CheckboxChecked = CheckboxChecked(false);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for CheckboxChecked {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -87,6 +118,10 @@ impl WidgetProperty for RadioValue {
     }
 }
 
+unsafe impl Trace for RadioValue {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct RadioChecked(pub bool);
 
@@ -95,6 +130,10 @@ impl WidgetProperty for RadioChecked {
         static DEFAULT: RadioChecked = RadioChecked(false);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for RadioChecked {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -108,6 +147,10 @@ impl WidgetProperty for FlexDirection {
     }
 }
 
+unsafe impl Trace for FlexDirection {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlexGap(pub f32);
 
@@ -116,6 +159,10 @@ impl WidgetProperty for FlexGap {
         static DEFAULT: FlexGap = FlexGap(0.0);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for FlexGap {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -129,6 +176,10 @@ impl WidgetProperty for FlexAlignItems {
     }
 }
 
+unsafe impl Trace for FlexAlignItems {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlexJustifyContent(pub String);
 
@@ -138,6 +189,10 @@ impl WidgetProperty for FlexJustifyContent {
             std::sync::LazyLock::new(|| FlexJustifyContent("flex-start".to_string()));
         &DEFAULT
     }
+}
+
+unsafe impl Trace for FlexJustifyContent {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -150,6 +205,10 @@ impl WidgetProperty for ButtonLabel {
     }
 }
 
+unsafe impl Trace for ButtonLabel {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SliderValue(pub f64);
 
@@ -158,6 +217,10 @@ impl WidgetProperty for SliderValue {
         static DEFAULT: SliderValue = SliderValue(0.0);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for SliderValue {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -170,6 +233,10 @@ impl WidgetProperty for SliderMin {
     }
 }
 
+unsafe impl Trace for SliderMin {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SliderMax(pub f64);
 
@@ -178,6 +245,10 @@ impl WidgetProperty for SliderMax {
         static DEFAULT: SliderMax = SliderMax(100.0);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for SliderMax {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -190,6 +261,10 @@ impl WidgetProperty for SliderStep {
     }
 }
 
+unsafe impl Trace for SliderStep {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SwitchChecked(pub bool);
 
@@ -198,6 +273,10 @@ impl WidgetProperty for SwitchChecked {
         static DEFAULT: SwitchChecked = SwitchChecked(false);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for SwitchChecked {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -210,6 +289,10 @@ impl WidgetProperty for PlaceholderText {
     }
 }
 
+unsafe impl Trace for PlaceholderText {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageSource(pub String);
 
@@ -218,6 +301,10 @@ impl WidgetProperty for ImageSource {
         static DEFAULT: ImageSource = ImageSource(String::new());
         &DEFAULT
     }
+}
+
+unsafe impl Trace for ImageSource {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -231,6 +318,10 @@ impl WidgetProperty for ImageFit {
     }
 }
 
+unsafe impl Trace for ImageFit {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProgressValue(pub f64);
 
@@ -241,6 +332,10 @@ impl WidgetProperty for ProgressValue {
     }
 }
 
+unsafe impl Trace for ProgressValue {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProgressMax(pub f64);
 
@@ -249,4 +344,8 @@ impl WidgetProperty for ProgressMax {
         static DEFAULT: ProgressMax = ProgressMax(100.0);
         &DEFAULT
     }
+}
+
+unsafe impl Trace for ProgressMax {
+    fn trace(&self, _visitor: &mut impl Visitor) {}
 }

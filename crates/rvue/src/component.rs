@@ -660,9 +660,8 @@ impl Component {
         {
             // Fall back to ComponentProps for backward compatibility
             let props = self.props.borrow();
-            match &*props {
-                ComponentProps::Flex { direction, .. } => return direction.clone(),
-                _ => {}
+            if let ComponentProps::Flex { direction, .. } = &*props {
+                return direction.clone();
             }
         }
 
