@@ -7,7 +7,7 @@
 use rudo_gc::{GcCell, Trace, Visitor};
 use std::any::{Any, TypeId};
 
-use super::WidgetProperty;
+use super::{WidgetProperty, WidgetStyles};
 
 trait DynClone: Any {
     fn clone_box(&self) -> Box<dyn DynClone>;
@@ -29,7 +29,7 @@ impl<T: Clone + 'static + Send + Sync> DynClone for T {
     }
 }
 
-struct DynProperty {
+pub struct DynProperty {
     type_id: TypeId,
     value: Box<dyn DynClone>,
 }
@@ -49,20 +49,20 @@ impl DynProperty {
     fn downcast_mut<P: WidgetProperty>(&mut self) -> Option<&mut P> {
         self.value.as_any_mut().downcast_mut::<P>()
     }
+
+    fn trace_inner(&self, visitor: &mut impl Visitor) {
+        if self.type_id == TypeId::of::<WidgetStyles>() {
+            if let Some(styles) = self.downcast::<WidgetStyles>() {
+                styles.trace(visitor);
+            }
+        }
+    }
 }
 
 impl Clone for DynProperty {
     fn clone(&self) -> Self {
         Self { type_id: self.type_id, value: self.value.clone_box() }
     }
-}
-
-unsafe impl Trace for DynProperty {
-    fn trace(&self, _visitor: &mut impl Visitor) {}
-}
-
-unsafe impl Trace for Box<dyn DynClone> {
-    fn trace(&self, _visitor: &mut impl Visitor) {}
 }
 
 #[derive(Default, Clone)]
@@ -148,10 +148,46 @@ impl PropertyMap {
         }
         Self { map: new_map }
     }
+
+    #[inline]
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self.map.iter())
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        IterMut(self.map.iter_mut())
+    }
+}
+
+pub struct Iter<'a>(std::collections::hash_map::Iter<'a, TypeId, DynProperty>);
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = (&'a TypeId, &'a DynProperty);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct IterMut<'a>(std::collections::hash_map::IterMut<'a, TypeId, DynProperty>);
+
+impl<'a> Iterator for IterMut<'a> {
+    type Item = (&'a TypeId, &'a mut DynProperty);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
 }
 
 unsafe impl Trace for PropertyMap {
-    fn trace(&self, _visitor: &mut impl Visitor) {}
+    fn trace(&self, visitor: &mut impl Visitor) {
+        for prop in self.map.values() {
+            prop.trace_inner(visitor);
+        }
+    }
 }
 
 impl std::fmt::Debug for PropertyMap {
