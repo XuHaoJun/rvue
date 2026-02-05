@@ -91,7 +91,8 @@ impl<T: Clone + 'static> ReadSignal<T> {
     }
 
     /// Get a reference to the inner data (for advanced use cases)
-    pub fn inner(&self) -> &Gc<SignalData<T>> {
+    #[allow(dead_code)]
+    pub(crate) fn inner(&self) -> &Gc<SignalData<T>> {
         &self.data
     }
 }
@@ -132,7 +133,8 @@ impl<T: Clone + 'static> WriteSignal<T> {
     }
 
     /// Get a reference to the inner data (for advanced use cases)
-    pub fn inner(&self) -> &Gc<SignalData<T>> {
+    #[allow(dead_code)]
+    pub(crate) fn inner(&self) -> &Gc<SignalData<T>> {
         &self.data
     }
 }
