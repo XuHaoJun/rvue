@@ -23,12 +23,13 @@ pub trait Property: Default + Clone + Send + Sync + 'static {
     fn initial_value() -> Self;
 }
 
-#[derive(Clone)]
 struct DynProperty {
     type_id: TypeId,
     value: Vec<u8>,
     size: usize,
     align: usize,
+    drop_fn: unsafe fn(*mut u8, usize), // Function to drop the value stored in bytes
+    clone_fn: unsafe fn(*const u8, usize) -> Vec<u8>, // Function to clone the value stored in bytes
 }
 
 impl DynProperty {
@@ -40,13 +41,34 @@ impl DynProperty {
         let align = std::mem::align_of::<P>();
         let mut bytes = vec![0u8; size];
         unsafe {
-            std::ptr::copy_nonoverlapping(
-                &value as *const P as *const u8,
-                bytes.as_mut_ptr(),
-                size,
-            );
+            // Use ManuallyDrop to prevent the original value from being dropped
+            // when it goes out of scope. The value is moved into the bytes buffer
+            // and will be dropped when DynProperty is dropped via the drop_fn.
+            let value = std::mem::ManuallyDrop::new(value);
+            std::ptr::write(bytes.as_mut_ptr() as *mut P, std::ptr::read(&*value));
         }
-        Self { type_id: TypeId::of::<P>(), value: bytes, size, align }
+        Self {
+            type_id: TypeId::of::<P>(),
+            value: bytes,
+            size,
+            align,
+            drop_fn: Self::drop_value::<P>,
+            clone_fn: Self::clone_value::<P>,
+        }
+    }
+
+    /// Drop function for a specific type P
+    unsafe fn drop_value<P>(ptr: *mut u8, _size: usize) {
+        std::ptr::drop_in_place(ptr as *mut P);
+    }
+
+    /// Clone function for a specific type P
+    unsafe fn clone_value<P: Clone>(ptr: *const u8, size: usize) -> Vec<u8> {
+        let value = &*(ptr as *const P);
+        let cloned = value.clone();
+        let mut bytes = vec![0u8; size];
+        std::ptr::write(bytes.as_mut_ptr() as *mut P, cloned);
+        bytes
     }
 
     fn downcast<P: Property>(&self) -> Option<&P> {
@@ -68,6 +90,30 @@ impl DynProperty {
             unsafe { Some(&mut *(self.value.as_mut_ptr() as *mut P)) }
         } else {
             None
+        }
+    }
+}
+
+impl Clone for DynProperty {
+    fn clone(&self) -> Self {
+        // Use the clone function to properly clone the value stored in bytes
+        let new_bytes = unsafe { (self.clone_fn)(self.value.as_ptr(), self.size) };
+        Self {
+            type_id: self.type_id,
+            value: new_bytes,
+            size: self.size,
+            align: self.align,
+            drop_fn: self.drop_fn,
+            clone_fn: self.clone_fn,
+        }
+    }
+}
+
+impl Drop for DynProperty {
+    fn drop(&mut self) {
+        unsafe {
+            // Call the drop function to properly drop the value stored in bytes
+            (self.drop_fn)(self.value.as_mut_ptr(), self.size);
         }
     }
 }
