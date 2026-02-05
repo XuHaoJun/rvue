@@ -209,9 +209,11 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - **Also fixed**: `styles_effect` in Flex now properly updates PropertyMap when styles change
 - **Result**: Scroll container height/width now correctly applied (scroll example works)
 
-### ComponentProps Deprecation Migration (IN PROGRESS)
+### ComponentProps Deprecation Migration (COMPLETED)
 
-#### Phase 1: Added Deprecation Warnings (COMPLETED)
+Successfully completed the migration from `ComponentProps` enum to `PropertyMap` system.
+
+#### Phase 1: Deprecation Warnings (COMPLETED)
 - Marked `ComponentProps` enum as `#[deprecated]`
 - Marked all getters/setters as `#[deprecated]`
 - Added `#[allow(deprecated)]` blocks for backward compatibility
@@ -220,16 +222,40 @@ Cursor-specific rules are defined in `.cursor/rules/specify-rules.mdc`. Key poin
 - Updated `widget_api_test.rs` to use new API
 - Updated `component_test.rs` with `#[allow(deprecated)]`
 - Updated `button_widget_test.rs`, `layout_node_test.rs`, `slot_test.rs`, `context_gc_test.rs`
-- All 252+ tests pass
+- All tests pass
 
-#### Phase 3: Macro Codegen Update (PENDING)
-- [ ] Update `codegen.rs` to output `PropertyMap` instead of `ComponentProps`
+#### Phase 3: Macro Codegen Update (COMPLETED)
+- Updated `codegen.rs` to use `PropertyMap::new()` instead of `ComponentProps::Custom`
+- Custom widgets now use `Component::with_global_id(type, PropertyMap::new())`
 
-#### Phase 4: Core Refactoring (PENDING)
-- [ ] Remove `ComponentProps` fallback from `style.rs`
-- [ ] Simplify Component struct (remove `props` field)
-- [ ] Simplify getters/setters
+#### Phase 4: Core Refactoring (COMPLETED)
+- Removed `props: GcCell<ComponentProps>` field from `Component` struct
+- Removed `unsafe impl Trace for ComponentProps`
+- Updated `Component::with_properties()` to only take `PropertyMap`
+- Updated `Component::with_global_id()` for slot usage
+- Removed fallback logic from getters/setters
+- Simplified `style.rs::get_inline_styles()` to use PropertyMap only
+- Updated `event/path.rs` and `slot.rs` to use PropertyMap
 
-#### Phase 5: Cleanup (PENDING)
-- [ ] Remove `ComponentProps` enum definition
-- [ ] Verify all tests pass
+#### Phase 5: Cleanup (COMPLETED)
+- Removed `ComponentProps` enum definition entirely
+- Removed from `lib.rs` and `prelude.rs` exports
+- Updated 25+ test files to use new API
+- Updated all example applications (benchmark, slots, etc.)
+- Updated `rvue-testing` crate
+
+#### New API
+```rust
+// Create component with properties
+Component::with_properties(id, component_type, PropertyMap::new())
+Component::with_global_id(component_type, PropertyMap::new())
+
+// Widget initialization pattern
+PropertyMap::with(TextContent("hello".to_string()))
+PropertyMap::new().and(FlexDirection("row".to_string())).and(FlexGap(10.0))
+```
+
+#### Verification
+- Clippy passes with 0 warnings
+- Core tests: 45+ passing
+- All widgets updated to use PropertyMap system

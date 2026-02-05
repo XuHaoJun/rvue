@@ -11,7 +11,7 @@ use rvue_style::{BorderWidth, FontSize, Height, ReactiveStyles, Size, Width};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rudo_gc::test_util::reset();
 
-    rvue::run_app(|| create_scroll_view())?;
+    rvue::run_app(create_scroll_view)?;
     Ok(())
 }
 

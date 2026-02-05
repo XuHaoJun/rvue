@@ -1,8 +1,7 @@
 //! Integration test for Show component
 
-#[allow(deprecated)]
 use rvue::{create_signal, ComponentLifecycle};
-use rvue::{Component, ComponentProps, ComponentType};
+use rvue::{Component, ComponentType};
 
 #[test]
 fn test_show_component_conditional_rendering() {
@@ -10,15 +9,15 @@ fn test_show_component_conditional_rendering() {
     let (is_visible, set_visible) = create_signal(true);
 
     // Create a child component
-    let _child = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Visible".to_string(), styles: None },
-    );
+    let _child =
+        Component::with_properties(1, ComponentType::Text, rvue::properties::PropertyMap::new());
 
     // Create Show component
-    let _show =
-        Component::new(2, ComponentType::Show, ComponentProps::Show { when: is_visible.get() });
+    let _show = Component::with_properties(
+        2,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(is_visible.get())),
+    );
 
     // Initially visible
     assert!(is_visible.get());
@@ -62,11 +61,14 @@ fn test_show_component_with_signal_tracking() {
 
 #[test]
 fn test_show_component_mounting_unmounting() {
-    let (is_visible, _set_visible) = create_signal(true);
+    let (_is_visible, _set_visible) = create_signal(true);
 
     // Create Show component
-    let show =
-        Component::new(1, ComponentType::Show, ComponentProps::Show { when: is_visible.get() });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(true)),
+    );
 
     // Test mounting/unmounting lifecycle
     show.mount(None);

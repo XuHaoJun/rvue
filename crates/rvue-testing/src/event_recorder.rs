@@ -84,7 +84,7 @@ pub struct EventRecorder {
 impl EventRecorder {
     /// Record an event for a specific widget.
     pub fn record(&mut self, widget_id: u32, event: RecordedEvent) {
-        self.widget_records.entry(widget_id).or_insert_with(WidgetRecorder::default).record(event);
+        self.widget_records.entry(widget_id).or_default().record(event);
     }
 
     /// Get all recorded events for a widget.
@@ -94,7 +94,7 @@ impl EventRecorder {
 
     /// Take (and clear) all recorded events for a widget.
     pub fn take_records(&mut self, widget_id: u32) -> Vec<RecordedEvent> {
-        self.widget_records.entry(widget_id).or_insert_with(WidgetRecorder::default).take()
+        self.widget_records.entry(widget_id).or_default().take()
     }
 
     /// Check if a widget has any events matching the predicate.
@@ -114,12 +114,13 @@ impl EventRecorder {
 }
 
 /// Helper trait for recording events.
+#[allow(dead_code)]
 pub trait RecordEvent {
-    fn record(&mut self, event: RecordedEvent);
+    fn record(&mut self, _event: RecordedEvent);
 }
 
 impl RecordEvent for Gc<Component> {
-    fn record(&mut self, event: RecordedEvent) {
+    fn record(&mut self, _event: RecordedEvent) {
         // This would be called from within the widget's event handlers
         // The actual recording happens in the harness
     }

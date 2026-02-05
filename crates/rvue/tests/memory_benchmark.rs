@@ -1,7 +1,6 @@
 //! Benchmark test for initial memory usage
 
-#[allow(deprecated)]
-use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
+use rvue::{Component, ComponentType, ViewStruct};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -35,24 +34,15 @@ fn benchmark_initial_memory_footprint() {
     ALLOCATED.store(0, Ordering::Relaxed);
 
     // Create a simple application
-    let root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "center".to_string(),
-            styles: None,
-        },
-    );
+    let root =
+        Component::with_properties(0, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     // Add some components
     for i in 1..=10 {
-        let _child = Component::new(
+        let _child = Component::with_properties(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Item {}", i), styles: None },
+            rvue::properties::PropertyMap::new(),
         );
     }
 
@@ -83,10 +73,10 @@ fn benchmark_component_memory_usage() {
     // Create 100 components
     let mut components = Vec::new();
     for i in 0..100 {
-        let component = Component::new(
+        let component = Component::with_properties(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Component {}", i), styles: None },
+            rvue::properties::PropertyMap::new(),
         );
         components.push(component);
     }

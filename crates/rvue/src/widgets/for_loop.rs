@@ -1,6 +1,6 @@
 //! For widget with stable-key based node pool management
 
-use crate::component::{Component, ComponentLifecycle, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentLifecycle, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{ForItemCount, PropertyMap};
 use crate::view::View;
@@ -269,12 +269,7 @@ where
             PropertyMap::with(ForItemCount(initial_count))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::For,
-            ComponentProps::KeyedFor { item_count: initial_count },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::For, properties);
 
         let mut keyed_state = KeyedState {
             parent: None,
@@ -336,7 +331,7 @@ where
                         &mut temp_ctx,
                     );
                 }
-                *comp_clone.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp_clone.properties.borrow_mut().insert(ForItemCount(new_count));
                 comp_clone.mark_dirty();
             });
             component.add_effect(Gc::clone(&effect));
@@ -384,7 +379,7 @@ where
                     let _new_keys =
                         state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
                 }
-                *comp.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp.properties.borrow_mut().insert(ForItemCount(new_count));
                 comp.mark_dirty();
             });
             state.component.add_effect(Gc::clone(&effect));
@@ -398,8 +393,7 @@ where
             let mut temp_ctx =
                 BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
             let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);
-            *state.component.props.borrow_mut() =
-                ComponentProps::KeyedFor { item_count: new_count };
+            state.component.properties.borrow_mut().insert(ForItemCount(new_count));
             state.component.mark_dirty();
         }
     }

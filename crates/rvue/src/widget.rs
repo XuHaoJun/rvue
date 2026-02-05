@@ -200,15 +200,12 @@ impl<'a> BuildContext<'a> {
     }
 
     /// Create a new component with a unique ID
-    #[allow(deprecated)]
     pub fn create_component(
         &mut self,
         component_type: crate::component::ComponentType,
-        props: crate::component::ComponentProps,
+        properties: crate::properties::PropertyMap,
     ) -> Gc<Component> {
-        // Convert ComponentProps to PropertyMap for the new system
-        let properties = crate::properties::PropertyMap::new();
-        Component::with_global_id_and_properties(component_type, props, properties)
+        Component::with_global_id_and_properties(component_type, properties)
     }
 }
 

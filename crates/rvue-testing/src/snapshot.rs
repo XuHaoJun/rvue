@@ -76,14 +76,14 @@ impl SnapshotManager {
     pub fn save(&self, name: &str, image: &DynamicImage) -> std::io::Result<PathBuf> {
         self.ensure_dir()?;
         let path = self.snapshot_path(name);
-        image.save(&path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        image.save(&path).map_err(std::io::Error::other)?;
         Ok(path)
     }
 
     pub fn save_new(&self, name: &str, image: &DynamicImage) -> std::io::Result<PathBuf> {
         self.ensure_dir()?;
         let path = self.new_snapshot_path(name);
-        image.save(&path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        image.save(&path).map_err(std::io::Error::other)?;
         Ok(path)
     }
 
@@ -92,7 +92,7 @@ impl SnapshotManager {
         if !path.exists() {
             return Err(SnapshotError::NotFound(path));
         }
-        Ok(image::open(&path).map_err(SnapshotError::ImageError)?)
+        image::open(&path).map_err(SnapshotError::ImageError)
     }
 
     pub fn compare(&self, name: &str, actual: &DynamicImage) -> Result<(), SnapshotError> {
@@ -145,9 +145,7 @@ impl SnapshotManager {
                         }
                     }
                     let diff_image = DynamicImage::ImageRgba8(diff);
-                    diff_image
-                        .save(self.diff_path(name))
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    diff_image.save(self.diff_path(name)).map_err(std::io::Error::other)?;
                     return Err(SnapshotError::Mismatch(self.snapshot_path(name)));
                 }
             }
@@ -162,6 +160,7 @@ impl SnapshotManager {
     }
 }
 
+#[allow(unused)]
 pub fn generate_diff(expected: &DynamicImage, actual: &DynamicImage) -> Option<DynamicImage> {
     let expected = expected.to_rgba8();
     let actual = actual.to_rgba8();

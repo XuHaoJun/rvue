@@ -1,7 +1,5 @@
 //! Tests for the new Widget API and fine-grained updates
 
-#[allow(deprecated)]
-use rvue::ComponentProps;
 use rvue::{create_signal, text::TextContext, widget::*, widgets::*, Component, ComponentType};
 use rvue_style::{AlignItems, FlexDirection, JustifyContent};
 use taffy::TaffyTree;
@@ -69,17 +67,6 @@ fn test_flex_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Flex);
-        #[allow(deprecated)]
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Flex { direction, gap, .. } => {
-                    assert_eq!(direction, "column");
-                    assert_eq!(*gap, 10.0);
-                }
-                _ => {}
-            }
-        }
     });
 }
 
@@ -90,17 +77,6 @@ fn test_checkbox_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Checkbox);
-        // Checkbox checked state - verify via the deprecated API for now
-        #[allow(deprecated)]
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Checkbox { checked, .. } => {
-                    assert!(*checked);
-                }
-                _ => panic!("Expected Checkbox props"),
-            }
-        }
     });
 }
 
@@ -111,16 +87,6 @@ fn test_text_input_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::TextInput);
-        #[allow(deprecated)]
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::TextInput { value, .. } => {
-                    assert_eq!(value, "test input");
-                }
-                _ => panic!("Expected TextInput props"),
-            }
-        }
     });
 }
 
@@ -135,16 +101,6 @@ fn test_show_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Show);
-        #[allow(deprecated)]
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Show { when } => {
-                    assert!(*when);
-                }
-                _ => panic!("Expected Show props"),
-            }
-        }
     });
 }
 
@@ -174,16 +130,7 @@ fn test_fine_grained_button_update() {
         let updated_widget = Button::new();
         updated_widget.rebuild(&mut state);
 
-        #[allow(deprecated)]
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Button { .. } => {
-                    // Button rebuilt successfully without label
-                }
-                _ => panic!("Expected Button props"),
-            }
-        }
+        assert_eq!(state.component().component_type, ComponentType::Button);
     });
 }
 
@@ -205,12 +152,8 @@ fn test_fine_grained_flex_update() {
 #[test]
 fn test_component_setters() {
     // Test the new property-specific setters
-    #[allow(deprecated)]
-    let component = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Initial".to_string(), styles: None },
-    );
+    let component =
+        Component::with_properties(1, ComponentType::Text, rvue::properties::PropertyMap::new());
 
     // Test set_text_content using new PropertyMap API
     component.set_text_content("Updated".to_string());

@@ -1,8 +1,6 @@
 //! Prelude module - re-exports commonly used types
 
-pub use crate::component::{
-    Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType,
-};
+pub use crate::component::{Component, ComponentId, ComponentLifecycle, ComponentType};
 pub use crate::effect::{create_effect, on_cleanup, untracked, Effect};
 pub use crate::ev::{
     Blur, Change, Click, Focus, Input, KeyDown, KeyUp, PointerDown, PointerMove, PointerUp,

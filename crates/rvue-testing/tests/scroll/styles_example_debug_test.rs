@@ -3,6 +3,9 @@
 
 //! Debug test for styles example - reproducing the "content below Color Palette not visible" issue.
 
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::println_empty_string)]
+
 use rvue_style::properties::Overflow;
 use rvue_testing::{TestHarness, TestWidgetBuilder};
 
@@ -262,8 +265,8 @@ fn test_hit_test_below_color_palette() {
 
     // Item 1 is at y=0 in content, but with scroll_offset=100, it's at y=-100 on screen
     // So hit_test at screen y=10 should NOT hit item1
-    let screen_y_for_item5 = 50.0; // Item 5 content y=200, minus scroll=100, equals screen y=100... wait let me recalculate
-                                   // Content y=200, scroll_offset=100, screen_y = 200 - 100 = 100
+    // Item 5 content y=200, minus scroll=100, equals screen y=100... wait let me recalculate
+    // Content y=200, scroll_offset=100, screen_y = 200 - 100 = 100
 
     // Actually let me recalculate:
     // scroll_offset_y = 100 means content is shifted UP by 100px

@@ -3,6 +3,9 @@
 
 //! Test for scroll transform correctness in nested containers.
 
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::println_empty_string)]
+
 use rudo_gc::Gc;
 use rvue::component::Component;
 use rvue_style::properties::Overflow;

@@ -1,48 +1,29 @@
 //! Unit tests for scroll event handling
 
-#[allow(deprecated)]
 use rudo_gc::Gc;
-use rvue::component::{Component, ComponentProps, ComponentType};
+use rvue::component::{Component, ComponentType};
 use rvue::event::dispatch::find_scroll_container;
-use rvue::event::types::{map_scroll_delta, ScrollDelta};
+use rvue::event::types::ScrollDelta;
 use rvue::render::FlexScrollState;
 use rvue_style::properties::Overflow;
-use winit::event::MouseScrollDelta;
 
 fn create_test_flex_with_overflow(overflow_x: Overflow, overflow_y: Overflow) -> Gc<Component> {
-    use rvue_style::ComputedStyles;
+    let styles = rvue_style::ComputedStyles {
+        overflow_x: Some(overflow_x),
+        overflow_y: Some(overflow_y),
+        ..Default::default()
+    };
 
-    let mut styles = ComputedStyles::default();
-    styles.overflow_x = Some(overflow_x);
-    styles.overflow_y = Some(overflow_y);
+    let component =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
-    let component = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: Some(styles),
-        },
-    );
+    component.set_widget_styles(styles);
 
     component
 }
 
 fn create_test_child() -> Gc<Component> {
-    Component::new(
-        2,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    )
+    Component::with_properties(2, ComponentType::Flex, rvue::properties::PropertyMap::new())
 }
 
 #[test]

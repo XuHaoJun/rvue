@@ -1,7 +1,7 @@
 //! Performance benchmark example - Counter app
 
 use rvue::prelude::*;
-use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
+use rvue::{Component, ComponentType, ViewStruct};
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,32 +25,26 @@ fn create_counter_view() -> ViewStruct {
     let (count, _set_count) = create_signal(0);
 
     // Create root component (Flex container)
-    let root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 20.0,
-            align_items: "center".to_string(),
-            justify_content: "center".to_string(),
-            styles: None,
-        },
-    );
+    let root =
+        Component::with_properties(0, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     // Create text component to display count
-    let _count_text = Component::new(
+    let _count_text = Component::with_properties(
         1,
         ComponentType::Text,
-        ComponentProps::Text { content: format!("Count: {}", count.get()), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(format!(
+            "Count: {}",
+            count.get()
+        ))),
     );
 
     // Create increment button
     let _inc_button =
-        Component::new(2, ComponentType::Button, ComponentProps::Button { styles: None });
+        Component::with_properties(2, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     // Create decrement button
     let _dec_button =
-        Component::new(3, ComponentType::Button, ComponentProps::Button { styles: None });
+        Component::with_properties(3, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     // Create view
     let view = ViewStruct::new(root);

@@ -3,6 +3,8 @@
 
 //! Tests for scroll behavior in rvue.
 
+#![allow(unused_imports)]
+
 mod nested_overflow_test;
 mod nested_scroll_test;
 mod scroll_event_test;

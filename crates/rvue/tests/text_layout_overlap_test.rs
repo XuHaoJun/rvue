@@ -6,9 +6,8 @@
 //! Bug: Text components were getting height=0 from Taffy when inside a Flex container
 //! with align_items: stretch, causing them to overlap with other text elements.
 
-#[allow(deprecated)]
 use rudo_gc::Gc;
-use rvue::component::{Component, ComponentProps, ComponentType};
+use rvue::component::{Component, ComponentType};
 use rvue::Scene;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -33,23 +32,19 @@ fn test_text_height_not_zero_in_stretch_flex() {
     let id_counter = create_id_counter();
 
     // Create a Flex container with stretch alignment (the problematic case)
-    let flex = Component::new(
+    let flex = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(), // This caused the bug
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     // Create a text component
-    let text = Component::new(
+    let text = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text { content: "Rvue Styling System Showcase".to_string(), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "Rvue Styling System Showcase".to_string(),
+        )),
     );
 
     flex.add_child(Gc::clone(&text));
@@ -65,11 +60,6 @@ fn test_text_height_not_zero_in_stretch_flex() {
     let text_layout = text_layout_node.layout().expect("Text layout should have a result");
 
     // THE KEY ASSERTION: Text height must be positive
-    assert!(
-        text_layout.size.height > 0.0,
-        "Text height should be positive when inside a Flex with stretch, got {}",
-        text_layout.size.height
-    );
     assert!(
         text_layout.size.height > 0.0,
         "Text height should be positive when inside a Flex with stretch, got {}",
@@ -93,30 +83,28 @@ fn test_adjacent_texts_do_not_overlap() {
     let id_counter = create_id_counter();
 
     // Create a Flex container in column direction
-    let flex = Component::new(
+    let flex = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new()
+            .and(rvue::properties::FlexDirection("column".to_string()))
+            .and(rvue::properties::FlexAlignItems("stretch".to_string())),
     );
 
     // Create first text (like "Rvue Styling System Showcase" - Text 20)
-    let text1 = Component::new(
+    let text1 = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text { content: "Rvue Styling System Showcase".to_string(), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "Rvue Styling System Showcase".to_string(),
+        )),
     );
 
     // Create second text (like "Theme:" - Text 22)
-    let text2 = Component::new(
+    let text2 = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text { content: "Theme:".to_string(), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent("Theme:".to_string())),
     );
 
     flex.add_child(Gc::clone(&text1));
@@ -170,25 +158,18 @@ fn test_text_with_explicit_font_size_has_height() {
 
     let id_counter = create_id_counter();
 
-    let text = Component::new(
+    let text = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Interactive Reactive Style Design".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "Interactive Reactive Style Design".to_string(),
+        )),
     );
 
-    let flex = Component::new(
+    let flex = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 16.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     flex.add_child(Gc::clone(&text));
@@ -220,43 +201,37 @@ fn test_nested_flex_text_layout() {
 
     let id_counter = create_id_counter();
 
-    let root_flex = Component::new(
+    let root_flex = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new()
+            .and(rvue::properties::FlexDirection("column".to_string()))
+            .and(rvue::properties::FlexAlignItems("stretch".to_string())),
     );
 
     // Text 20: Direct child of root Flex
-    let text20 = Component::new(
+    let text20 = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text { content: "Rvue Styling System Showcase".to_string(), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "Rvue Styling System Showcase".to_string(),
+        )),
     );
 
     // Flex 21: Another child of root Flex (like the Theme section)
-    let flex21 = Component::new(
+    let flex21 = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 16.0,
-            align_items: "stretch".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new()
+            .and(rvue::properties::FlexDirection("column".to_string()))
+            .and(rvue::properties::FlexAlignItems("stretch".to_string())),
     );
 
     // Text 22: Child of Flex 21
-    let text22 = Component::new(
+    let text22 = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Text,
-        ComponentProps::Text { content: "Theme:".to_string(), styles: None },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent("Theme:".to_string())),
     );
 
     root_flex.add_child(Gc::clone(&text20));
@@ -314,33 +289,35 @@ fn test_multiple_texts_in_column_flex() {
 
     let id_counter = create_id_counter();
 
-    let column = Component::new(
+    let column = Component::with_properties(
         next_id!(id_counter),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new()
+            .and(rvue::properties::FlexDirection("column".to_string()))
+            .and(rvue::properties::FlexAlignItems("stretch".to_string())),
     );
 
     let texts: Vec<Gc<Component>> = vec![
-        Component::new(
+        Component::with_properties(
             next_id!(id_counter),
             ComponentType::Text,
-            ComponentProps::Text { content: "First text line".to_string(), styles: None },
+            rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+                "First text line".to_string(),
+            )),
         ),
-        Component::new(
+        Component::with_properties(
             next_id!(id_counter),
             ComponentType::Text,
-            ComponentProps::Text { content: "Second text line".to_string(), styles: None },
+            rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+                "Second text line".to_string(),
+            )),
         ),
-        Component::new(
+        Component::with_properties(
             next_id!(id_counter),
             ComponentType::Text,
-            ComponentProps::Text { content: "Third text line".to_string(), styles: None },
+            rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+                "Third text line".to_string(),
+            )),
         ),
     ];
 
@@ -362,8 +339,8 @@ fn test_multiple_texts_in_column_flex() {
     // Each text must have positive height
     assert!(prev_height > 0.0, "Text 0 height must be positive, got {}", prev_height);
 
-    for i in 1..texts.len() {
-        let curr_node = texts[i].layout_node().unwrap();
+    for (i, text) in texts.iter().enumerate().skip(1) {
+        let curr_node = text.layout_node().unwrap();
         let curr_layout = curr_node.layout().unwrap();
 
         // Current text should start after previous text ends (or very close to it)

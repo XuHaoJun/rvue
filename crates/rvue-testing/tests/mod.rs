@@ -3,6 +3,8 @@
 
 //! Integration tests for rvue-testing framework.
 
+#![allow(unused_imports)]
+
 mod scroll;
 
 pub use scroll::*;

@@ -29,7 +29,7 @@ pub mod widget;
 pub mod widgets;
 
 pub use app::{run_app, run_app_with_stylesheet, AppError};
-pub use component::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
+pub use component::{Component, ComponentId, ComponentLifecycle, ComponentType};
 pub use effect::{
     create_effect, flush_pending_effects, on_cleanup, set_defer_effect_run, untracked, Effect,
 };

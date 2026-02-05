@@ -3,7 +3,6 @@
 
 //! Tests for overflow mode changes - focused debug tests.
 
-use rvue::ComponentProps;
 use rvue_style::properties::Overflow;
 use rvue_testing::TestHarness;
 

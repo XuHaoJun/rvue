@@ -1,6 +1,6 @@
 //! Button widget component
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::widget::{BuildContext, Mountable, Widget};
 use rudo_gc::{Gc, Trace};
 use rvue_style::ReactiveStyles;
@@ -91,10 +91,10 @@ impl Widget for Button {
         let class = self.class.clone();
         let element_id = self.id.clone();
 
-        let component = Component::new(
+        let component = Component::with_properties(
             id,
             ComponentType::Button,
-            ComponentProps::Button { styles: computed_styles.clone() },
+            crate::properties::PropertyMap::new(),
         );
 
         // Initialize WidgetStyles in PropertyMap for layout calculations

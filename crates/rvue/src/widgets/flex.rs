@@ -1,6 +1,6 @@
 //! Flex widget for flexbox layouts
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::event::status::ComponentFlags;
 use crate::properties::{
     FlexAlignItems, FlexDirection as FlexDirectionProp, FlexGap, FlexJustifyContent, PropertyMap,
@@ -226,18 +226,7 @@ impl Widget for Flex {
             .and(FlexAlignItems(align_items_str.clone()))
             .and(FlexJustifyContent(justify_content_str.clone()));
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: direction_str,
-                gap,
-                align_items: align_items_str,
-                justify_content: justify_content_str,
-                styles: computed_styles.clone(),
-            },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::Flex, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {

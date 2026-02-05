@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use rudo_gc::Gc;
-use rvue::component::{Component, ComponentId, ComponentProps};
+use rvue::component::{Component, ComponentId};
 use rvue::event::types::{
     PointerButtonEvent, PointerEvent, PointerInfo, PointerScrollEvent, ScrollDelta,
 };
@@ -289,14 +289,11 @@ impl TestHarness {
         &self,
         component: &Gc<Component>,
     ) -> Option<Gc<Component>> {
-        let props = component.props.borrow();
-        if let ComponentProps::Flex { styles, .. } = &*props {
-            let inline_styles = styles.as_ref();
-            let overflow_x = inline_styles.and_then(|s| s.overflow_x).unwrap_or(Overflow::Visible);
-            let overflow_y = inline_styles.and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible);
+        if let Some(styles) = component.widget_styles() {
+            let overflow_x = styles.overflow_x.unwrap_or(Overflow::Visible);
+            let overflow_y = styles.overflow_y.unwrap_or(Overflow::Visible);
 
             if overflow_x.should_clip() || overflow_y.should_clip() {
-                // Also verify the container has scrollable content
                 let scroll_state = component.scroll_state();
                 if scroll_state.scroll_height > 0.0 || scroll_state.scroll_width > 0.0 {
                     return Some(Gc::clone(component));
@@ -415,12 +412,7 @@ impl TestHarness {
 
     /// Get overflow type for a widget.
     fn get_overflow(&self, widget: &Gc<Component>) -> Overflow {
-        let props = widget.props.borrow();
-        if let ComponentProps::Flex { styles, .. } = &*props {
-            styles.as_ref().and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible)
-        } else {
-            Overflow::Visible
-        }
+        widget.widget_styles().and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible)
     }
 
     /// Get the layout size of a widget.
@@ -491,9 +483,8 @@ impl TestHarness {
     fn _debug_scroll_state_recursive(&self, component: &Gc<Component>, _depth: usize) {
         let tag = component.element_id.borrow().clone().unwrap_or_default();
 
-        let props = component.props.borrow();
-        if let ComponentProps::Flex { styles, .. } = &*props {
-            let overflow = styles.as_ref().and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible);
+        if let Some(styles) = component.widget_styles() {
+            let overflow = styles.overflow_y.unwrap_or(Overflow::Visible);
             if overflow != Overflow::Visible {
                 self.debug_scroll_state(component, &tag);
             }

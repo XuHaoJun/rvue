@@ -1,4 +1,3 @@
-#[allow(deprecated)]
 use rudo_gc::{collect_full, Gc};
 use rvue::context::{inject, provide_context};
 use rvue::prelude::*;
@@ -20,22 +19,11 @@ fn test_context_gc_on_unmount_with_i32() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        #[allow(deprecated)]
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     let child_comp = ctx.create_component(
-        #[allow(deprecated)]
         ComponentType::Custom("Child".to_string()),
-        ComponentProps::Custom { data: String::new() },
+        rvue::properties::PropertyMap::new(),
     );
     child_comp.set_parent(Some(root.clone()));
     root.add_child(child_comp.clone());
@@ -76,36 +64,15 @@ fn test_context_nested_injection() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        #[allow(deprecated)]
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
-    let mid_comp = ctx.create_component(
-        #[allow(deprecated)]
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let mid_comp = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
     mid_comp.set_parent(Some(root.clone()));
     root.add_child(mid_comp.clone());
 
     let leaf_comp = ctx.create_component(
-        #[allow(deprecated)]
         ComponentType::Custom("Leaf".to_string()),
-        ComponentProps::Custom { data: String::new() },
+        rvue::properties::PropertyMap::new(),
     );
     leaf_comp.set_parent(Some(mid_comp.clone()));
     mid_comp.add_child(leaf_comp.clone());

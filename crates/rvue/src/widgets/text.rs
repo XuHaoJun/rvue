@@ -1,6 +1,6 @@
 //! Text widget component
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{PropertyMap, TextContent};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
@@ -85,15 +85,7 @@ impl Widget for Text {
             PropertyMap::with(TextContent(initial_content.clone()))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::Text,
-            ComponentProps::Text {
-                content: initial_content.clone(),
-                styles: computed_styles.clone(),
-            },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::Text, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {

@@ -1,6 +1,6 @@
 //! Show widget for conditional rendering
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{PropertyMap, ShowCondition};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
@@ -77,12 +77,7 @@ impl Widget for Show {
             PropertyMap::with(ShowCondition(initial_when))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::Show,
-            ComponentProps::Show { when: initial_when },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::Show, properties);
 
         // Build children with access to the context
         let child_component = (self.children_fn)(ctx);

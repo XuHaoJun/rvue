@@ -208,10 +208,10 @@ impl Widget for ScrollBar {
 
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
-        let component = Component::new(
+        let component = Component::with_properties(
             id,
             ComponentType::Custom("ScrollBar".to_string()),
-            crate::component::ComponentProps::Custom { data: "scrollbar".to_string() },
+            crate::properties::PropertyMap::new(),
         );
 
         ScrollBarState { component }

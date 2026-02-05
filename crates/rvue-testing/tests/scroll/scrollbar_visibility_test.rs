@@ -3,7 +3,8 @@
 
 //! Tests for scrollbar visibility behavior.
 
-use rvue::ComponentProps;
+#![allow(clippy::map_flatten)]
+
 use rvue_style::properties::Overflow;
 use rvue_testing::{TestHarness, TestWidgetBuilder};
 
@@ -59,11 +60,11 @@ fn test_auto_overflow_shows_scrollbar_when_overflowing() {
         scroll_state.scroll_width, scroll_state.scroll_height
     );
 
-    let overflow = if let ComponentProps::Flex { styles, .. } = &*container_widget.props.borrow() {
-        styles.as_ref().and_then(|s| s.overflow_y).unwrap_or(Overflow::Visible)
-    } else {
-        Overflow::Visible
-    };
+    let overflow = container_widget
+        .widget_styles()
+        .map(|s| s.overflow_y)
+        .flatten()
+        .unwrap_or(Overflow::Visible);
     eprintln!("Container overflow: {:?}", overflow);
 
     eprintln!("Has scrollbar: {}", harness.has_scrollbar(container_widget.clone()));

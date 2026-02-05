@@ -1,6 +1,6 @@
 //! Checkbox widget component
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{CheckboxChecked, PropertyMap};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
@@ -84,12 +84,7 @@ impl Widget for Checkbox {
             PropertyMap::with(CheckboxChecked(initial_checked))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::Checkbox,
-            ComponentProps::Checkbox { checked: initial_checked, styles: computed_styles.clone() },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::Checkbox, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {

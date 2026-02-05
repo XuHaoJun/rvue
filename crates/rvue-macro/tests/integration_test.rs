@@ -115,12 +115,12 @@ fn test_reactive_text_update() {
     set_count.set("1".to_string());
 
     let content = {
-        let props = view.root_component.props.borrow();
-        if let ComponentProps::Text { content, .. } = &*props {
-            content.clone()
-        } else {
-            panic!("Expected Text component");
-        }
+        view.root_component
+            .properties
+            .borrow()
+            .get::<rvue::properties::TextContent>()
+            .map(|tc| tc.0.clone())
+            .expect("Expected TextContent property")
     };
     assert_eq!(content, "1");
 }
@@ -157,12 +157,9 @@ fn test_nested_reactive_update() {
 
     let content = {
         let child = view.root_component.children.borrow().first().cloned().expect("child");
-        let props = child.props.borrow();
-        if let ComponentProps::Text { content, .. } = &*props {
-            content.clone()
-        } else {
-            panic!("Expected Text child component");
-        }
+        let text_content =
+            child.properties.borrow().get::<rvue::properties::TextContent>().map(|tc| tc.0.clone());
+        text_content.expect("Expected TextContent property")
     };
     assert_eq!(content, "Bob");
 }

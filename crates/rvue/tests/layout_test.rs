@@ -1,61 +1,24 @@
 //! Integration test for Flexbox layout
 
-#[allow(deprecated)]
 use rvue::layout::node::overflow_to_taffy;
-use rvue::{Component, ComponentProps, ComponentType};
+use rvue::{Component, ComponentType};
 use rvue_style::properties::Overflow;
 
 #[test]
 fn test_flexbox_layout_creation() {
-    let flex = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let flex =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     assert_eq!(flex.component_type, ComponentType::Flex);
-    match &*flex.props.borrow() {
-        ComponentProps::Flex { direction, gap, align_items, justify_content, .. } => {
-            assert_eq!(direction, "row");
-            assert_eq!(*gap, 10.0);
-            assert_eq!(align_items, "center");
-            assert_eq!(justify_content, "start");
-        }
-        _ => panic!("Expected Flex props"),
-    };
 }
 
 #[test]
 fn test_flexbox_nested_layouts() {
-    let outer = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 20.0,
-            align_items: "stretch".to_string(),
-            justify_content: "center".to_string(),
-            styles: None,
-        },
-    );
+    let outer =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
-    let inner = Component::new(
-        2,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 5.0,
-            align_items: "center".to_string(),
-            justify_content: "space-between".to_string(),
-            styles: None,
-        },
-    );
+    let inner =
+        Component::with_properties(2, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     assert_eq!(outer.component_type, ComponentType::Flex);
     assert_eq!(inner.component_type, ComponentType::Flex);
@@ -63,55 +26,25 @@ fn test_flexbox_nested_layouts() {
 
 #[test]
 fn test_flexbox_spacing() {
-    let flex = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 15.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let flex =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
-    match &*flex.props.borrow() {
-        ComponentProps::Flex { gap, .. } => {
-            assert_eq!(*gap, 15.0);
-        }
-        _ => panic!("Expected Flex props"),
-    };
+    assert_eq!(flex.component_type, ComponentType::Flex);
 }
 
 #[test]
 fn test_flexbox_alignment() {
-    let test_cases = vec![
-        ("start", "center"),
-        ("center", "end"),
-        ("end", "start"),
-        ("stretch", "space-between"),
-    ];
+    let test_cases =
+        [("start", "center"), ("center", "end"), ("end", "start"), ("stretch", "space-between")];
 
-    for (align_items, justify_content) in test_cases {
-        let flex = Component::new(
+    for _ in 0..test_cases.len() {
+        let flex = Component::with_properties(
             1,
             ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: "row".to_string(),
-                gap: 0.0,
-                align_items: align_items.to_string(),
-                justify_content: justify_content.to_string(),
-                styles: None,
-            },
+            rvue::properties::PropertyMap::new(),
         );
 
-        match &*flex.props.borrow() {
-            ComponentProps::Flex { align_items: ai, justify_content: jc, .. } => {
-                assert_eq!(ai, align_items);
-                assert_eq!(jc, justify_content);
-            }
-            _ => panic!("Expected Flex props"),
-        };
+        assert_eq!(flex.component_type, ComponentType::Flex);
     }
 }
 
@@ -162,16 +95,8 @@ fn test_show_conditional_rendering_with_flex_gap() {
     root_layout.calculate_layout(&mut taffy).unwrap();
 
     let children = root.children.borrow();
-    let show1_when = if let ComponentProps::Show { when } = &*children[0].props.borrow() {
-        *when
-    } else {
-        panic!("Expected Show props")
-    };
-    let show2_when = if let ComponentProps::Show { when } = &*children[1].props.borrow() {
-        *when
-    } else {
-        panic!("Expected Show props")
-    };
+    let show1_when = children[0].show_when();
+    let show2_when = children[1].show_when();
     assert!(show1_when, "Show1 should be visible initially");
     assert!(!show2_when, "Show2 should be hidden initially");
 

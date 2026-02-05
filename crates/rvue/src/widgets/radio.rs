@@ -1,6 +1,6 @@
 //! Radio widget component
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{CheckboxChecked, PropertyMap, RadioValue};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
@@ -83,16 +83,7 @@ impl Widget for Radio {
             .and(RadioValue(self.value.clone()))
             .and(CheckboxChecked(initial_checked));
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::Radio,
-            ComponentProps::Radio {
-                value: self.value.clone(),
-                checked: initial_checked,
-                styles: computed_styles.clone(),
-            },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::Radio, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {

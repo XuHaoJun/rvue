@@ -24,13 +24,8 @@ struct TestSlotWithOptional {
     children: ChildrenFn,
 }
 
-#[allow(deprecated)]
 fn create_test_component(id: u64) -> Gc<Component> {
-    Component::new(
-        id,
-        ComponentType::Text,
-        ComponentProps::Text { content: "test".to_string(), styles: None },
-    )
+    Component::with_properties(id, ComponentType::Text, rvue::properties::PropertyMap::new())
 }
 
 fn create_test_view(id: u64) -> ViewStruct {

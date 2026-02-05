@@ -254,24 +254,7 @@ pub fn resolve_styles_for_component(
 }
 
 pub fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
-    // First try to get styles from the new PropertyMap API
-    if let Some(styles) = component.widget_styles() {
-        return Some(styles);
-    }
-
-    // Fall back to reading from ComponentProps for backward compatibility
-    use crate::component::ComponentProps;
-    let props = component.props.borrow();
-    match &*props {
-        ComponentProps::Text { styles, .. } => styles.clone(),
-        ComponentProps::Button { styles, .. } => styles.clone(),
-        ComponentProps::TextInput { styles, .. } => styles.clone(),
-        ComponentProps::NumberInput { styles, .. } => styles.clone(),
-        ComponentProps::Checkbox { styles, .. } => styles.clone(),
-        ComponentProps::Radio { styles, .. } => styles.clone(),
-        ComponentProps::Flex { styles, .. } => styles.clone(),
-        _ => None,
-    }
+    component.widget_styles()
 }
 
 pub trait StylesheetProvider {
@@ -287,13 +270,15 @@ impl StylesheetProvider for () {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Component, ComponentProps, ComponentType};
-    use rvue_style::properties::BackgroundColor;
+    use crate::component::{Component, ComponentType};
 
     #[test]
     fn test_component_to_element() {
-        let component =
-            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
 
         let element = component_to_element(&component);
 
@@ -303,8 +288,11 @@ mod tests {
 
     #[test]
     fn test_component_with_classes() {
-        let component =
-            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
 
         component.classes.borrow_mut().push("primary".into());
         component.classes.borrow_mut().push("large".into());
@@ -318,8 +306,11 @@ mod tests {
 
     #[test]
     fn test_component_with_state() {
-        let component =
-            Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
 
         *component.is_hovered.borrow_mut() = true;
         *component.is_focused.borrow_mut() = true;

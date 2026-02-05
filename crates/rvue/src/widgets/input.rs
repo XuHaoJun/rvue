@@ -1,6 +1,6 @@
 //! Input widget components (TextInput, NumberInput)
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{NumberInputValue, PropertyMap, TextInputValue};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
@@ -84,12 +84,7 @@ impl Widget for TextInput {
             PropertyMap::with(TextInputValue(initial_value.clone()))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::TextInput,
-            ComponentProps::TextInput { value: initial_value, styles: computed_styles.clone() },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::TextInput, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {
@@ -208,12 +203,7 @@ impl Widget for NumberInput {
             PropertyMap::with(NumberInputValue(initial_value))
         };
 
-        let component = Component::with_properties(
-            id,
-            ComponentType::NumberInput,
-            ComponentProps::NumberInput { value: initial_value, styles: computed_styles.clone() },
-            properties,
-        );
+        let component = Component::with_properties(id, ComponentType::NumberInput, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
         if let Some(styles) = computed_styles {

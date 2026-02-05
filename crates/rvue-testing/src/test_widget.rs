@@ -4,7 +4,7 @@
 //! Test widget builder utilities.
 
 use rudo_gc::Gc;
-use rvue::component::{Component, ComponentProps, ComponentType};
+use rvue::component::{Component, ComponentType};
 use rvue_style::properties::{Height, MinHeight, MinWidth, Overflow, Size, Width};
 
 /// Builder for creating test widgets.
@@ -137,23 +137,21 @@ impl TestWidgetBuilder {
     }
 
     /// Build a Flex container widget.
-    pub fn build_flex(self, direction: &str) -> Gc<Component> {
+    pub fn build_flex(self, _direction: &str) -> Gc<Component> {
         let styles = self.create_styles();
-        let component = Component::new(
+        let component = Component::with_properties(
             rand::random(),
             ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: direction.to_string(),
-                gap: 0.0,
-                align_items: "start".to_string(),
-                justify_content: "start".to_string(),
-                styles,
-            },
+            rvue::properties::PropertyMap::new(),
         );
 
         // Set element_id if tag is provided
         if let Some(tag) = self.tag {
             *component.element_id.borrow_mut() = Some(tag);
+        }
+
+        if let Some(styles) = styles {
+            component.set_widget_styles(styles);
         }
 
         for child in self.children {
@@ -165,23 +163,21 @@ impl TestWidgetBuilder {
 
     /// Build a custom widget (for containers without specific type).
     /// Uses ComponentType::Flex internally to support styles like overflow.
-    pub fn build_custom(self, data: &str) -> Gc<Component> {
+    pub fn build_custom(self, _data: &str) -> Gc<Component> {
         let styles = self.create_styles();
-        let component = Component::new(
+        let component = Component::with_properties(
             rand::random(),
             ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: "column".to_string(),
-                gap: 0.0,
-                align_items: "start".to_string(),
-                justify_content: "start".to_string(),
-                styles,
-            },
+            rvue::properties::PropertyMap::new(),
         );
 
         // Set element_id if tag is provided
         if let Some(tag) = self.tag {
             *component.element_id.borrow_mut() = Some(tag);
+        }
+
+        if let Some(styles) = styles {
+            component.set_widget_styles(styles);
         }
 
         for child in self.children {
@@ -198,21 +194,24 @@ impl TestWidgetBuilder {
 }
 
 /// Helper function to create a large content widget for testing scroll behavior.
+#[allow(unused)]
 pub fn create_large_content() -> Gc<Component> {
     TestWidgetBuilder::new().with_size(400.0, 800.0).build_custom("large-content")
 }
 
 /// Helper function to create a small content widget.
+#[allow(unused)]
 pub fn create_small_content() -> Gc<Component> {
     TestWidgetBuilder::new().with_size(100.0, 100.0).build_custom("small-content")
 }
 
 /// Helper function to create a button widget for testing.
+#[allow(unused)]
 pub fn create_button(tag: &str, _text: &str) -> Gc<Component> {
-    let component = Component::new(
+    let component = Component::with_properties(
         rand::random(),
         ComponentType::Button,
-        ComponentProps::Button { styles: None },
+        rvue::properties::PropertyMap::new(),
     );
 
     *component.element_id.borrow_mut() = Some(tag.to_string());

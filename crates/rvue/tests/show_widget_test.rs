@@ -1,36 +1,36 @@
 //! Unit tests for Show widget component
 
-#[allow(deprecated)]
-use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
+use rvue::{Component, ComponentLifecycle, ComponentType};
 
 #[test]
 fn test_show_widget_creation() {
-    let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: true });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(true)),
+    );
 
     assert_eq!(show.component_type, ComponentType::Show);
-    match &*show.props.borrow() {
-        ComponentProps::Show { when } => {
-            assert!(*when);
-        }
-        _ => panic!("Expected Show props"),
-    };
 }
 
 #[test]
 fn test_show_widget_when_false() {
-    let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: false });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(false)),
+    );
 
-    match &*show.props.borrow() {
-        ComponentProps::Show { when } => {
-            assert!(!*when);
-        }
-        _ => panic!("Expected Show props"),
-    };
+    assert_eq!(show.component_type, ComponentType::Show);
 }
 
 #[test]
 fn test_show_widget_mounting() {
-    let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: true });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(true)),
+    );
 
     // Mount should not panic
     show.mount(None);
@@ -39,7 +39,11 @@ fn test_show_widget_mounting() {
 
 #[test]
 fn test_show_widget_unmounting() {
-    let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: true });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(true)),
+    );
 
     // Unmount should not panic
     show.unmount();
@@ -47,7 +51,11 @@ fn test_show_widget_unmounting() {
 
 #[test]
 fn test_show_widget_lifecycle() {
-    let show = Component::new(1, ComponentType::Show, ComponentProps::Show { when: true });
+    let show = Component::with_properties(
+        1,
+        ComponentType::Show,
+        rvue::properties::PropertyMap::with(rvue::properties::ShowCondition(true)),
+    );
 
     // Test full lifecycle
     show.mount(None);

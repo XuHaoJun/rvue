@@ -1,4 +1,3 @@
-#[allow(deprecated)]
 use rvue::prelude::*;
 use std::sync::{Arc, Mutex};
 
@@ -38,10 +37,10 @@ fn test_component_cleanup() {
     let cleanup_called = Arc::new(Mutex::new(0));
     let cleanup_inner = Arc::clone(&cleanup_called);
 
-    let component = Component::new(
+    let component = Component::with_properties(
         1,
         ComponentType::Custom("Test".to_string()),
-        ComponentProps::Custom { data: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     rvue::runtime::with_owner(component.clone(), move || {

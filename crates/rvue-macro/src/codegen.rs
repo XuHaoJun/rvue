@@ -108,7 +108,7 @@ fn generate_element_code(el: &RvueElement, ctx_ident: &Ident) -> TokenStream {
 
                     let #component_ident = #ctx_ident.create_component(
                         rvue::component::ComponentType::Custom(#name.to_string()),
-                        rvue::component::ComponentProps::Custom { data: String::new() }
+                        rvue::properties::PropertyMap::new()
                     );
 
                     let view = rvue::runtime::with_owner(rvue::Gc::clone(&#component_ident), || #widget_name(props));

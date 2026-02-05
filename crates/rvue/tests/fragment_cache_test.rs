@@ -1,4 +1,4 @@
-#![allow(deprecated, unused_braces)]
+#![allow(unused_braces)]
 
 use rudo_gc::Gc;
 use rvue::prelude::*;
@@ -236,23 +236,17 @@ fn test_stress_1000_components() {
 
     const COMPONENT_COUNT: usize = 1000;
 
-    let root = rvue::Component::new(
+    let root = rvue::Component::with_properties(
         0,
         ComponentType::Flex,
-        rvue::ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "flex_start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     for i in 0..COMPONENT_COUNT {
-        let child = rvue::Component::new(
+        let child = rvue::Component::with_properties(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), styles: None },
+            rvue::properties::PropertyMap::new(),
         );
         root.add_child(child);
     }
@@ -302,23 +296,17 @@ fn test_incremental_update_performance() {
 
     const COMPONENT_COUNT: usize = 500;
 
-    let root = rvue::Component::new(
+    let root = rvue::Component::with_properties(
         0,
         ComponentType::Flex,
-        rvue::ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "flex_start".to_string(),
-            styles: None,
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     for i in 0..COMPONENT_COUNT {
-        let child = rvue::Component::new(
+        let child = rvue::Component::with_properties(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), styles: None },
+            rvue::properties::PropertyMap::new(),
         );
         root.add_child(child);
     }

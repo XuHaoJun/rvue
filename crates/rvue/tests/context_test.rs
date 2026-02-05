@@ -1,4 +1,3 @@
-#[allow(deprecated)]
 use rvue::context::{inject, provide_context};
 use rvue::prelude::*;
 use rvue::{text::TextContext, widget::BuildContext, TaffyTree};
@@ -19,16 +18,7 @@ fn test_basic_context() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     rvue::runtime::with_owner(root.clone(), || {
         provide_context(42i32);
@@ -45,16 +35,7 @@ fn test_nested_context() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     rvue::runtime::with_owner(root.clone(), || {
         provide_context(42i32);
@@ -62,7 +43,7 @@ fn test_nested_context() {
         // This simulates what view! macro does for custom components
         let child_comp = ctx.create_component(
             ComponentType::Custom("Child".to_string()),
-            ComponentProps::Custom { data: String::new() },
+            rvue::properties::PropertyMap::new(),
         );
         child_comp.set_parent(Some(root.clone()));
         root.add_child(child_comp.clone());
@@ -88,30 +69,13 @@ fn test_context_shadowing() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     rvue::runtime::with_owner(root.clone(), || {
         provide_context(42i32);
 
-        let sub_root = ctx.create_component(
-            ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: "row".to_string(),
-                gap: 0.0,
-                align_items: "start".to_string(),
-                justify_content: "start".to_string(),
-                styles: None,
-            },
-        );
+        let sub_root =
+            ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
         // CRITICAL: Set parent so search can traverse up
         sub_root.set_parent(Some(root.clone()));
@@ -122,7 +86,7 @@ fn test_context_shadowing() {
 
             let child_comp = ctx.create_component(
                 ComponentType::Custom("ShadowChild".to_string()),
-                ComponentProps::Custom { data: String::new() },
+                rvue::properties::PropertyMap::new(),
             );
             child_comp.set_parent(Some(sub_root.clone()));
             sub_root.add_child(child_comp.clone());
@@ -141,16 +105,7 @@ fn test_context_in_effect() {
     let mut id_counter = 0u64;
     let mut ctx = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
 
-    let root = ctx.create_component(
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 0.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-            styles: None,
-        },
-    );
+    let root = ctx.create_component(ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     rvue::runtime::with_owner(root.clone(), || {
         provide_context(42i32);

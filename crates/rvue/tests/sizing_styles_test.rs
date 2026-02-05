@@ -1,9 +1,8 @@
 //! Tests for width/height styling system
 
-#[allow(deprecated)]
 use rvue::layout::node::LayoutNode;
 use rvue::style::{resolve_styles_for_component, Stylesheet};
-use rvue::{Component, ComponentProps, ComponentType};
+use rvue::{Component, ComponentType};
 use rvue_style::{BackgroundColor, Color, ComputedStyles, Height, ReactiveStyles, Size, Width};
 use taffy::TaffyTree;
 
@@ -64,7 +63,7 @@ fn test_button_with_default_stylesheet_size() {
     let stylesheet = Stylesheet::with_defaults();
 
     let component =
-        Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     let mut layout_node = LayoutNode::build_in_tree(
         &mut taffy,
@@ -109,7 +108,7 @@ fn test_button_without_class_gets_default_size() {
     let stylesheet = Stylesheet::with_defaults();
 
     let component =
-        Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     let resolved = resolve_styles_for_component(&component, &stylesheet);
 
