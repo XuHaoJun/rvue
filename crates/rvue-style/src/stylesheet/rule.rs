@@ -83,7 +83,7 @@ impl Specificity {
                         while chars.next() != Some(')') {}
                     }
                 }
-                _ if c.is_alphabetic() || c == '_' || c == '*' => {
+                _ if c.is_alphabetic() || c == '_' => {
                     element += 1;
                     while chars
                         .peek()
@@ -92,6 +92,9 @@ impl Specificity {
                     {
                         chars.next();
                     }
+                }
+                '*' => {
+                    // Universal selector does not contribute to specificity (CSS spec)
                 }
                 _ => {}
             }
@@ -156,4 +159,40 @@ impl Stylesheet {
 
 unsafe impl rudo_gc::Trace for Stylesheet {
     fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_universal_selector_specificity() {
+        // Universal selector should have specificity (0,0,0) per CSS spec
+        let specificity = Specificity::from_selector("*");
+        assert_eq!(specificity, Specificity::new(0, 0, 0));
+    }
+
+    #[test]
+    fn test_universal_selector_with_other_selectors() {
+        // Universal selector should not contribute to specificity even when combined
+        let specificity = Specificity::from_selector("*.class");
+        assert_eq!(specificity, Specificity::new(0, 1, 0));
+        
+        let specificity = Specificity::from_selector("*#id");
+        assert_eq!(specificity, Specificity::new(1, 0, 0));
+        
+        let specificity = Specificity::from_selector("div.class");
+        assert_eq!(specificity, Specificity::new(0, 1, 1));
+    }
+
+    #[test]
+    fn test_specificity_comparison() {
+        // Universal selector should be less specific than element selector
+        let universal = Specificity::from_selector("*");
+        let element = Specificity::from_selector("div");
+        
+        assert!(element > universal);
+        assert_eq!(universal, Specificity::new(0, 0, 0));
+        assert_eq!(element, Specificity::new(0, 0, 1));
+    }
 }
