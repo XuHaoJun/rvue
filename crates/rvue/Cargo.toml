@@ -8,10 +8,15 @@ description = "Rust GUI framework with Vue-like syntax and GC-managed memory"
 repository = "https://github.com/your-org/rvue"
 
 [dependencies]
-rudo-gc = "0.2"
+rudo-gc = { version = "0.5", features = ["test-util", "default"] }
+rvue-signals = { path = "../rvue-signals" }
+rvue-style = { path = "../rvue-style" }
 vello = "0.7"
 wgpu = "27"
 winit = "0.30"
+ui-events = "0.3.0"
+ui-events-winit = "0.3.0"
+keyboard-types = "0.8.3"
 pollster = "0.4"
 thiserror = "2"
 taffy = "0.9"
@@ -31,9 +36,11 @@ wgpu-profiler = { version = "0.25", optional = true, default-features = false }
 indexmap = "2"
 rustc-hash = "2"
 log = "0.4"
+once_cell = "1"
 
 [features]
 tracy = ["wgpu-profiler"]
+testing = []
 
 [dev-dependencies]
 rvue-macro = { path = "../rvue-macro" }

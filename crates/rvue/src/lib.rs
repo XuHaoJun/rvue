@@ -16,6 +16,7 @@ pub mod ev;
 pub mod event;
 pub mod layout;
 pub mod prelude;
+pub mod properties;
 pub mod render;
 pub mod runtime;
 pub mod signal;
@@ -27,24 +28,28 @@ pub mod view;
 pub mod widget;
 pub mod widgets;
 
-pub use app::{run_app, AppError};
-pub use component::{Component, ComponentId, ComponentLifecycle, ComponentProps, ComponentType};
+pub use app::{run_app, run_app_with_stylesheet, AppError};
+pub use component::{Component, ComponentId, ComponentLifecycle, ComponentType};
 pub use effect::{
     create_effect, flush_pending_effects, on_cleanup, set_defer_effect_run, untracked, Effect,
 };
 pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };
-pub use render::{render_component, Scene};
+pub use event::ScrollDragState;
+pub use properties::{
+    CheckboxChecked, FlexAlignItems, FlexDirection, FlexGap, FlexJustifyContent, ForItemCount,
+    GcPropertyMap, NumberInputValue, PropertyMap, RadioChecked, RadioValue, ShowCondition,
+    TextContent, TextInputValue, WidgetProperty, WidgetStyles,
+};
+pub use render::{render_component, FlexScrollState, Scene};
 pub use rudo_gc::Gc;
+pub use rvue_style::Overflow;
 pub use signal::{
     create_memo, create_memo_with_equality, create_signal, ReadSignal, SignalRead, SignalWrite,
     WriteSignal,
 };
-pub use style::{
-    AlignItems, Border, BorderStyle, Color, FlexDirection, FontWeight, JustifyContent, Size,
-    Spacing, Style,
-};
+pub use style::{Stylesheet, StylesheetProvider};
 pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};

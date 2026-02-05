@@ -5,8 +5,7 @@ use std::cell::RefCell;
 use rvue::{
     component::Component,
     event::{status::FocusEvent, types::PointerButton},
-    signal::SignalWrite,
-    ComponentProps, ComponentType,
+    ComponentType,
 };
 
 #[test]
@@ -14,11 +13,8 @@ fn test_on_click_0arg_handler() {
     let clicked = std::rc::Rc::new(RefCell::new(false));
     let clicked_clone = clicked.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click_0arg(move || {
         *clicked_clone.borrow_mut() = true;
@@ -33,11 +29,8 @@ fn test_on_click_1arg_handler() {
     let last_clicked_button = std::rc::Rc::new(RefCell::new(None::<PointerButton>));
     let last_clicked_clone = last_clicked_button.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click_1arg(move |event| {
         *last_clicked_clone.borrow_mut() = Some(event.button.clone());
@@ -52,11 +45,8 @@ fn test_on_click_2arg_handler() {
     let call_count = std::rc::Rc::new(RefCell::new(0));
     let call_count_clone = call_count.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click(move |_event, _ctx| {
         *call_count_clone.borrow_mut() += 1;
@@ -71,10 +61,10 @@ fn test_on_input_0arg_handler() {
     let triggered = std::rc::Rc::new(RefCell::new(false));
     let triggered_clone = triggered.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_input_0arg(move || {
@@ -90,10 +80,10 @@ fn test_on_input_1arg_handler() {
     let last_value = std::rc::Rc::new(RefCell::new(String::new()));
     let last_value_clone = last_value.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_input_1arg(move |event| {
@@ -109,10 +99,10 @@ fn test_on_input_2arg_handler() {
     let input_count = std::rc::Rc::new(RefCell::new(0));
     let input_count_clone = input_count.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_input(move |_event, _ctx| {
@@ -128,10 +118,10 @@ fn test_on_key_down_0arg_handler() {
     let triggered = std::rc::Rc::new(RefCell::new(false));
     let triggered_clone = triggered.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_key_down_0arg(move || {
@@ -147,10 +137,10 @@ fn test_on_key_down_1arg_handler() {
     let last_key = std::rc::Rc::new(RefCell::new(None::<winit::keyboard::Key>));
     let last_key_clone = last_key.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_key_down_1arg(move |event| {
@@ -166,10 +156,10 @@ fn test_on_focus_0arg_handler() {
     let focused = std::rc::Rc::new(RefCell::new(false));
     let focused_clone = focused.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_focus_0arg(move || {
@@ -185,10 +175,10 @@ fn test_on_focus_1arg_handler() {
     let last_event = std::rc::Rc::new(RefCell::new(None::<FocusEvent>));
     let last_event_clone = last_event.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_focus_1arg(move |event| {
@@ -204,16 +194,8 @@ fn test_on_pointer_move_0arg_handler() {
     let moved = std::rc::Rc::new(RefCell::new(false));
     let moved_clone = moved.clone();
 
-    let flex = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "start".to_string(),
-        },
-    );
+    let flex =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     flex.on_pointer_move_0arg(move || {
         *moved_clone.borrow_mut() = true;
@@ -228,16 +210,8 @@ fn test_on_pointer_move_1arg_handler() {
     let last_position = std::rc::Rc::new(RefCell::new(None::<vello::kurbo::Point>));
     let last_position_clone = last_position.clone();
 
-    let flex = Component::new(
-        1,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "start".to_string(),
-        },
-    );
+    let flex =
+        Component::with_properties(1, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     flex.on_pointer_move_1arg(move |event| {
         *last_position_clone.borrow_mut() = Some(event.position);
@@ -249,18 +223,15 @@ fn test_on_pointer_move_1arg_handler() {
 
 #[test]
 fn test_multiple_event_handlers_same_component() {
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click_0arg(|| {});
 
-    let text_input = Component::new(
-        2,
+    let text_input = Component::with_properties(
+        1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::with(rvue::properties::TextInputValue(String::new())),
     );
 
     text_input.on_input_0arg(|| {});
@@ -279,11 +250,8 @@ fn test_event_handler_with_captured_signals() {
     let (_count, set_count) = create_signal(0);
     let set_count_clone = set_count.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click_1arg(move |_event| {
         set_count_clone.update(|x| *x += 1);
@@ -298,8 +266,11 @@ fn test_on_change_handler() {
     let last_value = std::rc::Rc::new(RefCell::new(String::new()));
     let last_value_clone = last_value.clone();
 
-    let checkbox =
-        Component::new(1, ComponentType::Checkbox, ComponentProps::Checkbox { checked: false });
+    let checkbox = Component::with_properties(
+        1,
+        ComponentType::Checkbox,
+        rvue::properties::PropertyMap::with(rvue::properties::CheckboxChecked(false)),
+    );
 
     checkbox.on_change_1arg(move |event| {
         *last_value_clone.borrow_mut() = format!("checked:{}", event.checked);
@@ -314,10 +285,10 @@ fn test_on_blur_handler() {
     let blurred = std::rc::Rc::new(RefCell::new(false));
     let blurred_clone = blurred.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_blur_0arg(move || {
@@ -333,11 +304,8 @@ fn test_on_pointer_down_handler() {
     let pressed = std::rc::Rc::new(RefCell::new(false));
     let pressed_clone = pressed.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Press".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_pointer_down_1arg(move |_event| {
         *pressed_clone.borrow_mut() = true;
@@ -352,11 +320,8 @@ fn test_on_pointer_up_handler() {
     let released = std::rc::Rc::new(RefCell::new(false));
     let released_clone = released.clone();
 
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Release".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_pointer_up_0arg(move || {
         *released_clone.borrow_mut() = true;
@@ -371,10 +336,10 @@ fn test_on_key_up_handler() {
     let released = std::rc::Rc::new(RefCell::new(false));
     let released_clone = released.clone();
 
-    let text_input = Component::new(
+    let text_input = Component::with_properties(
         1,
         ComponentType::TextInput,
-        ComponentProps::TextInput { value: "".to_string() },
+        rvue::properties::PropertyMap::new(),
     );
 
     text_input.on_key_up_1arg(move |event| {
@@ -389,11 +354,8 @@ fn test_on_key_up_handler() {
 
 #[test]
 fn test_all_event_types_have_handlers() {
-    let button = Component::new(
-        1,
-        ComponentType::Button,
-        ComponentProps::Button { label: "Click".to_string() },
-    );
+    let button =
+        Component::with_properties(1, ComponentType::Button, rvue::properties::PropertyMap::new());
 
     button.on_click_0arg(|| {});
     button.on_pointer_down_0arg(|| {});

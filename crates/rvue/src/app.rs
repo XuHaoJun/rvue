@@ -3,21 +3,26 @@
 use crate::component::{Component, ComponentLifecycle};
 use crate::event::context::EventContextOps;
 use crate::event::dispatch::{run_pointer_event_pass, run_text_event_pass};
+use crate::event::handler::ScrollDragState;
 use crate::event::hit_test::hit_test;
 use crate::event::types::{
     map_scroll_delta, KeyboardEvent, PointerButtonEvent, PointerEvent, PointerMoveEvent,
 };
 use crate::event::update::{run_update_focus_pass, run_update_pointer_pass};
+use crate::event::winit_translator::{get_pointer_event_position, WinitTranslator};
 use crate::render::Scene as RvueScene;
+use crate::style::Stylesheet;
 use crate::vello_util::{CreateSurfaceError, RenderContext, RenderSurface};
 use crate::view::ViewStruct;
 use rudo_gc::{Gc, GcCell};
 use std::cell::RefMut;
+use std::io::Write;
 use std::sync::Arc;
 use vello::kurbo::Affine;
 use vello::kurbo::{Point, Vec2};
 use vello::peniko::Color;
 use vello::{AaConfig, AaSupport, Renderer, RendererOptions};
+use wgpu::Color as WgpuColor;
 use wgpu::SurfaceTexture;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -46,6 +51,8 @@ pub trait AppStateLike {
     fn needs_pointer_pass_update(&self) -> bool;
     fn set_focused(&mut self, focused: Option<Gc<Component>>);
     fn clear_pointer_capture(&mut self);
+    fn scroll_drag_state(&self) -> Option<ScrollDragState>;
+    fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>);
 }
 
 pub struct FocusState {
@@ -56,14 +63,11 @@ pub struct FocusState {
 }
 
 /// Application state
-/// Fields are ordered for correct drop order: renderer first, surface second, render_cx last
+/// Fields are ordered for correct drop order: GC resources first, window last
 pub struct AppState<'a> {
-    renderer: Option<Renderer>,
-    surface: Option<RenderSurface<'a>>,
-    render_cx: Option<RenderContext>,
-    window: Option<Arc<Window>>,
     view: Option<ViewStruct>,
     scene: RvueScene,
+    pub stylesheet: Option<Stylesheet>,
     pub focus_state: FocusState,
     pub pointer_capture: GcCell<Option<Gc<Component>>>,
     pub last_pointer_pos: Option<Point>,
@@ -72,7 +76,13 @@ pub struct AppState<'a> {
     pub hovered_path: Vec<Gc<Component>>,
     pub focused_path: Vec<Gc<Component>>,
     pub needs_pointer_pass_update: bool,
+    pub scroll_drag_state: Option<ScrollDragState>,
     pub last_gc_count: usize,
+    renderer: Option<Renderer>,
+    surface: Option<RenderSurface<'a>>,
+    render_cx: Option<RenderContext>,
+    window: Option<Arc<Window>>,
+    event_translator: WinitTranslator,
 }
 
 impl<'a> AppStateLike for AppState<'a> {
@@ -154,6 +164,14 @@ impl<'a> AppStateLike for AppState<'a> {
     fn clear_pointer_capture(&mut self) {
         *self.pointer_capture.borrow_mut() = None;
     }
+
+    fn scroll_drag_state(&self) -> Option<ScrollDragState> {
+        self.scroll_drag_state
+    }
+
+    fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>) {
+        self.scroll_drag_state = state;
+    }
 }
 
 impl EventContextOps for AppState<'_> {
@@ -214,6 +232,7 @@ impl<'a> AppState<'a> {
             window: None,
             view: None,
             scene: RvueScene::new(),
+            stylesheet: None,
             focus_state: FocusState {
                 focused: None,
                 fallback: None,
@@ -227,8 +246,34 @@ impl<'a> AppState<'a> {
             hovered_path: Vec::new(),
             focused_path: Vec::new(),
             needs_pointer_pass_update: false,
+            scroll_drag_state: None,
             last_gc_count: 0,
+            event_translator: WinitTranslator::new(),
         }
+    }
+
+    fn handle_translated_pointer_event(
+        &mut self,
+        event: &ui_events::pointer::PointerEvent,
+        scale_factor: f64,
+    ) {
+        if let Some(pos) = get_pointer_event_position(event) {
+            let logical_x = pos.x / scale_factor;
+            let logical_y = pos.y / scale_factor;
+            let logical_pos = Point::new(logical_x, logical_y);
+            self.last_pointer_pos = Some(logical_pos);
+
+            let new_hovered = hit_test(&self.root_component(), logical_pos);
+            *self.hovered_component.borrow_mut() = new_hovered;
+        }
+
+        self.scene.update();
+
+        let converted_event =
+            crate::event::types::convert_pointer_event_from_ui_events(event, scale_factor);
+
+        run_pointer_event_pass(self, &converted_event);
+        self.request_redraw_if_dirty();
     }
 }
 
@@ -246,8 +291,52 @@ impl ApplicationHandler for AppState<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let scale_factor =
+            self.window.as_ref().map(|w: &Arc<Window>| w.scale_factor()).unwrap_or(1.0);
+
+        // Check if this is a MouseWheel event BEFORE translation
+        use winit::event::WindowEvent;
+        let is_wheel_event = matches!(event, WindowEvent::MouseWheel { .. });
+        if is_wheel_event {
+            if let WindowEvent::MouseWheel { delta, .. } = event {
+                let scroll_event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
+                    delta: map_scroll_delta(delta),
+                    position: self.last_pointer_pos.unwrap_or_default(),
+                    modifiers: self.current_modifiers(),
+                });
+                run_pointer_event_pass(self, &scroll_event);
+                self.request_redraw_if_dirty();
+                return;
+            }
+        }
+
+        let translated = self.event_translator.translate(scale_factor, &event);
+
+        if let Some(ref translated_event) = translated {
+            match translated_event {
+                ui_events_winit::WindowEventTranslation::Pointer(pointer_event) => {
+                    self.handle_translated_pointer_event(pointer_event, scale_factor);
+                    return;
+                }
+                ui_events_winit::WindowEventTranslation::Keyboard(_) => {
+                    return;
+                }
+            }
+        }
+
+        std::io::stderr().flush().ok();
+
         match event {
             WindowEvent::CloseRequested => {
+                // Clear GC resources before exiting to prevent double-free
+                self.active_path.clear();
+                self.hovered_path.clear();
+                self.focused_path.clear();
+                *self.pointer_capture.borrow_mut() = None;
+                *self.hovered_component.borrow_mut() = None;
+                self.scene.root_components.clear();
+                self.scene.vello_scene = None;
+                self.view = None;
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {
@@ -258,7 +347,10 @@ impl ApplicationHandler for AppState<'_> {
                 self.render_frame();
             }
             WindowEvent::CursorMoved { position, .. } => {
-                let point = Point::new(position.x, position.y);
+                let scale_factor = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+                let logical_x = position.x / scale_factor;
+                let logical_y = position.y / scale_factor;
+                let point = Point::new(logical_x, logical_y);
                 self.last_pointer_pos = Some(point);
 
                 // Ensure layout is up to date before hit testing
@@ -276,16 +368,18 @@ impl ApplicationHandler for AppState<'_> {
                 self.request_redraw_if_dirty();
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                let position = self.last_pointer_pos.unwrap_or_default();
+
                 let event = match state {
                     ElementState::Pressed => PointerEvent::Down(PointerButtonEvent {
                         button: button.into(),
-                        position: self.last_pointer_pos.unwrap_or_default(),
+                        position,
                         click_count: 1,
                         modifiers: self.current_modifiers(),
                     }),
                     ElementState::Released => PointerEvent::Up(PointerButtonEvent {
                         button: button.into(),
-                        position: self.last_pointer_pos.unwrap_or_default(),
+                        position,
                         click_count: 1,
                         modifiers: self.current_modifiers(),
                     }),
@@ -344,6 +438,18 @@ impl ApplicationHandler for AppState<'_> {
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
             }
+            WindowEvent::AxisMotion { axis, value, .. } => {
+                if axis == 1 && value != 0.0 {
+                    let scroll_delta = crate::event::types::ScrollDelta::Line(value);
+                    let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
+                        delta: scroll_delta,
+                        position: self.last_pointer_pos.unwrap_or_default(),
+                        modifiers: self.current_modifiers(),
+                    });
+                    run_pointer_event_pass(self, &event);
+                    self.request_redraw_if_dirty();
+                }
+            }
             _ => {}
         }
     }
@@ -354,6 +460,28 @@ impl ApplicationHandler for AppState<'_> {
             let device = &render_cx.devices[dev_id].device;
             let _ = device.poll(wgpu::PollType::Poll);
         }
+    }
+}
+
+impl<'a> Drop for AppState<'a> {
+    fn drop(&mut self) {
+        // Clear all component paths first - these hold Gc references
+        self.active_path.clear();
+        self.hovered_path.clear();
+        self.focused_path.clear();
+
+        // Clear pointer capture and hovered component
+        *self.pointer_capture.borrow_mut() = None;
+        *self.hovered_component.borrow_mut() = None;
+
+        // Clear the scene's root components to break the reference chain
+        self.scene.root_components.clear();
+        self.scene.vello_scene = None;
+
+        // Clear the view to break the reference to root component
+        self.view = None;
+
+        // GC is disabled during app lifetime, so no need to run cleanup
     }
 }
 
@@ -393,11 +521,10 @@ impl<'a> AppState<'a> {
     }
 
     fn request_redraw_if_dirty(&self) {
-        if let Some(view) = &self.view {
-            if view.root_component.is_dirty() {
-                if let Some(window) = &self.window {
-                    window.request_redraw();
-                }
+        let root_dirty = self.view.as_ref().map(|v| v.root_component.is_dirty()).unwrap_or(false);
+        if root_dirty {
+            if let Some(window) = &self.window {
+                window.request_redraw();
             }
         }
     }
@@ -456,6 +583,13 @@ impl<'a> AppState<'a> {
             }
         }
 
+        // Set stylesheet if not already set
+        if self.scene.stylesheet.is_none() {
+            if let Some(stylesheet) = &self.stylesheet {
+                self.scene.set_stylesheet(stylesheet.clone());
+            }
+        }
+
         // Update scene (regenerates the underlying vello::Scene if dirty)
         self.scene.update();
 
@@ -469,6 +603,32 @@ impl<'a> AppState<'a> {
             Some(new_scene)
         };
         let scene_ref = transformed_scene.as_ref().unwrap_or(scene);
+
+        // Clear intermediate texture before rendering
+        {
+            let mut clear_encoder =
+                device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Clear Texture"),
+                });
+            {
+                let _clear_pass = clear_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Clear Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &surface.target_view,
+                        resolve_target: None,
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(WgpuColor::WHITE),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+            }
+            queue.submit([clear_encoder.finish()]);
+        }
 
         // Render to intermediate texture
         if let Err(e) = renderer.render_to_texture(
@@ -578,12 +738,89 @@ pub fn run_app<F>(view_fn: F) -> Result<(), AppError>
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
+    // Disable automatic GC collection during app lifetime to prevent
+    // race conditions with component drops
+    // The final cleanup in AppState::drop will re-enable and run GC
+    rudo_gc::set_collect_condition(|_| false);
+
     let view = view_fn();
 
-    let event_loop = EventLoop::new().map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    let event_loop = EventLoop::with_user_event()
+        .build()
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
 
     let mut app_state = AppState::new();
     app_state.view = Some(view);
+
+    // Add default stylesheet for component sizing (buttons, inputs, etc.)
+    app_state.stylesheet = Some(Stylesheet::with_defaults());
+
+    // Run the event loop - AppState::drop will handle cleanup
+    event_loop
+        .run_app(&mut app_state)
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Run the application with a stylesheet for CSS selector matching.
+///
+/// # Arguments
+///
+/// * `view_fn` - A function that returns the root view of the application
+/// * `stylesheet` - An optional stylesheet for CSS selector-based styling
+///
+/// # Example
+///
+/// ```ignore
+/// use rvue::prelude::*;
+/// use rvue_style::{Stylesheet, BackgroundColor, Color};
+///
+/// fn main() {
+///     let mut stylesheet = Stylesheet::new();
+///     stylesheet.add_rule("button.primary", Properties::with(
+///         BackgroundColor(Color::rgb(0, 123, 255))
+///     ));
+///     stylesheet.add_rule("button:hover", Properties::with(
+///         BackgroundColor(Color::rgb(0, 86, 179))
+///     ));
+///
+///     rvue::run_app_with_stylesheet(|| {
+///         view! {
+///             <Button class="primary">
+///                 <Text>Primary</Text>
+///             </Button>
+///         }
+///     }, Some(stylesheet));
+/// }
+/// ```
+pub fn run_app_with_stylesheet<F>(
+    view_fn: F,
+    stylesheet: Option<Stylesheet>,
+) -> Result<(), AppError>
+where
+    F: FnOnce() -> ViewStruct + 'static,
+{
+    rudo_gc::set_collect_condition(|_| false);
+
+    let view = view_fn();
+
+    let event_loop = EventLoop::with_user_event()
+        .build()
+        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
+    let mut app_state = AppState::new();
+    app_state.view = Some(view);
+
+    let merged_stylesheet = match stylesheet {
+        Some(user_sheet) => {
+            let mut defaults = Stylesheet::with_defaults();
+            defaults.merge(&user_sheet);
+            defaults
+        }
+        None => Stylesheet::with_defaults(),
+    };
+    app_state.stylesheet = Some(merged_stylesheet);
 
     event_loop
         .run_app(&mut app_state)

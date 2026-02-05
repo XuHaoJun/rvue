@@ -1,199 +1,337 @@
-//! Styling system for components
+//! Style resolution combining inline styles and stylesheet rules.
+//!
+//! This module provides CSS selector matching and style resolution for components,
+//! supporting class selectors (`.class`), ID selectors (`#id`), and pseudo-classes
+//! (`:hover`, `:focus`, `:disabled`).
 
-/// Color representation
-#[derive(Debug, Clone, PartialEq)]
-pub enum Color {
-    Rgb { r: u8, g: u8, b: u8 },
-    Rgba { r: u8, g: u8, b: u8, a: u8 },
-    Named(String),
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::component::Component;
+use rvue_style::{
+    default_stylesheet, BackgroundColor, Color, ComputedStyles, ElementState, Properties,
+    RvueElement, StyleResolver,
+};
+
+#[derive(Debug)]
+pub struct Stylesheet {
+    inner: Rc<RefCell<rvue_style::Stylesheet>>,
 }
 
-/// Font weight
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FontWeight {
-    Normal,
-    Bold,
-    Light,
-    Medium,
-    SemiBold,
-    ExtraBold,
-}
-
-/// Spacing values (top, right, bottom, left)
-#[derive(Debug, Clone, PartialEq)]
-pub struct Spacing {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
-}
-
-impl Spacing {
-    /// Create uniform spacing
-    pub fn uniform(value: f32) -> Self {
-        Self { top: value, right: value, bottom: value, left: value }
+impl Stylesheet {
+    pub fn new() -> Self {
+        Self { inner: Rc::new(RefCell::new(rvue_style::Stylesheet::new())) }
     }
 
-    /// Create spacing with different horizontal and vertical values
-    pub fn symmetric(vertical: f32, horizontal: f32) -> Self {
-        Self { top: vertical, right: horizontal, bottom: vertical, left: horizontal }
+    pub fn with_defaults() -> Self {
+        let defaults = default_stylesheet();
+        Self { inner: Rc::new(RefCell::new(defaults)) }
     }
 
-    /// Create spacing with all four values
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
+    pub fn add_rule(&mut self, selector: &str, properties: Properties) {
+        self.inner
+            .borrow_mut()
+            .add_rule(rvue_style::StyleRule::new(selector.to_string(), properties));
     }
-}
 
-/// Size constraint
-#[derive(Debug, Clone, PartialEq)]
-pub enum Size {
-    /// Fixed size in pixels
-    Pixels(f32),
-    /// Percentage of parent (0.0 to 1.0)
-    Percent(f32),
-    /// Auto size (fit content)
-    Auto,
-    /// Fill available space
-    Fill,
-}
+    /// Add a background-color rule for a selector
+    pub fn add_background_color(&mut self, selector: &str, color: Color) {
+        let mut props = Properties::new();
+        props.insert(BackgroundColor(color));
+        self.add_rule(selector, props);
+    }
 
-/// Border properties
-#[derive(Debug, Clone, PartialEq)]
-pub struct Border {
-    pub width: f32,
-    pub color: Color,
-    pub style: BorderStyle,
-}
+    /// Add a background-color rule for a selector and its hover state
+    pub fn add_background_color_with_hover(
+        &mut self,
+        selector: &str,
+        normal_color: Color,
+        hover_color: Color,
+    ) {
+        self.add_background_color(selector, normal_color);
+        self.add_background_color(&format!("{}:hover", selector), hover_color);
+    }
 
-/// Border style
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BorderStyle {
-    Solid,
-    Dashed,
-    Dotted,
-}
+    /// Add a background-color rule for a selector with hover, active, and disabled states
+    pub fn add_interactive_colors(
+        &mut self,
+        selector: &str,
+        normal: Color,
+        hover: Color,
+        active: Color,
+        disabled: Color,
+    ) {
+        self.add_background_color(selector, normal);
+        self.add_background_color(&format!("{}:hover", selector), hover);
+        self.add_background_color(&format!("{}:active", selector), active);
+        self.add_background_color(&format!("{}:disabled", selector), disabled);
+    }
 
-/// Flex direction
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FlexDirection {
-    Row,
-    Column,
-    RowReverse,
-    ColumnReverse,
-}
+    pub fn len(&self) -> usize {
+        self.inner.borrow().len()
+    }
 
-impl FlexDirection {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Row => "row",
-            Self::Column => "column",
-            Self::RowReverse => "row-reverse",
-            Self::ColumnReverse => "column-reverse",
+    pub fn is_empty(&self) -> bool {
+        self.inner.borrow().is_empty()
+    }
+
+    pub fn merge(&mut self, other: &Stylesheet) {
+        for rule in other.inner.borrow().rules() {
+            self.inner.borrow_mut().add_rule(rule.clone());
         }
     }
-}
 
-impl std::fmt::Display for FlexDirection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+    pub fn inner(&self) -> impl std::ops::Deref<Target = rvue_style::Stylesheet> + '_ {
+        self.inner.borrow()
     }
 }
 
-unsafe impl rudo_gc::Trace for FlexDirection {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // FlexDirection contains no GC pointers
+impl Clone for Stylesheet {
+    fn clone(&self) -> Self {
+        Self { inner: Rc::clone(&self.inner) }
     }
 }
 
-/// Alignment items (cross-axis alignment)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AlignItems {
-    Start,
-    End,
-    Center,
-    Stretch,
-    Baseline,
+impl Default for Stylesheet {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-impl AlignItems {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Start => "start",
-            Self::End => "end",
-            Self::Center => "center",
-            Self::Stretch => "stretch",
-            Self::Baseline => "baseline",
+pub fn component_to_element(component: &Component) -> RvueElement {
+    let tag_name = component_type_to_tag_name(&component.component_type);
+
+    let mut element = RvueElement::new(&tag_name);
+
+    for class in component.classes.borrow().iter() {
+        element = element.with_class(class);
+    }
+
+    if let Some(id) = component.element_id.borrow().as_ref() {
+        element = element.with_id(id);
+    }
+
+    if *component.is_hovered.borrow() {
+        element.state.insert(ElementState::HOVER);
+    }
+    if *component.is_focused.borrow() {
+        element.state.insert(ElementState::FOCUS);
+    }
+    if *component.is_active.borrow() {
+        element.state.insert(ElementState::ACTIVE);
+    }
+    if component.is_disabled() {
+        element.state.insert(ElementState::DISABLED);
+    }
+
+    element
+}
+
+fn component_type_to_tag_name(component_type: &crate::component::ComponentType) -> String {
+    match component_type {
+        crate::component::ComponentType::Text => "text",
+        crate::component::ComponentType::Button => "button",
+        crate::component::ComponentType::TextInput => "input",
+        crate::component::ComponentType::NumberInput => "input",
+        crate::component::ComponentType::Checkbox => "checkbox",
+        crate::component::ComponentType::Radio => "radio",
+        crate::component::ComponentType::Show => "show",
+        crate::component::ComponentType::For => "for",
+        crate::component::ComponentType::Flex => "flex",
+        crate::component::ComponentType::Custom(name) => name,
+    }
+    .to_string()
+}
+
+/// Resolve styles for a component (accepts &Component instead of &Gc<Component>)
+/// This provides a unified style resolution path for both layout and rendering systems.
+pub fn resolve_styles_for_component(
+    component: &Component,
+    stylesheet: &Stylesheet,
+) -> ComputedStyles {
+    let element = component_to_element(component);
+    let resolver = StyleResolver::new();
+    let inline_styles = get_inline_styles(component);
+    let inner_sheet = stylesheet.inner.borrow();
+    let resolved = resolver.resolve_styles(&element, &inner_sheet);
+    let mut merged = resolved;
+
+    if let Some(inline) = inline_styles {
+        if let Some(w) = inline.width.as_ref() {
+            if !matches!(w.0, rvue_style::Size::Auto) {
+                merged.width = Some(w.clone());
+            }
+        }
+        if let Some(h) = inline.height.as_ref() {
+            if !matches!(h.0, rvue_style::Size::Auto) {
+                merged.height = Some(h.clone());
+            }
+        }
+        if inline.background_color.is_some() {
+            merged.background_color = inline.background_color;
+        }
+        if inline.color.is_some() {
+            merged.color = inline.color;
+        }
+        if inline.text_color.is_some() {
+            merged.text_color = inline.text_color;
+        }
+        if inline.font_size.is_some() {
+            merged.font_size = inline.font_size;
+        }
+        if inline.font_family.is_some() {
+            merged.font_family = inline.font_family;
+        }
+        if inline.font_weight.is_some() {
+            merged.font_weight = inline.font_weight;
+        }
+        if inline.padding.is_some() {
+            merged.padding = inline.padding;
+        }
+        if inline.margin.is_some() {
+            merged.margin = inline.margin;
+        }
+        if inline.display.is_some() {
+            merged.display = inline.display;
+        }
+        if inline.flex_direction.is_some() {
+            merged.flex_direction = inline.flex_direction;
+        }
+        if inline.justify_content.is_some() {
+            merged.justify_content = inline.justify_content;
+        }
+        if inline.align_items.is_some() {
+            merged.align_items = inline.align_items;
+        }
+        if inline.align_self.is_some() {
+            merged.align_self = inline.align_self;
+        }
+        if inline.flex_grow.is_some() {
+            merged.flex_grow = inline.flex_grow;
+        }
+        if inline.flex_shrink.is_some() {
+            merged.flex_shrink = inline.flex_shrink;
+        }
+        if inline.flex_basis.is_some() {
+            merged.flex_basis = inline.flex_basis;
+        }
+        if inline.gap.is_some() {
+            merged.gap = inline.gap;
+        }
+        if inline.border_color.is_some() {
+            merged.border_color = inline.border_color;
+        }
+        if inline.border_width.is_some() {
+            merged.border_width = inline.border_width;
+        }
+        if inline.border_radius.is_some() {
+            merged.border_radius = inline.border_radius;
+        }
+        if inline.border_style.is_some() {
+            merged.border_style = inline.border_style;
+        }
+        if inline.opacity.is_some() {
+            merged.opacity = inline.opacity;
+        }
+        if inline.visibility.is_some() {
+            merged.visibility = inline.visibility;
+        }
+        if inline.z_index.is_some() {
+            merged.z_index = inline.z_index;
+        }
+        if inline.cursor.is_some() {
+            merged.cursor = inline.cursor;
+        }
+        if inline.overflow_x.is_some() {
+            merged.overflow_x = inline.overflow_x;
+        }
+        if inline.overflow_y.is_some() {
+            merged.overflow_y = inline.overflow_y;
         }
     }
+
+    merged
 }
 
-impl std::fmt::Display for AlignItems {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+pub fn get_inline_styles(component: &Component) -> Option<ComputedStyles> {
+    component.widget_styles()
+}
+
+pub trait StylesheetProvider {
+    fn stylesheet(&self) -> Option<&Stylesheet>;
+}
+
+impl StylesheetProvider for () {
+    fn stylesheet(&self) -> Option<&Stylesheet> {
+        None
     }
 }
 
-unsafe impl rudo_gc::Trace for AlignItems {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // AlignItems contains no GC pointers
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::component::{Component, ComponentType};
+
+    #[test]
+    fn test_component_to_element() {
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
+
+        let element = component_to_element(&component);
+
+        assert_eq!(element.tag_name.as_ref(), "button");
+        assert!(!element.state.intersects(ElementState::HOVER));
     }
-}
 
-/// Justify content (main-axis alignment)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum JustifyContent {
-    Start,
-    End,
-    Center,
-    SpaceBetween,
-    SpaceAround,
-    SpaceEvenly,
-}
+    #[test]
+    fn test_component_with_classes() {
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
 
-impl JustifyContent {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Start => "start",
-            Self::End => "end",
-            Self::Center => "center",
-            Self::SpaceBetween => "space-between",
-            Self::SpaceAround => "space-around",
-            Self::SpaceEvenly => "space-evenly",
-        }
+        component.classes.borrow_mut().push("primary".into());
+        component.classes.borrow_mut().push("large".into());
+
+        let element = component_to_element(&component);
+
+        assert!(element.has_class("primary"));
+        assert!(element.has_class("large"));
+        assert!(!element.has_class("small"));
     }
-}
 
-impl std::fmt::Display for JustifyContent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+    #[test]
+    fn test_component_with_state() {
+        let component = Component::with_properties(
+            1,
+            ComponentType::Button,
+            crate::properties::PropertyMap::new(),
+        );
+
+        *component.is_hovered.borrow_mut() = true;
+        *component.is_focused.borrow_mut() = true;
+
+        let element = component_to_element(&component);
+
+        assert!(element.state.intersects(ElementState::HOVER));
+        assert!(element.state.intersects(ElementState::FOCUS));
+        assert!(!element.state.intersects(ElementState::ACTIVE));
     }
-}
 
-unsafe impl rudo_gc::Trace for JustifyContent {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // JustifyContent contains no GC pointers
+    #[test]
+    fn test_stylesheet_add_rule() {
+        let mut stylesheet = Stylesheet::new();
+
+        let mut props = rvue_style::Properties::new();
+        props.insert(BackgroundColor(rvue_style::properties::Color::rgb(255, 0, 0)));
+
+        stylesheet.add_rule("button", props);
+
+        assert_eq!(stylesheet.len(), 1);
+        assert!(!stylesheet.is_empty());
     }
-}
-
-/// Style structure for component styling
-#[derive(Debug, Clone, Default)]
-pub struct Style {
-    pub color: Option<Color>,
-    pub background_color: Option<Color>,
-    pub font_size: Option<f32>,
-    pub font_weight: Option<FontWeight>,
-    pub font_family: Option<String>,
-    pub padding: Option<Spacing>,
-    pub margin: Option<Spacing>,
-    pub border: Option<Border>,
-    pub border_radius: Option<f32>,
-    pub width: Option<Size>,
-    pub height: Option<Size>,
-    pub flex_direction: Option<FlexDirection>,
-    pub flex_grow: Option<f32>,
-    pub flex_shrink: Option<f32>,
-    pub align_items: Option<AlignItems>,
-    pub justify_content: Option<JustifyContent>,
-    pub gap: Option<f32>,
 }

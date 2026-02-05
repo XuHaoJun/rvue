@@ -1,0 +1,222 @@
+//! Style rules and stylesheet structures.
+
+use crate::property::Properties;
+use std::cmp::Ordering;
+
+/// A style rule consisting of a selector and properties.
+#[derive(Debug, Clone)]
+pub struct StyleRule {
+    pub selector: String,
+    pub specificity: Specificity,
+    pub properties: Properties,
+}
+
+impl StyleRule {
+    #[inline]
+    pub fn new(selector: String, properties: Properties) -> Self {
+        let specificity = Specificity::from_selector(&selector);
+        Self { selector, specificity, properties }
+    }
+
+    #[inline]
+    pub fn parse(selector: &str, properties: Properties) -> Self {
+        Self::new(selector.to_string(), properties)
+    }
+}
+
+/// Specificity of a CSS selector.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Specificity {
+    pub id: u32,
+    pub class: u32,
+    pub element: u32,
+}
+
+impl Specificity {
+    #[inline]
+    pub fn new(id: u32, class: u32, element: u32) -> Self {
+        Self { id, class, element }
+    }
+
+    pub fn from_selector(selector: &str) -> Self {
+        let mut id = 0;
+        let mut class = 0;
+        let mut element = 0;
+
+        let mut chars = selector.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            match c {
+                '#' => {
+                    id += 1;
+                    while chars
+                        .peek()
+                        .map(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                        .unwrap_or(false)
+                    {
+                        chars.next();
+                    }
+                }
+                '.' => {
+                    class += 1;
+                    while chars
+                        .peek()
+                        .map(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                        .unwrap_or(false)
+                    {
+                        chars.next();
+                    }
+                }
+                '[' => {
+                    class += 1;
+                    for c in chars.by_ref() {
+                        if c == ']' {
+                            break;
+                        }
+                    }
+                }
+                ':' => {
+                    class += 1;
+                    if chars.peek() == Some(&':') {
+                        chars.next();
+                    }
+                    while chars.peek().map(|c| c.is_alphanumeric()).unwrap_or(false) {
+                        chars.next();
+                    }
+                    if chars.peek() == Some(&'(') {
+                        for c in chars.by_ref() {
+                            if c == ')' {
+                                break;
+                            }
+                        }
+                    }
+                }
+                _ if c.is_alphabetic() || c == '_' => {
+                    element += 1;
+                    while chars
+                        .peek()
+                        .map(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                        .unwrap_or(false)
+                    {
+                        chars.next();
+                    }
+                }
+                '*' => {
+                    // Universal selector does not contribute to specificity (CSS spec)
+                }
+                _ => {}
+            }
+        }
+
+        Self { id, class, element }
+    }
+}
+
+impl PartialOrd for Specificity {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Specificity {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id
+            .cmp(&other.id)
+            .then_with(|| self.class.cmp(&other.class))
+            .then_with(|| self.element.cmp(&other.element))
+    }
+}
+
+/// A collection of style rules.
+#[derive(Default, Debug)]
+pub struct Stylesheet {
+    rules: Vec<StyleRule>,
+}
+
+impl Stylesheet {
+    #[inline]
+    pub fn new() -> Self {
+        Self { rules: Vec::new() }
+    }
+
+    #[inline]
+    pub fn add_rule(&mut self, rule: StyleRule) {
+        self.rules.push(rule);
+    }
+
+    #[inline]
+    pub fn rules(&self) -> impl Iterator<Item = &StyleRule> {
+        self.rules.iter()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.rules.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
+
+    #[inline]
+    pub fn merge(&mut self, other: &Stylesheet) {
+        self.rules.extend(other.rules.iter().cloned());
+    }
+}
+
+unsafe impl rudo_gc::Trace for Stylesheet {
+    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_universal_selector_specificity() {
+        // Universal selector should have specificity (0,0,0) per CSS spec
+        let specificity = Specificity::from_selector("*");
+        assert_eq!(specificity, Specificity::new(0, 0, 0));
+    }
+
+    #[test]
+    fn test_universal_selector_with_other_selectors() {
+        // Universal selector should not contribute to specificity even when combined
+        let specificity = Specificity::from_selector("*.class");
+        assert_eq!(specificity, Specificity::new(0, 1, 0));
+        
+        let specificity = Specificity::from_selector("*#id");
+        assert_eq!(specificity, Specificity::new(1, 0, 0));
+        
+        let specificity = Specificity::from_selector("div.class");
+        assert_eq!(specificity, Specificity::new(0, 1, 1));
+    }
+
+    #[test]
+    fn test_specificity_comparison() {
+        // Universal selector should be less specific than element selector
+        let universal = Specificity::from_selector("*");
+        let element = Specificity::from_selector("div");
+        
+        assert!(element > universal);
+        assert_eq!(universal, Specificity::new(0, 0, 0));
+        assert_eq!(element, Specificity::new(0, 0, 1));
+    }
+
+    #[test]
+    fn test_malformed_selector_unclosed_bracket() {
+        // Should not hang on unclosed '[' bracket
+        let specificity = Specificity::from_selector("div[attr");
+        // Should still return a valid specificity (doesn't crash/hang)
+        assert_eq!(specificity.class, 1); // Attribute selector counts as class
+    }
+
+    #[test]
+    fn test_malformed_selector_unclosed_paren() {
+        // Should not hang on unclosed '(' parenthesis
+        let specificity = Specificity::from_selector("div:not(selector");
+        // Should still return a valid specificity (doesn't crash/hang)
+        assert_eq!(specificity.class, 1); // Pseudo-class counts as class
+    }
+}

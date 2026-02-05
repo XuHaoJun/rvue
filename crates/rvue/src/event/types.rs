@@ -199,3 +199,87 @@ pub fn map_scroll_delta(delta: winit::event::MouseScrollDelta) -> ScrollDelta {
         winit::event::MouseScrollDelta::PixelDelta(pos) => ScrollDelta::Pixel(pos.x, pos.y),
     }
 }
+
+pub fn convert_pointer_event_from_ui_events(
+    event: &ui_events::pointer::PointerEvent,
+    scale_factor: f64,
+) -> PointerEvent {
+    match event {
+        ui_events::pointer::PointerEvent::Down(e) => PointerEvent::Down(PointerButtonEvent {
+            button: convert_pointer_button(e.button),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
+            click_count: e.state.count as u32,
+            modifiers: convert_modifiers(&e.state.modifiers),
+        }),
+        ui_events::pointer::PointerEvent::Up(e) => PointerEvent::Up(PointerButtonEvent {
+            button: convert_pointer_button(e.button),
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
+            click_count: e.state.count as u32,
+            modifiers: convert_modifiers(&e.state.modifiers),
+        }),
+        ui_events::pointer::PointerEvent::Move(e) => PointerEvent::Move(PointerMoveEvent {
+            position: Point::new(
+                e.current.position.x / scale_factor,
+                e.current.position.y / scale_factor,
+            ),
+            delta: Vec2::ZERO,
+            modifiers: convert_modifiers(&e.current.modifiers),
+        }),
+        ui_events::pointer::PointerEvent::Enter(_) => {
+            PointerEvent::Enter(PointerInfo { position: Point::ZERO })
+        }
+        ui_events::pointer::PointerEvent::Leave(_) => {
+            PointerEvent::Leave(PointerInfo { position: Point::ZERO })
+        }
+        ui_events::pointer::PointerEvent::Scroll(e) => PointerEvent::Scroll(PointerScrollEvent {
+            delta: match e.delta {
+                ui_events::ScrollDelta::PageDelta(_, y) => ScrollDelta::Line(y as f64),
+                ui_events::ScrollDelta::LineDelta(_, y) => ScrollDelta::Line(y as f64),
+                ui_events::ScrollDelta::PixelDelta(p) => ScrollDelta::Pixel(p.x, p.y),
+            },
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
+            modifiers: convert_modifiers(&e.state.modifiers),
+        }),
+        ui_events::pointer::PointerEvent::Gesture(e) => PointerEvent::Down(PointerButtonEvent {
+            button: PointerButton::Primary,
+            position: Point::new(
+                e.state.position.x / scale_factor,
+                e.state.position.y / scale_factor,
+            ),
+            click_count: 1,
+            modifiers: convert_modifiers(&e.state.modifiers),
+        }),
+        ui_events::pointer::PointerEvent::Cancel(_) => {
+            PointerEvent::Cancel(PointerInfo { position: Point::ZERO })
+        }
+    }
+}
+
+fn convert_pointer_button(button: Option<ui_events::pointer::PointerButton>) -> PointerButton {
+    match button {
+        Some(b) => {
+            let value = b as u32;
+            if value == 1 {
+                PointerButton::Primary
+            } else if value == 2 {
+                PointerButton::Secondary
+            } else {
+                PointerButton::Other(value as u16)
+            }
+        }
+        None => PointerButton::Primary,
+    }
+}
+
+fn convert_modifiers(_modifiers: &keyboard_types::Modifiers) -> Modifiers {
+    Modifiers { shift: false, ctrl: false, alt: false, logo: false }
+}

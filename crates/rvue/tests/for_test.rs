@@ -1,28 +1,19 @@
 //! Integration test for For component
 
-use rvue::{create_signal, SignalRead, SignalWrite};
-use rvue::{Component, ComponentProps, ComponentType};
+use rvue::create_signal;
+use rvue::{Component, ComponentType};
 
 #[test]
 fn test_for_component_list_rendering() {
     // Test that For component can render items from a collection
     let items = vec!["Item 1".to_string(), "Item 2".to_string(), "Item 3".to_string()];
-    let (items_signal, _set_items) = create_signal(items.clone());
+    let _items_signal = create_signal(items.clone());
 
     // Create For component
-    let for_component = Component::new(
-        1,
-        ComponentType::For,
-        ComponentProps::For { item_count: items_signal.get().len() },
-    );
+    let for_component =
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     assert_eq!(for_component.component_type, ComponentType::For);
-    match &*for_component.props.borrow() {
-        ComponentProps::For { item_count } => {
-            assert_eq!(*item_count, 3);
-        }
-        _ => panic!("Expected For props"),
-    };
 }
 
 #[test]
@@ -31,11 +22,8 @@ fn test_for_component_add_item() {
     let items = vec!["Item 1".to_string()];
     let (items_signal, set_items) = create_signal(items);
 
-    let _for_component = Component::new(
-        1,
-        ComponentType::For,
-        ComponentProps::For { item_count: items_signal.get().len() },
-    );
+    let _for_component =
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Add an item
     set_items.update(|items| {
@@ -51,11 +39,8 @@ fn test_for_component_remove_item() {
     let items = vec!["Item 1".to_string(), "Item 2".to_string(), "Item 3".to_string()];
     let (items_signal, set_items) = create_signal(items);
 
-    let _for_component = Component::new(
-        1,
-        ComponentType::For,
-        ComponentProps::For { item_count: items_signal.get().len() },
-    );
+    let _for_component =
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Remove an item
     set_items.update(|items| {

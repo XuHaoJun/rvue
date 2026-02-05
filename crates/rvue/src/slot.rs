@@ -184,14 +184,10 @@ impl ToChildren<Children> for ViewStruct {
 impl ToChildren<ChildrenFn> for MaybeChildren {
     fn to_children(self) -> ChildrenFn {
         ChildrenFn(Gc::new(LazyView::new(Box::new(|_ctx: &mut BuildContext| {
-            ViewStruct::new(Component::new(
+            ViewStruct::new(Component::with_properties(
                 0,
                 crate::component::ComponentType::Text,
-                crate::component::ComponentProps::Text {
-                    content: String::new(),
-                    font_size: None,
-                    color: None,
-                },
+                crate::properties::PropertyMap::new(),
             ))
         }))))
     }
@@ -204,11 +200,7 @@ mod tests {
     use rudo_gc::Gc;
 
     fn create_test_component() -> Gc<Component> {
-        Component::new(
-            0,
-            ComponentType::Text,
-            ComponentProps::Text { content: "test".to_string(), font_size: None, color: None },
-        )
+        Component::with_properties(0, ComponentType::Text, crate::properties::PropertyMap::new())
     }
 
     #[test]

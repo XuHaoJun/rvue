@@ -1,26 +1,36 @@
 //! Checkbox widget component
 
-use crate::component::{Component, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{CheckboxChecked, PropertyMap};
 use crate::widget::{BuildContext, Mountable, ReactiveValue, Widget};
 use rudo_gc::{Gc, Trace};
+use rvue_style::ReactiveStyles;
 
 /// Checkbox widget builder for boolean input
 #[derive(Clone)]
 pub struct Checkbox {
     checked: ReactiveValue<bool>,
+    styles: Option<ReactiveStyles>,
 }
 
 unsafe impl Trace for Checkbox {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.checked.trace(visitor);
+        self.styles.trace(visitor);
     }
 }
 
 impl Checkbox {
     /// Create a new Checkbox widget with checked state
     pub fn new(checked: impl crate::widget::IntoReactiveValue<bool>) -> Self {
-        Self { checked: checked.into_reactive() }
+        Self { checked: checked.into_reactive(), styles: None }
+    }
+
+    /// Set the styles directly
+    pub fn styles(mut self, styles: ReactiveStyles) -> Self {
+        self.styles = Some(styles);
+        self
     }
 }
 
@@ -65,15 +75,23 @@ impl Widget for Checkbox {
     fn build(self, _ctx: &mut BuildContext) -> Self::State {
         let id = crate::component::next_component_id();
         let initial_checked = self.checked.get();
+        let is_reactive = self.checked.is_reactive();
+        let computed_styles = self.styles.as_ref().map(|s| s.compute());
 
-        let component = Component::new(
-            id,
-            ComponentType::Checkbox,
-            ComponentProps::Checkbox { checked: initial_checked },
-        );
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(CheckboxChecked(initial_checked))
+        };
 
-        // Setup reactive update if checked is reactive
-        let checked_effect = if self.checked.is_reactive() {
+        let component = Component::with_properties(id, ComponentType::Checkbox, properties);
+
+        // Initialize WidgetStyles in PropertyMap for layout calculations
+        if let Some(styles) = computed_styles {
+            component.set_widget_styles(styles);
+        }
+
+        let checked_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let checked = self.checked.clone();
             let effect = create_effect(move || {
@@ -90,9 +108,7 @@ impl Widget for Checkbox {
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        // Update checked if it changed
         if self.checked.is_reactive() {
-            // Checked is reactive, effect will handle updates
             if state.checked_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let checked = self.checked.clone();
@@ -104,7 +120,6 @@ impl Widget for Checkbox {
                 state.checked_effect = Some(effect);
             }
         } else {
-            // Static checked - update directly
             let new_checked = self.checked.get();
             state.component.set_checkbox_checked(new_checked);
         }

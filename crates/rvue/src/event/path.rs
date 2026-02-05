@@ -42,7 +42,7 @@ pub fn path_equals(a: &[Gc<Component>], b: &[Gc<Component>]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{ComponentProps, ComponentType};
+    use crate::component::ComponentType;
 
     #[test]
     fn test_path_equals_same_length_different() {
@@ -55,15 +55,10 @@ mod tests {
 
     #[test]
     fn test_path_equals_different_lengths() {
-        let component = Component::new(
+        let component = Component::with_properties(
             0,
             ComponentType::Flex,
-            ComponentProps::Flex {
-                direction: "row".to_string(),
-                gap: 0.0,
-                align_items: "start".to_string(),
-                justify_content: "start".to_string(),
-            },
+            crate::properties::PropertyMap::new(),
         );
         let one_element = vec![Gc::clone(&component)];
         let two_elements: Vec<Gc<Component>> = Vec::new();
@@ -73,15 +68,10 @@ mod tests {
     #[test]
     fn test_get_component_path_none() {
         let result = get_component_path(
-            &Component::new(
+            &Component::with_properties(
                 0,
                 ComponentType::Flex,
-                ComponentProps::Flex {
-                    direction: "row".to_string(),
-                    gap: 0.0,
-                    align_items: "start".to_string(),
-                    justify_content: "start".to_string(),
-                },
+                crate::properties::PropertyMap::new(),
             ),
             None,
         );

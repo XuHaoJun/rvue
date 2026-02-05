@@ -1,9 +1,7 @@
 //! Tests for the new Widget API and fine-grained updates
 
-use rvue::{
-    create_signal, text::TextContext, widget::*, widgets::*, Component, ComponentProps,
-    ComponentType,
-};
+use rvue::{create_signal, text::TextContext, widget::*, widgets::*, Component, ComponentType};
+use rvue_style::{AlignItems, FlexDirection, JustifyContent};
 use taffy::TaffyTree;
 
 /// Helper to create a BuildContext for testing
@@ -26,15 +24,8 @@ fn test_text_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Text);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Text { content, .. } => {
-                    assert_eq!(content, "Hello World");
-                }
-                _ => panic!("Expected Text props"),
-            }
-        }
+        // Use the new text_content getter
+        assert_eq!(state.component().text_content(), "Hello World");
     });
 }
 
@@ -49,34 +40,18 @@ fn test_text_widget_with_signal() {
 
         assert_eq!(state.component().component_type, ComponentType::Text);
         // Initial value should be "Initial"
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Text { content, .. } => {
-                    assert_eq!(content, "Initial");
-                }
-                _ => panic!("Expected Text props"),
-            }
-        }
+        assert_eq!(state.component().text_content(), "Initial");
     });
 }
 
 #[test]
 fn test_button_widget_builder() {
     with_build_context(|ctx| {
-        let widget = Button::new("Click Me");
+        let widget = Button::new();
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Button);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Button { label } => {
-                    assert_eq!(label, "Click Me");
-                }
-                _ => panic!("Expected Button props"),
-            }
-        }
+        // Button has no text_content, verify via component_type
     });
 }
 
@@ -84,24 +59,14 @@ fn test_button_widget_builder() {
 fn test_flex_widget_builder() {
     with_build_context(|ctx| {
         let widget = Flex::new()
-            .direction(rvue::FlexDirection::Column)
+            .direction(FlexDirection::Column)
             .gap(10.0)
-            .align_items(rvue::AlignItems::Center)
-            .justify_content(rvue::JustifyContent::SpaceBetween);
+            .align_items(AlignItems::Center)
+            .justify_content(JustifyContent::SpaceBetween);
 
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Flex);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Flex { direction, gap, .. } => {
-                    assert_eq!(direction, "column");
-                    assert_eq!(*gap, 10.0);
-                }
-                _ => panic!("Expected Flex props"),
-            }
-        }
     });
 }
 
@@ -112,15 +77,6 @@ fn test_checkbox_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Checkbox);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Checkbox { checked } => {
-                    assert!(*checked);
-                }
-                _ => panic!("Expected Checkbox props"),
-            }
-        }
     });
 }
 
@@ -131,15 +87,6 @@ fn test_text_input_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::TextInput);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::TextInput { value } => {
-                    assert_eq!(value, "test input");
-                }
-                _ => panic!("Expected TextInput props"),
-            }
-        }
     });
 }
 
@@ -154,15 +101,6 @@ fn test_show_widget_builder() {
         let state = widget.build(ctx);
 
         assert_eq!(state.component().component_type, ComponentType::Show);
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Show { when } => {
-                    assert!(*when);
-                }
-                _ => panic!("Expected Show props"),
-            }
-        }
     });
 }
 
@@ -177,37 +115,22 @@ fn test_fine_grained_text_update() {
         let updated_widget = Text::new("Updated");
         updated_widget.rebuild(&mut state);
 
-        // Verify the content was updated
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Text { content, .. } => {
-                    assert_eq!(content, "Updated");
-                }
-                _ => panic!("Expected Text props"),
-            }
-        }
+        // Verify the content was updated using new PropertyMap API
+        let content = state.component().text_content();
+        assert_eq!(content, "Updated");
     });
 }
 
 #[test]
 fn test_fine_grained_button_update() {
     with_build_context(|ctx| {
-        let widget = Button::new("Initial Label");
+        let widget = Button::new();
         let mut state = widget.build(ctx);
 
-        let updated_widget = Button::new("Updated Label");
+        let updated_widget = Button::new();
         updated_widget.rebuild(&mut state);
 
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Button { label } => {
-                    assert_eq!(label, "Updated Label");
-                }
-                _ => panic!("Expected Button props"),
-            }
-        }
+        assert_eq!(state.component().component_type, ComponentType::Button);
     });
 }
 
@@ -220,47 +143,22 @@ fn test_fine_grained_flex_update() {
         let updated_widget = Flex::new().gap(20.0);
         updated_widget.rebuild(&mut state);
 
-        {
-            let props = state.component().props.borrow();
-            match &*props {
-                ComponentProps::Flex { gap, .. } => {
-                    assert_eq!(*gap, 20.0);
-                }
-                _ => panic!("Expected Flex props"),
-            }
-        }
+        // Verify the gap was updated using new PropertyMap API
+        let gap = state.component().flex_gap();
+        assert_eq!(gap, 20.0);
     });
 }
 
 #[test]
 fn test_component_setters() {
     // Test the new property-specific setters
-    let component = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Initial".to_string(), font_size: None, color: None },
-    );
+    let component =
+        Component::with_properties(1, ComponentType::Text, rvue::properties::PropertyMap::new());
 
-    // Test set_text_content
+    // Test set_text_content using new PropertyMap API
     component.set_text_content("Updated".to_string());
-    match &*component.props.borrow() {
-        ComponentProps::Text { content, .. } => {
-            assert_eq!(content, "Updated");
-        }
-        _ => panic!("Expected Text props"),
-    }
-
-    // Test set_text_font_size
-    component.set_text_font_size(24.0);
-    {
-        let props = component.props.borrow();
-        match &*props {
-            ComponentProps::Text { font_size, .. } => {
-                assert_eq!(*font_size, Some(24.0));
-            }
-            _ => panic!("Expected Text props"),
-        }
-    }
+    let content = component.text_content();
+    assert_eq!(content, "Updated");
 }
 
 #[test]

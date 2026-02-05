@@ -22,14 +22,30 @@ pub fn component_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             // Extract identifier from pattern
             if let Pat::Ident(PatIdent { ident, .. }) = &**pat {
+                // Each parameter becomes a field in the props struct (not wrapped in a "props" field)
                 props_fields.push(quote! { pub #ident: rvue::widget::ReactiveValue<#ty> });
                 fn_args.push(ident);
-                // For slot types, unwrap the ReactiveValue
-                // For other types, the caller is responsible for handling ReactiveValue
+                // Unwrap ReactiveValue for each parameter
                 props_init.push(quote! { let #ident = props.#ident.get(); });
             }
         }
     }
+
+    // Generate trace impl that only traces ReactiveValue fields
+    let trace_impl = if has_args {
+        let trace_fields = fn_args.iter().map(|ident| {
+            quote! { self.#ident.trace(visitor); }
+        });
+        quote! {
+            unsafe impl rudo_gc::Trace for #props_name {
+                fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+                    #(#trace_fields)*
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
 
     // Generate the Props struct (empty if no args)
     let props_struct = if has_args {
@@ -86,6 +102,8 @@ pub fn component_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     quote! {
         #props_struct
+
+        #trace_impl
 
         #props_default_impl
 

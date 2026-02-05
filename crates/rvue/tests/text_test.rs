@@ -1,22 +1,19 @@
 use rudo_gc::Gc;
-use rvue::component::{Component, ComponentProps, ComponentType};
+use rvue::component::{Component, ComponentType};
 use rvue::Scene;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 #[test]
 fn test_text_measure() {
-    let _id_counter = AtomicU64::new(0);
-    let next_id = |_| _id_counter.fetch_add(1, Ordering::SeqCst);
+    let _id_counter = std::sync::atomic::AtomicU64::new(0);
+    let next_id = |_: u64| 0;
 
     // Create a simple Text component
-    let component = Component::new(
+    let component = Component::with_properties(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello World".to_string(),
-            font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
-        },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "Hello World".to_string(),
+        )),
     );
 
     // Create a Scene and add the component
@@ -47,40 +44,29 @@ fn test_text_measure() {
 #[test]
 fn test_text_in_flex() {
     // Test that text measures correctly inside a Flex container
-    let _id_counter = AtomicU64::new(0);
-    let next_id = |_| _id_counter.fetch_add(1, Ordering::SeqCst);
+    let _id_counter = std::sync::atomic::AtomicU64::new(0);
+    let next_id = |_: u64| 0;
 
     // Create a Flex container
-    let flex = Component::new(
+    let flex = Component::with_properties(
         next_id(0),
         ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "row".to_string(),
-            gap: 10.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     // Create two Text children
-    let text1 = Component::new(
+    let text1 = Component::with_properties(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "Short".to_string(),
-            font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
-        },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent("Short".to_string())),
     );
 
-    let text2 = Component::new(
+    let text2 = Component::with_properties(
         next_id(0),
         ComponentType::Text,
-        ComponentProps::Text {
-            content: "This is a longer piece of text".to_string(),
-            font_size: Some(16.0),
-            color: Some(vello::peniko::Color::BLACK),
-        },
+        rvue::properties::PropertyMap::with(rvue::properties::TextContent(
+            "This is a longer piece of text".to_string(),
+        )),
     );
 
     flex.add_child(Gc::clone(&text1));

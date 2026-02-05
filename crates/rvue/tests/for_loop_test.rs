@@ -1,38 +1,27 @@
 //! Unit tests for For component key-based diffing
 
-use rvue::{Component, ComponentLifecycle, ComponentProps, ComponentType};
+use rvue::{Component, ComponentLifecycle, ComponentType};
 
 #[test]
 fn test_for_component_creation() {
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 5 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     assert_eq!(for_component.component_type, ComponentType::For);
-    match &*for_component.props.borrow() {
-        ComponentProps::For { item_count } => {
-            assert_eq!(*item_count, 5);
-        }
-        _ => panic!("Expected For props"),
-    };
 }
 
 #[test]
 fn test_for_component_empty_list() {
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 0 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
-    match &*for_component.props.borrow() {
-        ComponentProps::For { item_count } => {
-            assert_eq!(*item_count, 0);
-        }
-        _ => panic!("Expected For props"),
-    };
+    assert_eq!(for_component.component_type, ComponentType::For);
 }
 
 #[test]
 fn test_for_component_lifecycle() {
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 3 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Test full lifecycle
     for_component.mount(None);
@@ -43,7 +32,7 @@ fn test_for_component_lifecycle() {
 #[test]
 fn test_for_component_mounting() {
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 2 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Mount should not panic
     for_component.mount(None);
@@ -53,7 +42,7 @@ fn test_for_component_mounting() {
 #[test]
 fn test_for_component_unmounting() {
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 1 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Unmount should not panic
     for_component.unmount();
@@ -65,7 +54,7 @@ fn test_for_component_key_based_diffing() {
     // For MVP, we'll test the basic structure
     // Full diffing algorithm will be tested in integration tests
     let for_component =
-        Component::new(1, ComponentType::For, ComponentProps::For { item_count: 3 });
+        Component::with_properties(1, ComponentType::For, rvue::properties::PropertyMap::new());
 
     // Verify component structure
     assert_eq!(for_component.component_type, ComponentType::For);

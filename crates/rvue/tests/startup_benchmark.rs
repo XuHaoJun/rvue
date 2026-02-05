@@ -1,6 +1,6 @@
 //! Benchmark test for application startup time
 
-use rvue::{Component, ComponentProps, ComponentType, ViewStruct};
+use rvue::{Component, ComponentType, ViewStruct};
 use std::time::{Duration, Instant};
 
 #[test]
@@ -10,16 +10,8 @@ fn benchmark_startup_time() {
     let start = Instant::now();
 
     // Simulate application initialization
-    let root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 10.0,
-            align_items: "center".to_string(),
-            justify_content: "center".to_string(),
-        },
-    );
+    let root =
+        Component::with_properties(0, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     let _view = ViewStruct::new(root);
 
@@ -44,23 +36,15 @@ fn benchmark_component_tree_creation() {
     let start = Instant::now();
 
     // Create a tree with 100 components
-    let _root = Component::new(
-        0,
-        ComponentType::Flex,
-        ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 5.0,
-            align_items: "start".to_string(),
-            justify_content: "start".to_string(),
-        },
-    );
+    let _root =
+        Component::with_properties(0, ComponentType::Flex, rvue::properties::PropertyMap::new());
 
     // Add 100 child components
     for i in 1..=100 {
-        let _child = Component::new(
+        let _child = Component::with_properties(
             i,
             ComponentType::Text,
-            ComponentProps::Text { content: format!("Item {}", i), font_size: None, color: None },
+            rvue::properties::PropertyMap::new(),
         );
         // Note: In a full implementation, we'd add this to root's children
     }

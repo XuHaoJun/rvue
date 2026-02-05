@@ -28,7 +28,9 @@ fn test_text_widget_children() {
 #[test]
 fn test_button_widget() {
     let _view = view! {
-        <Button label="Click Me" />
+        <Button>
+            <Text content="Click Me" />
+        </Button>
     };
 }
 
@@ -103,7 +105,9 @@ fn test_nested_elements() {
         view! {
             <Flex direction="column">
                 <Text content="First" />
-                <Button label="Click" />
+                <Button>
+                    <Text content="Click" />
+                </Button>
                 <Flex direction="row">
                     <Text content="Nested" />
                 </Flex>
@@ -144,7 +148,9 @@ fn test_mixed_static_dynamic() {
         <Flex direction="column" gap=10.0>
             <Text content="Static" />
             <Text content={dynamic_label} />
-            <Button label="Static Button" />
+            <Button>
+                <Text content="Static Button" />
+            </Button>
         </Flex>
     };
 }

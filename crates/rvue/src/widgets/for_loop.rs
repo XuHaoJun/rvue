@@ -1,7 +1,8 @@
 //! For widget with stable-key based node pool management
 
-use crate::component::{Component, ComponentLifecycle, ComponentProps, ComponentType};
+use crate::component::{Component, ComponentLifecycle, ComponentType};
 use crate::effect::create_effect;
+use crate::properties::{ForItemCount, PropertyMap};
 use crate::view::View;
 use crate::widget::{
     with_current_ctx, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
@@ -171,12 +172,12 @@ where
                         Some(crate::widgets::keyed_state::ItemEntry {
                             key: key.clone(),
                             item: item.clone(),
-                            component: child_component.clone(),
+                            component: Gc::clone(&child_component),
                             mounted: false,
                         });
                     child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                     child_component.mount(None);
-                    keyed_state.marker.add_child(child_component.clone());
+                    keyed_state.marker.add_child(Gc::clone(&child_component));
                 }
             }
 
@@ -260,12 +261,15 @@ where
         let id = crate::component::next_component_id();
         let initial_items = self.items.get();
         let initial_count = initial_items.len();
+        let is_reactive = self.items.is_reactive();
 
-        let component = Component::new(
-            id,
-            ComponentType::For,
-            ComponentProps::KeyedFor { item_count: initial_count },
-        );
+        let properties = if is_reactive {
+            PropertyMap::new()
+        } else {
+            PropertyMap::with(ForItemCount(initial_count))
+        };
+
+        let component = Component::with_properties(id, ComponentType::For, properties);
 
         let mut keyed_state = KeyedState {
             parent: None,
@@ -284,13 +288,13 @@ where
             keyed_state.rendered_items.push(Some(crate::widgets::keyed_state::ItemEntry {
                 key: key.clone(),
                 item: item.clone(),
-                component: child_component.clone(),
+                component: Gc::clone(&child_component),
                 mounted: false,
             }));
 
             child_component.set_parent(Some(Gc::clone(&component)));
             child_component.mount(None);
-            component.add_child(child_component.clone());
+            component.add_child(Gc::clone(&child_component));
         }
 
         let keyed_state_gc = GcCell::new(keyed_state);
@@ -327,7 +331,7 @@ where
                         &mut temp_ctx,
                     );
                 }
-                *comp_clone.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp_clone.properties.borrow_mut().insert(ForItemCount(new_count));
                 comp_clone.mark_dirty();
             });
             component.add_effect(Gc::clone(&effect));
@@ -375,7 +379,7 @@ where
                     let _new_keys =
                         state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
                 }
-                *comp.props.borrow_mut() = ComponentProps::KeyedFor { item_count: new_count };
+                comp.properties.borrow_mut().insert(ForItemCount(new_count));
                 comp.mark_dirty();
             });
             state.component.add_effect(Gc::clone(&effect));
@@ -389,8 +393,7 @@ where
             let mut temp_ctx =
                 BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
             let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);
-            *state.component.props.borrow_mut() =
-                ComponentProps::KeyedFor { item_count: new_count };
+            state.component.properties.borrow_mut().insert(ForItemCount(new_count));
             state.component.mark_dirty();
         }
     }

@@ -1,6 +1,8 @@
 use crate::event::context::EventContext;
 use crate::event::status::{FocusEvent, InputEvent};
-use crate::event::types::{KeyboardEvent, PointerButtonEvent, PointerInfo, PointerMoveEvent};
+use crate::event::types::{
+    KeyboardEvent, PointerButtonEvent, PointerInfo, PointerMoveEvent, PointerScrollEvent,
+};
 use rudo_gc::Trace;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,12 +15,14 @@ enum DynHandler {
     OneArgFocus(Box<dyn Fn(&FocusEvent)>),
     OneArgPointerMove(Box<dyn Fn(&PointerMoveEvent)>),
     OneArgPointerInfo(Box<dyn Fn(&PointerInfo)>),
+    OneArgPointerScroll(Box<dyn Fn(&PointerScrollEvent)>),
     TwoArgPointerButton(Box<dyn Fn(&PointerButtonEvent, &mut EventContext)>),
     TwoArgInput(Box<dyn Fn(&InputEvent, &mut EventContext)>),
     TwoArgKeyboard(Box<dyn Fn(&KeyboardEvent, &mut EventContext)>),
     TwoArgFocus(Box<dyn Fn(&FocusEvent, &mut EventContext)>),
     TwoArgPointerMove(Box<dyn Fn(&PointerMoveEvent, &mut EventContext)>),
     TwoArgPointerInfo(Box<dyn Fn(&PointerInfo, &mut EventContext)>),
+    TwoArgPointerScroll(Box<dyn Fn(&PointerScrollEvent, &mut EventContext)>),
 }
 
 pub enum AnyEventHandler {
@@ -27,6 +31,7 @@ pub enum AnyEventHandler {
     Keyboard(EventHandler<KeyboardEvent>),
     Focus(EventHandler<FocusEvent>),
     PointerMove(EventHandler<PointerMoveEvent>),
+    PointerScroll(EventHandler<PointerScrollEvent>),
 }
 
 pub struct EventHandler<E: 'static> {
@@ -42,6 +47,7 @@ impl Clone for AnyEventHandler {
             AnyEventHandler::Keyboard(h) => AnyEventHandler::Keyboard(h.clone()),
             AnyEventHandler::Focus(h) => AnyEventHandler::Focus(h.clone()),
             AnyEventHandler::PointerMove(h) => AnyEventHandler::PointerMove(h.clone()),
+            AnyEventHandler::PointerScroll(h) => AnyEventHandler::PointerScroll(h.clone()),
         }
     }
 }
@@ -248,6 +254,38 @@ impl EventHandler<PointerInfo> {
     }
 }
 
+impl EventHandler<PointerScrollEvent> {
+    pub fn new_0arg<F>(handler: F) -> Self
+    where
+        F: Fn() + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::ZeroArg(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn new_1arg<F>(handler: F) -> Self
+    where
+        F: Fn(&PointerScrollEvent) + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::OneArgPointerScroll(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    pub fn new<F>(handler: F) -> Self
+    where
+        F: Fn(&PointerScrollEvent, &mut EventContext) + 'static,
+    {
+        EventHandler {
+            inner: Rc::new(RefCell::new(Some(DynHandler::TwoArgPointerScroll(Box::new(handler))))),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
 impl EventHandler<PointerButtonEvent> {
     pub fn call(&self, event: &PointerButtonEvent, ctx: &mut EventContext) {
         if let Some(handler) = self.inner.borrow().as_ref() {
@@ -326,6 +364,19 @@ impl EventHandler<PointerInfo> {
     }
 }
 
+impl EventHandler<PointerScrollEvent> {
+    pub fn call(&self, event: &PointerScrollEvent, ctx: &mut EventContext) {
+        if let Some(handler) = self.inner.borrow().as_ref() {
+            match handler {
+                DynHandler::ZeroArg(f) => f(),
+                DynHandler::OneArgPointerScroll(f) => f(event),
+                DynHandler::TwoArgPointerScroll(f) => f(event, ctx),
+                _ => {}
+            }
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct EventHandlers {
     pub on_pointer_down: Option<EventHandler<PointerButtonEvent>>,
@@ -340,6 +391,7 @@ pub struct EventHandlers {
     pub on_blur: Option<EventHandler<FocusEvent>>,
     pub on_input: Option<EventHandler<InputEvent>>,
     pub on_change: Option<EventHandler<InputEvent>>,
+    pub on_scroll: Option<EventHandler<PointerScrollEvent>>,
 }
 
 unsafe impl Trace for EventHandlers {
@@ -397,6 +449,10 @@ impl EventHandlers {
         self.on_change.as_ref()
     }
 
+    pub fn get_scroll(&self) -> Option<&EventHandler<PointerScrollEvent>> {
+        self.on_scroll.as_ref()
+    }
+
     pub fn set_handler<E: 'static>(&mut self, handler: EventHandler<E>) {
         let type_id = std::any::TypeId::of::<E>();
         if type_id == std::any::TypeId::of::<PointerButtonEvent>() {
@@ -429,6 +485,86 @@ impl EventHandlers {
             let taken = unsafe { std::ptr::read(inner_ptr) };
             self.on_pointer_move =
                 Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
+        } else if type_id == std::any::TypeId::of::<PointerScrollEvent>() {
+            let ptr = &handler as *const EventHandler<E> as *const EventHandler<PointerScrollEvent>;
+            let inner_ptr = ptr as *const _ as *const std::cell::RefCell<Option<DynHandler>>;
+            let taken = unsafe { std::ptr::read(inner_ptr) };
+            self.on_scroll =
+                Some(EventHandler { inner: Rc::new(taken), _phantom: std::marker::PhantomData });
         }
+    }
+}
+
+/// State for tracking scrollbar thumb drag operation
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollDragState {
+    /// The component being scrolled (the parent Flex container)
+    pub component_id: u64,
+    /// Whether dragging the vertical scrollbar
+    pub is_vertical: bool,
+    /// Position where drag started (Y for vertical, X for horizontal)
+    pub start_mouse_pos: f64,
+    /// Scroll offset at drag start
+    pub start_scroll_offset: f64,
+    /// The scrollable content length
+    pub scroll_content_length: f64,
+    /// The container (portal) size
+    pub container_length: f64,
+}
+
+impl ScrollDragState {
+    /// Create a new drag state for vertical scrollbar
+    pub fn new_vertical(
+        component_id: u64,
+        mouse_y: f64,
+        scroll_offset_y: f64,
+        scroll_height: f64,
+        container_height: f64,
+    ) -> Self {
+        Self {
+            component_id,
+            is_vertical: true,
+            start_mouse_pos: mouse_y,
+            start_scroll_offset: scroll_offset_y,
+            scroll_content_length: scroll_height,
+            container_length: container_height,
+        }
+    }
+
+    /// Create a new drag state for horizontal scrollbar
+    pub fn new_horizontal(
+        component_id: u64,
+        mouse_x: f64,
+        scroll_offset_x: f64,
+        scroll_width: f64,
+        container_width: f64,
+    ) -> Self {
+        Self {
+            component_id,
+            is_vertical: false,
+            start_mouse_pos: mouse_x,
+            start_scroll_offset: scroll_offset_x,
+            scroll_content_length: scroll_width,
+            container_length: container_width,
+        }
+    }
+
+    /// Calculate new scroll offset based on current mouse position
+    pub fn calculate_new_offset(&self, current_mouse_pos: f64) -> f64 {
+        let delta = current_mouse_pos - self.start_mouse_pos;
+        let track_length = self.container_length;
+
+        // Calculate thumb dimensions
+        let thumb_ratio = (self.container_length / self.scroll_content_length).max(0.0001);
+        const MIN_THUMB_LENGTH: f64 = 20.0;
+        let thumb_length = (thumb_ratio * track_length).max(MIN_THUMB_LENGTH);
+
+        // Convert mouse delta to scroll delta
+        // The thumb can move within (track_length - thumb_length)
+        let available_track = (track_length - thumb_length).max(1.0);
+        let scroll_per_pixel = self.scroll_content_length / available_track;
+
+        (self.start_scroll_offset + (delta * scroll_per_pixel))
+            .clamp(0.0, self.scroll_content_length.max(0.0))
     }
 }

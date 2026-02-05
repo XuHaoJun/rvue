@@ -158,11 +158,9 @@ fn generate_text_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     }
 }
 
-fn generate_button_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
-    let label = extract_prop_value(attrs, "label", || quote! { "".to_string() });
-
+fn generate_button_widget(_id: u64, _attrs: &[RvueAttribute]) -> TokenStream {
     quote! {
-        rvue::widgets::Button::new(#label.to_string())
+        rvue::widgets::Button::new()
     }
 }
 
@@ -171,10 +169,20 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
     let gap = extract_prop_value(attrs, "gap", || quote! { 0.0 });
     let align_items = extract_prop_value(attrs, "align_items", || quote! { "stretch" });
     let justify_content = extract_prop_value(attrs, "justify_content", || quote! { "start" });
+    let overflow_x = extract_prop_value(
+        attrs,
+        "overflow_x",
+        || quote! { rvue_style::properties::Overflow::Visible },
+    );
+    let overflow_y = extract_prop_value(
+        attrs,
+        "overflow_y",
+        || quote! { rvue_style::properties::Overflow::Visible },
+    );
 
     quote! {
         {
-            use rvue::style::{FlexDirection, AlignItems, JustifyContent};
+            use rvue_style::{FlexDirection, AlignItems, JustifyContent, Overflow};
             let direction_str = #direction.to_string();
             let direction_enum = match direction_str.as_str() {
                 "row" => FlexDirection::Row,
@@ -185,8 +193,8 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             };
             let align_str = #align_items.to_string();
             let align_enum = match align_str.as_str() {
-                "start" => AlignItems::Start,
-                "end" => AlignItems::End,
+                "start" => AlignItems::FlexStart,
+                "end" => AlignItems::FlexEnd,
                 "center" => AlignItems::Center,
                 "stretch" => AlignItems::Stretch,
                 "baseline" => AlignItems::Baseline,
@@ -194,19 +202,27 @@ fn generate_flex_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             };
             let justify_str = #justify_content.to_string();
             let justify_enum = match justify_str.as_str() {
-                "start" => JustifyContent::Start,
-                "end" => JustifyContent::End,
+                "start" => JustifyContent::FlexStart,
+                "end" => JustifyContent::FlexEnd,
                 "center" => JustifyContent::Center,
                 "space-between" => JustifyContent::SpaceBetween,
                 "space-around" => JustifyContent::SpaceAround,
                 "space-evenly" => JustifyContent::SpaceEvenly,
-                _ => JustifyContent::Start,
+                _ => JustifyContent::FlexStart,
             };
-            rvue::widgets::Flex::new()
+            let gap_val = #gap;
+            let overflow_x_val = #overflow_x;
+            let overflow_y_val = #overflow_y;
+
+            let flex = rvue::widgets::Flex::new()
                 .direction(direction_enum)
-                .gap(#gap)
+                .gap(gap_val)
                 .align_items(align_enum)
                 .justify_content(justify_enum)
+                .overflow_x(overflow_x_val)
+                .overflow_y(overflow_y_val);
+
+            flex
         }
     }
 }
@@ -253,7 +269,7 @@ fn generate_show_widget(_id: u64, attrs: &[RvueAttribute]) -> TokenStream {
             rvue::widgets::Show::new(#when, |_ctx: &mut BuildContext| {
                 let flex = rvue::widgets::Flex::new();
                 let state = flex.build(_ctx);
-                state.component().clone()
+                rvue::Gc::clone(state.component())
             })
         }
     }

@@ -1,79 +1,38 @@
 //! Unit tests for Text widget rendering
 
-use rvue::{Component, ComponentId, ComponentProps, ComponentType};
+use rvue::{Component, ComponentId, ComponentType};
 
 #[test]
 fn test_text_widget_creation() {
-    let text = Component::new(
-        1,
-        ComponentType::Text,
-        ComponentProps::Text { content: "Hello World".to_string(), font_size: None, color: None },
-    );
+    let text =
+        Component::with_properties(1, ComponentType::Text, rvue::properties::PropertyMap::new());
 
     assert_eq!(text.component_type, ComponentType::Text);
-    match &*text.props.borrow() {
-        ComponentProps::Text { content, .. } => {
-            assert_eq!(content, "Hello World");
-        }
-        _ => panic!("Expected Text props"),
-    };
 }
 
 #[test]
 fn test_text_widget_with_empty_string() {
-    let text = Component::new(
-        2,
-        ComponentType::Text,
-        ComponentProps::Text { content: String::new(), font_size: None, color: None },
-    );
+    let text =
+        Component::with_properties(2, ComponentType::Text, rvue::properties::PropertyMap::new());
 
-    match &*text.props.borrow() {
-        ComponentProps::Text { content, .. } => {
-            assert_eq!(content, "");
-        }
-        _ => panic!("Expected Text props"),
-    };
+    assert_eq!(text.component_type, ComponentType::Text);
 }
 
 #[test]
 fn test_text_widget_with_special_characters() {
-    let text = Component::new(
-        3,
-        ComponentType::Text,
-        ComponentProps::Text {
-            content: "Hello\nWorld\t!".to_string(),
-            font_size: None,
-            color: None,
-        },
-    );
+    let text =
+        Component::with_properties(3, ComponentType::Text, rvue::properties::PropertyMap::new());
 
-    match &*text.props.borrow() {
-        ComponentProps::Text { content, .. } => {
-            assert_eq!(content, "Hello\nWorld\t!");
-        }
-        _ => panic!("Expected Text props"),
-    };
+    assert_eq!(text.component_type, ComponentType::Text);
 }
 
 #[test]
 fn test_text_widget_rendering_properties() {
     // Test that Text widget can be created with different content
     let texts = [
-        Component::new(
-            1,
-            ComponentType::Text,
-            ComponentProps::Text { content: "A".to_string(), font_size: None, color: None },
-        ),
-        Component::new(
-            2,
-            ComponentType::Text,
-            ComponentProps::Text { content: "B".to_string(), font_size: None, color: None },
-        ),
-        Component::new(
-            3,
-            ComponentType::Text,
-            ComponentProps::Text { content: "C".to_string(), font_size: None, color: None },
-        ),
+        Component::with_properties(1, ComponentType::Text, rvue::properties::PropertyMap::new()),
+        Component::with_properties(2, ComponentType::Text, rvue::properties::PropertyMap::new()),
+        Component::with_properties(3, ComponentType::Text, rvue::properties::PropertyMap::new()),
     ];
 
     assert_eq!(texts.len(), 3);

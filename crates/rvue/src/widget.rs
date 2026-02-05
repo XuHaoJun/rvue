@@ -9,6 +9,7 @@ use crate::effect::Effect;
 use crate::signal::ReadSignal;
 use crate::text::TextContext;
 use rudo_gc::{Gc, Trace};
+use rvue_style::Overflow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use taffy::TaffyTree;
@@ -142,22 +143,32 @@ impl IntoReactiveValue<String> for &str {
 }
 
 // Implement for style types
-impl crate::widget::IntoReactiveValue<crate::style::FlexDirection> for crate::style::FlexDirection {
-    fn into_reactive(self) -> ReactiveValue<crate::style::FlexDirection> {
+impl crate::widget::IntoReactiveValue<rvue_style::FlexDirection> for rvue_style::FlexDirection {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::FlexDirection> {
         ReactiveValue::Static(self)
     }
 }
 
-impl crate::widget::IntoReactiveValue<crate::style::AlignItems> for crate::style::AlignItems {
-    fn into_reactive(self) -> ReactiveValue<crate::style::AlignItems> {
+impl crate::widget::IntoReactiveValue<rvue_style::AlignItems> for rvue_style::AlignItems {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::AlignItems> {
         ReactiveValue::Static(self)
     }
 }
 
-impl crate::widget::IntoReactiveValue<crate::style::JustifyContent>
-    for crate::style::JustifyContent
-{
-    fn into_reactive(self) -> ReactiveValue<crate::style::JustifyContent> {
+impl crate::widget::IntoReactiveValue<rvue_style::JustifyContent> for rvue_style::JustifyContent {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::JustifyContent> {
+        ReactiveValue::Static(self)
+    }
+}
+
+impl crate::widget::IntoReactiveValue<rvue_style::Gap> for rvue_style::Gap {
+    fn into_reactive(self) -> ReactiveValue<rvue_style::Gap> {
+        ReactiveValue::Static(self)
+    }
+}
+
+impl crate::widget::IntoReactiveValue<Overflow> for Overflow {
+    fn into_reactive(self) -> ReactiveValue<Overflow> {
         ReactiveValue::Static(self)
     }
 }
@@ -192,9 +203,9 @@ impl<'a> BuildContext<'a> {
     pub fn create_component(
         &mut self,
         component_type: crate::component::ComponentType,
-        props: crate::component::ComponentProps,
+        properties: crate::properties::PropertyMap,
     ) -> Gc<Component> {
-        Component::with_global_id(component_type, props)
+        Component::with_global_id_and_properties(component_type, properties)
     }
 }
 

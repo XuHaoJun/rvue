@@ -7,11 +7,14 @@ pub mod path;
 pub mod status;
 pub mod types;
 pub mod update;
+pub mod winit_translator;
+
+pub use winit_translator::{get_pointer_event_position, WinitTranslator};
 
 pub use context::EventContext;
 pub use dispatch::{run_pointer_event_pass, run_text_event_pass};
 pub use focus::find_next_focusable;
-pub use handler::{AnyEventHandler, EventHandler, EventHandlers};
+pub use handler::{AnyEventHandler, EventHandler, EventHandlers, ScrollDragState};
 pub use hit_test::hit_test;
 pub use status::StatusUpdate;
 pub use types::{
@@ -312,5 +315,25 @@ mod tests {
         let event = AccessEvent { action: accesskit::Action::Click, data: None };
         assert_eq!(event.action, accesskit::Action::Click);
         assert!(event.data.is_none());
+    }
+
+    #[test]
+    fn test_scroll_delta_variants_exhaustive() {
+        // Test that ScrollDelta enum variants work correctly
+        let line = ScrollDelta::Line(3.0);
+        let pixel = ScrollDelta::Pixel(10.0, 20.0);
+
+        match line {
+            ScrollDelta::Line(y) => assert!((y - 3.0).abs() < f64::EPSILON),
+            _ => panic!("Expected Line"),
+        }
+
+        match pixel {
+            ScrollDelta::Pixel(x, y) => {
+                assert!((x - 10.0).abs() < f64::EPSILON);
+                assert!((y - 20.0).abs() < f64::EPSILON);
+            }
+            _ => panic!("Expected Pixel"),
+        }
     }
 }

@@ -4,6 +4,12 @@ use crate::effect::Effect;
 use crate::event::handler::EventHandlers;
 use crate::event::status::{ComponentFlags, StatusUpdate};
 use crate::layout::LayoutNode;
+use crate::properties::{
+    CheckboxChecked, FlexAlignItems, FlexDirection, FlexGap, FlexJustifyContent, ForItemCount,
+    NumberInputValue, PropertyMap, RadioChecked, RadioValue, ShowCondition, TextContent,
+    TextInputValue, WidgetStyles,
+};
+use crate::render::FlexScrollState;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
@@ -25,9 +31,155 @@ pub type ComponentId = u64;
 
 pub struct ContextEntry {
     pub type_id: TypeId,
-    pub value: Box<dyn std::any::Any>,
-    pub gc_ptr: *const u8,
-    pub gc_size: usize,
+    pub value: ContextValueEnum,
+}
+
+unsafe impl Trace for ContextEntry {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.value.trace(visitor);
+    }
+}
+
+#[derive(Clone)]
+pub enum ContextValueEnum {
+    I32(Gc<i32>),
+    I64(Gc<i64>),
+    F64(Gc<f64>),
+    Bool(Gc<bool>),
+    GcString(Gc<String>),
+    GcVecString(Gc<Vec<String>>),
+}
+
+impl ContextValueEnum {
+    pub fn from_value<T>(value: T) -> Self
+    where
+        T: Clone + 'static,
+        T: Trace,
+    {
+        let type_id = TypeId::of::<T>();
+        let gc = Gc::new(value);
+        let ptr = Gc::internal_ptr(&gc);
+        std::mem::forget(gc);
+        if type_id == TypeId::of::<i32>() {
+            let gc_i32: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+            return Self::I32(gc_i32);
+        }
+        if type_id == TypeId::of::<i64>() {
+            let gc_i64: Gc<i64> = unsafe { Gc::from_raw(ptr) };
+            return Self::I64(gc_i64);
+        }
+        if type_id == TypeId::of::<f64>() {
+            let gc_f64: Gc<f64> = unsafe { Gc::from_raw(ptr) };
+            return Self::F64(gc_f64);
+        }
+        if type_id == TypeId::of::<bool>() {
+            let gc_bool: Gc<bool> = unsafe { Gc::from_raw(ptr) };
+            return Self::Bool(gc_bool);
+        }
+        if type_id == TypeId::of::<String>() {
+            let gc_string: Gc<String> = unsafe { Gc::from_raw(ptr) };
+            return Self::GcString(gc_string);
+        }
+        if type_id == TypeId::of::<Vec<String>>() {
+            let gc_vec: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
+            return Self::GcVecString(gc_vec);
+        }
+        panic!("Unsupported context type");
+    }
+
+    pub fn to_gc<T>(&self) -> Option<Gc<T>>
+    where
+        T: 'static,
+        T: Trace,
+    {
+        match self {
+            ContextValueEnum::I32(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<i32>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<i32> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::I64(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<i64>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<i64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::F64(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<f64>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<f64> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::Bool(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<bool>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<bool> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::GcString(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<String>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<String> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+            ContextValueEnum::GcVecString(gc) => {
+                if TypeId::of::<T>() == TypeId::of::<Vec<String>>() {
+                    let ptr = Gc::internal_ptr(gc);
+                    let cloned = Gc::clone(gc);
+                    let from_raw: Gc<Vec<String>> = unsafe { Gc::from_raw(ptr) };
+                    std::mem::forget(from_raw);
+                    let result: Gc<T> = unsafe { std::mem::transmute(cloned) };
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+unsafe impl Trace for ContextValueEnum {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        match self {
+            ContextValueEnum::I32(gc) => gc.trace(visitor),
+            ContextValueEnum::I64(gc) => gc.trace(visitor),
+            ContextValueEnum::F64(gc) => gc.trace(visitor),
+            ContextValueEnum::Bool(gc) => gc.trace(visitor),
+            ContextValueEnum::GcString(gc) => gc.trace(visitor),
+            ContextValueEnum::GcVecString(gc) => gc.trace(visitor),
+        }
+    }
 }
 
 /// Wrapper for vello::Scene to implement Trace
@@ -66,31 +218,6 @@ pub enum ComponentType {
     Custom(String),
 }
 
-/// Component properties (variant type for different widget types)
-/// For MVP, we'll use a simplified approach - props are stored as strings/values
-/// and converted as needed by widget implementations
-#[derive(Debug, Clone)]
-pub enum ComponentProps {
-    Text { content: String, font_size: Option<f32>, color: Option<vello::peniko::Color> },
-    Button { label: String },
-    TextInput { value: String },
-    NumberInput { value: f64 },
-    Checkbox { checked: bool },
-    Radio { value: String, checked: bool },
-    Show { when: bool },
-    For { item_count: usize },
-    KeyedFor { item_count: usize },
-    Flex { direction: String, gap: f32, align_items: String, justify_content: String },
-    Custom { data: String },
-}
-
-unsafe impl Trace for ComponentProps {
-    fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {
-        // ComponentProps contains only primitive types and strings, no GC pointers
-        // For MVP, we don't need to trace anything
-    }
-}
-
 /// Component structure representing a UI building block
 pub struct Component {
     pub id: ComponentId,
@@ -98,7 +225,7 @@ pub struct Component {
     pub children: GcCell<Vec<Gc<Component>>>,
     pub parent: GcCell<Option<Gc<Component>>>,
     pub effects: GcCell<Vec<Gc<Effect>>>,
-    pub props: GcCell<ComponentProps>,
+    pub properties: GcCell<PropertyMap>,
     pub is_dirty: AtomicBool,
     pub is_updating: AtomicBool,
     pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
@@ -113,8 +240,13 @@ pub struct Component {
     pub event_handlers: GcCell<EventHandlers>,
     pub vello_cache: GcCell<Option<SceneWrapper>>,
     pub contexts: GcCell<Vec<ContextEntry>>,
-    pub context_gc_ptrs: GcCell<Vec<*const u8>>,
     pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
+    pub classes: GcCell<Vec<String>>,
+    pub element_id: GcCell<Option<String>>,
+    /// Flag to prevent scroll transform accumulation in nested overflow containers.
+    /// When a parent overflow container applies scroll_transform, children should
+    /// not apply their own scroll_transform to avoid coordinate space issues.
+    pub is_in_scrolling_parent: AtomicBool,
 }
 
 unsafe impl Trace for Component {
@@ -122,7 +254,7 @@ unsafe impl Trace for Component {
         self.children.trace(visitor);
         // self.parent.trace(visitor); // REMOVED: Tracing parent creates Component <-> Component cycles
         self.effects.trace(visitor);
-        self.props.trace(visitor);
+        self.properties.trace(visitor);
         self.layout_node.trace(visitor);
         self.flags.trace(visitor);
         self.is_hovered.trace(visitor);
@@ -135,14 +267,10 @@ unsafe impl Trace for Component {
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
-        // Trace context values by conservatively scanning the GcBox region
-        for entry in self.contexts.borrow().iter() {
-            if !entry.gc_ptr.is_null() && entry.gc_size > 0 {
-                unsafe {
-                    visitor.visit_region(entry.gc_ptr, entry.gc_size);
-                }
-            }
-        }
+        // Trace context values by directly visiting Gc pointers
+        self.contexts.trace(visitor);
+        self.classes.trace(visitor);
+        self.element_id.trace(visitor);
     }
 }
 
@@ -154,7 +282,7 @@ impl Clone for Component {
             children: GcCell::new(self.children.borrow().clone()),
             parent: GcCell::new(None),
             effects: GcCell::new(self.effects.borrow().clone()),
-            props: GcCell::new(self.props.borrow().clone()),
+            properties: GcCell::new(self.properties.borrow().clone()),
             is_dirty: AtomicBool::new(self.is_dirty.load(Ordering::SeqCst)),
             is_updating: AtomicBool::new(false),
             user_data: GcCell::new(None),
@@ -169,8 +297,10 @@ impl Clone for Component {
             event_handlers: GcCell::new(self.event_handlers.borrow().clone()),
             vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
             contexts: GcCell::new(Vec::new()),
-            context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
+            classes: GcCell::new(self.classes.borrow().clone()),
+            element_id: GcCell::new(self.element_id.borrow().clone()),
+            is_in_scrolling_parent: AtomicBool::new(false),
         }
     }
 }
@@ -188,14 +318,15 @@ pub trait ComponentLifecycle {
 }
 
 impl Component {
-    /// Create a new component with the given type and props
-    /// Optimized: Pre-allocate with capacity hints for common component trees
-    pub fn new(id: ComponentId, component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
-        // Pre-allocate children vector with small capacity for common case
-        // This reduces reallocations during component tree construction
+    /// Create a new component with the given type and properties
+    pub fn with_properties(
+        id: ComponentId,
+        component_type: ComponentType,
+        properties: PropertyMap,
+    ) -> Gc<Self> {
         let initial_children_capacity = match component_type {
-            ComponentType::Flex => 8, // Only real containers have multiple children
-            _ => 0,                   // Leaf components typically have no children
+            ComponentType::Flex => 8,
+            _ => 0,
         };
 
         let mut flags = ComponentFlags::empty();
@@ -216,7 +347,7 @@ impl Component {
             children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
             parent: GcCell::new(None),
             effects: GcCell::new(Vec::new()),
-            props: GcCell::new(props),
+            properties: GcCell::new(properties),
             is_dirty: AtomicBool::new(true),
             is_updating: AtomicBool::new(false),
             user_data: GcCell::new(None),
@@ -231,22 +362,41 @@ impl Component {
             event_handlers: GcCell::new(EventHandlers::default()),
             vello_cache: GcCell::new(None),
             contexts: GcCell::new(Vec::new()),
-            context_gc_ptrs: GcCell::new(Vec::new()),
             cleanups: GcCell::new(Vec::new()),
+            classes: GcCell::new(Vec::new()),
+            element_id: GcCell::new(None),
+            is_in_scrolling_parent: AtomicBool::new(false),
         })
     }
 
-    /// Create a new component with a globally unique ID (for use in slots)
-    pub fn with_global_id(component_type: ComponentType, props: ComponentProps) -> Gc<Self> {
+    /// Create a new component with a globally unique ID and properties (for use in slots)
+    pub fn with_global_id_and_properties(
+        component_type: ComponentType,
+        properties: PropertyMap,
+    ) -> Gc<Self> {
         let id = next_component_id();
-        Self::new(id, component_type, props)
+        Self::with_properties(id, component_type, properties)
+    }
+
+    /// Create a new component with a globally unique ID and properties
+    pub fn with_global_id(component_type: ComponentType, properties: PropertyMap) -> Gc<Self> {
+        let id = next_component_id();
+        Self::with_properties(id, component_type, properties)
     }
 
     /// Mark the component as dirty (needs re-render)
     pub fn mark_dirty(&self) {
+        // Avoid re-marking if already dirty
+        if self.is_dirty.load(Ordering::SeqCst) {
+            return;
+        }
         self.is_dirty.store(true, Ordering::SeqCst);
         // Clear vello cache when dirty
         *self.vello_cache.borrow_mut() = None;
+        // Propagate dirty flag to all children (Leptos-style)
+        for child in self.children.borrow().iter() {
+            child.mark_dirty();
+        }
         // Propagate dirty flag upwards so parents know they need to re-render
         if let Some(parent) = self.parent.borrow().as_ref() {
             parent.mark_dirty();
@@ -256,6 +406,10 @@ impl Component {
     /// Clear the dirty flag
     pub fn clear_dirty(&self) {
         self.is_dirty.store(false, Ordering::SeqCst);
+        // Also clear dirty flag for all children
+        for child in self.children.borrow().iter() {
+            child.clear_dirty();
+        }
     }
 
     /// Check if the component is dirty
@@ -275,6 +429,12 @@ impl Component {
 
     /// Add a child component
     pub fn add_child(&self, child: Gc<Component>) {
+        // Prevent infinite recursion from component adding itself
+        // This can happen if Component::clone() is used instead of Gc::clone()
+        if std::ptr::eq(&*child, self) {
+            // Silently ignore self-addition to prevent infinite recursion
+            return;
+        }
         self.children.borrow_mut().push(Gc::clone(&child));
     }
 
@@ -364,169 +524,233 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        let (font_size, color) = {
-            if let ComponentProps::Text { font_size, color, .. } = &*self.props.borrow() {
-                (*font_size, *color)
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color };
+        self.properties.borrow_mut().insert(TextContent(content));
         self.mark_dirty();
     }
 
-    /// Set text font size (for Text components)
-    pub fn set_text_font_size(&self, font_size: f32) {
-        let (content, color) = {
-            if let ComponentProps::Text { content, color, .. } = &*self.props.borrow() {
-                (content.clone(), *color)
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Text { content, font_size: Some(font_size), color };
-        self.mark_dirty();
-    }
-
-    /// Set text color (for Text components)
-    pub fn set_text_color(&self, color: vello::peniko::Color) {
-        let (content, font_size) = {
-            if let ComponentProps::Text { content, font_size, .. } = &*self.props.borrow() {
-                (content.clone(), *font_size)
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() = ComponentProps::Text { content, font_size, color: Some(color) };
-        self.mark_dirty();
-    }
-
-    /// Set button label (for Button components)
-    pub fn set_button_label(&self, label: String) {
-        if matches!(self.component_type, ComponentType::Button) {
-            *self.props.borrow_mut() = ComponentProps::Button { label };
-            self.mark_dirty();
+    /// Get text content
+    pub fn text_content(&self) -> String {
+        if let Some(tc) = self.properties.borrow().get::<TextContent>() {
+            return tc.0.clone();
         }
+
+        if let Some(default) = crate::properties::defaults::get_default_text_content() {
+            return default;
+        }
+
+        String::new()
     }
 
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
-        let (gap, align_items, justify_content) = {
-            if let ComponentProps::Flex { gap, align_items, justify_content, .. } =
-                &*self.props.borrow()
-            {
-                (*gap, align_items.clone(), justify_content.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.properties.borrow_mut().insert(FlexDirection(direction));
         self.mark_dirty();
+    }
+
+    /// Get flex direction
+    pub fn flex_direction(&self) -> String {
+        if let Some(d) = self.properties.borrow().get::<FlexDirection>() {
+            return d.0.clone();
+        }
+
+        if let Some(default) = crate::properties::defaults::get_default_flex_direction() {
+            return default;
+        }
+
+        "row".to_string()
     }
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
-        let (direction, align_items, justify_content) = {
-            if let ComponentProps::Flex { direction, align_items, justify_content, .. } =
-                &*self.props.borrow()
-            {
-                (direction.clone(), align_items.clone(), justify_content.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.properties.borrow_mut().insert(FlexGap(gap));
         self.mark_dirty();
     }
 
-    /// Set flex align items (for Flex components)
+    /// Get flex gap
+    pub fn flex_gap(&self) -> f32 {
+        if let Some(g) = self.properties.borrow().get::<FlexGap>() {
+            return g.0;
+        }
+
+        if let Some(default) = crate::properties::defaults::get_default_flex_gap() {
+            return default;
+        }
+
+        0.0
+    }
+
+    /// Set flex align_items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
-        let (direction, gap, justify_content) = {
-            if let ComponentProps::Flex { direction, gap, justify_content, .. } =
-                &*self.props.borrow()
-            {
-                (direction.clone(), *gap, justify_content.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.properties.borrow_mut().insert(FlexAlignItems(align_items));
         self.mark_dirty();
     }
 
-    /// Set flex justify content (for Flex components)
+    /// Get flex align_items
+    pub fn flex_align_items(&self) -> String {
+        if let Some(a) = self.properties.borrow().get::<FlexAlignItems>() {
+            return a.0.clone();
+        }
+
+        if let Some(default) = crate::properties::defaults::get_default_flex_align_items() {
+            return default;
+        }
+
+        "stretch".to_string()
+    }
+
+    /// Set flex justify_content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
-        let (direction, gap, align_items) = {
-            if let ComponentProps::Flex { direction, gap, align_items, .. } = &*self.props.borrow()
-            {
-                (direction.clone(), *gap, align_items.clone())
-            } else {
-                return;
-            }
-        };
-        *self.props.borrow_mut() =
-            ComponentProps::Flex { direction, gap, align_items, justify_content };
+        self.properties.borrow_mut().insert(FlexJustifyContent(justify_content));
         self.mark_dirty();
+    }
+
+    /// Get flex justify_content
+    pub fn flex_justify_content(&self) -> String {
+        if let Some(j) = self.properties.borrow().get::<FlexJustifyContent>() {
+            return j.0.clone();
+        }
+
+        if let Some(default) = crate::properties::defaults::get_default_flex_justify_content() {
+            return default;
+        }
+
+        "flex-start".to_string()
+    }
+
+    /// Set flex overflow (for Flex components)
+    pub fn set_flex_overflow(
+        &self,
+        overflow_x: rvue_style::properties::Overflow,
+        overflow_y: rvue_style::properties::Overflow,
+    ) {
+        let mut styles = self
+            .properties
+            .borrow()
+            .get::<WidgetStyles>()
+            .cloned()
+            .unwrap_or_else(|| WidgetStyles(rvue_style::ComputedStyles::default()));
+        styles.0.overflow_x = Some(overflow_x);
+        styles.0.overflow_y = Some(overflow_y);
+        self.properties.borrow_mut().insert(styles);
+        self.mark_dirty();
+    }
+
+    /// Get widget styles
+    pub fn widget_styles(&self) -> Option<rvue_style::ComputedStyles> {
+        self.properties.borrow().get::<WidgetStyles>().cloned().map(|w| w.0)
+    }
+
+    /// Set widget styles
+    pub fn set_widget_styles(&self, styles: rvue_style::ComputedStyles) {
+        self.properties.borrow_mut().insert(WidgetStyles(styles));
+        self.mark_dirty();
+    }
+
+    /// Set scroll state for a Flex component (used internally after layout calculation)
+    pub fn set_scroll_state(&self, scroll_state: crate::render::widget::FlexScrollState) {
+        let mut user_data = self.user_data.borrow_mut();
+        *user_data = Some(Box::new(scroll_state));
+    }
+
+    /// Get scroll state for a Flex component (returns default if not set)
+    pub fn scroll_state(&self) -> crate::render::widget::FlexScrollState {
+        let user_data = self.user_data.borrow();
+        if let Some(data) = user_data
+            .as_ref()
+            .and_then(|d| d.downcast_ref::<crate::render::widget::FlexScrollState>())
+        {
+            *data
+        } else {
+            crate::render::widget::FlexScrollState::default()
+        }
+    }
+
+    /// Set the flag indicating this component is inside a scrolling parent.
+    /// This prevents scroll transform accumulation in nested overflow containers.
+    pub fn set_is_in_scrolling_parent(&self, is_scrolling: bool) {
+        self.is_in_scrolling_parent.store(is_scrolling, Ordering::SeqCst);
+    }
+
+    /// Check if this component is inside a scrolling parent.
+    pub fn is_in_scrolling_parent(&self) -> bool {
+        self.is_in_scrolling_parent.load(Ordering::SeqCst)
     }
 
     /// Set checkbox checked state (for Checkbox components)
     pub fn set_checkbox_checked(&self, checked: bool) {
-        if matches!(self.component_type, ComponentType::Checkbox) {
-            *self.props.borrow_mut() = ComponentProps::Checkbox { checked };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(CheckboxChecked(checked));
+        self.mark_dirty();
+    }
+
+    /// Get checkbox checked state
+    pub fn checkbox_checked(&self) -> bool {
+        self.properties.borrow().get::<CheckboxChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
-        if let ComponentProps::Radio { value, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() = ComponentProps::Radio { value: value.clone(), checked };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(RadioChecked(checked));
+        self.mark_dirty();
+    }
+
+    /// Get radio checked state
+    pub fn radio_checked(&self) -> bool {
+        self.properties.borrow().get::<RadioChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio value (for Radio components)
     pub fn set_radio_value(&self, value: String) {
-        if let ComponentProps::Radio { checked, .. } = &*self.props.borrow() {
-            *self.props.borrow_mut() = ComponentProps::Radio { value, checked: *checked };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(RadioValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get radio value
+    pub fn radio_value(&self) -> String {
+        self.properties.borrow().get::<RadioValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
-        if matches!(self.component_type, ComponentType::TextInput) {
-            *self.props.borrow_mut() = ComponentProps::TextInput { value };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(TextInputValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get text input value
+    pub fn text_input_value(&self) -> String {
+        self.properties.borrow().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
-        if matches!(self.component_type, ComponentType::NumberInput) {
-            *self.props.borrow_mut() = ComponentProps::NumberInput { value };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(NumberInputValue(value));
+        self.mark_dirty();
+    }
+
+    /// Get number input value
+    pub fn number_input_value(&self) -> f64 {
+        self.properties.borrow().get::<NumberInputValue>().map(|v| v.0).unwrap_or(0.0)
     }
 
     /// Set show condition (for Show components)
     pub fn set_show_when(&self, when: bool) {
-        if matches!(self.component_type, ComponentType::Show) {
-            *self.props.borrow_mut() = ComponentProps::Show { when };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(ShowCondition(when));
+        self.mark_dirty();
+    }
+
+    /// Get show condition
+    pub fn show_when(&self) -> bool {
+        self.properties.borrow().get::<ShowCondition>().map(|w| w.0).unwrap_or(true)
     }
 
     /// Set for item count (for For components)
     pub fn set_for_item_count(&self, item_count: usize) {
-        if matches!(self.component_type, ComponentType::For) {
-            *self.props.borrow_mut() = ComponentProps::For { item_count };
-            self.mark_dirty();
-        }
+        self.properties.borrow_mut().insert(ForItemCount(item_count));
+        self.mark_dirty();
+    }
+
+    /// Get for item count
+    pub fn for_item_count(&self) -> usize {
+        self.properties.borrow().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
     }
 
     pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)
@@ -906,29 +1130,62 @@ impl Component {
         self.event_handlers.borrow_mut().on_change = Some(handler);
     }
 
+    pub fn add_class(self: &Gc<Self>, class: &str) {
+        let mut classes = self.classes.borrow_mut();
+        if !classes.iter().any(|c| c == class) {
+            classes.push(class.to_string());
+            self.mark_dirty();
+        }
+    }
+
+    pub fn remove_class(self: &Gc<Self>, class: &str) {
+        let mut classes = self.classes.borrow_mut();
+        if classes.iter().any(|c| c == class) {
+            classes.retain(|c| c != class);
+            self.mark_dirty();
+        }
+    }
+
+    pub fn has_class(self: &Gc<Self>, class: &str) -> bool {
+        self.classes.borrow().iter().any(|c| c == class)
+    }
+
+    pub fn set_id(self: &Gc<Self>, id: &str) {
+        *self.element_id.borrow_mut() = Some(id.to_string());
+        self.mark_dirty();
+    }
+
+    pub fn get_id(self: &Gc<Self>) -> Option<String> {
+        self.element_id.borrow().clone()
+    }
+
+    pub fn classes(&self) -> Vec<String> {
+        self.classes.borrow().clone()
+    }
+
     /// Provide context to this component and its descendants
-    pub fn provide_context<T: ContextValue + Trace>(&self, value: T) {
-        let gc_value: Gc<T> = Gc::new(value);
-        let gc_ptr = Gc::internal_ptr(&gc_value);
-        self.contexts.borrow_mut().push(ContextEntry {
-            type_id: TypeId::of::<T>(),
-            value: Box::new(gc_value),
-            gc_ptr,
-            // Use the size of the GcBox allocation for conservative scanning
-            // GcBox<T> has a minimum size that includes the header plus T
-            gc_size: std::mem::size_of::<Gc<T>>(),
-        });
-        self.context_gc_ptrs.borrow_mut().push(gc_ptr);
+    pub fn provide_context<T>(&self, value: T)
+    where
+        T: Clone + 'static,
+        T: Trace,
+    {
+        let type_id = TypeId::of::<T>();
+        let context_value = ContextValueEnum::from_value(value);
+        self.contexts.borrow_mut().push(ContextEntry { type_id, value: context_value });
     }
 
     /// Find context of type T in this component or its ancestors
-    pub fn find_context<T: Any + Trace>(&self) -> Option<Gc<T>> {
+    pub fn find_context<T>(&self) -> Option<Gc<T>>
+    where
+        T: 'static,
+        T: Trace + Clone,
+    {
         let type_id = TypeId::of::<T>();
         let contexts = self.contexts.borrow();
         for entry in contexts.iter().rev() {
             if entry.type_id == type_id {
-                if let Some(gc_val) = entry.value.downcast_ref::<Gc<T>>() {
-                    return Some(Gc::clone(gc_val));
+                if let Some(value) = entry.value.to_gc::<T>() {
+                    return Some(value);
                 }
             }
         }
@@ -950,10 +1207,18 @@ fn collect_child_node_ids(
 
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
         if let Some(node_id) = child_layout.taffy_node() {
-            // Direct child has a layout node - include it
             node_ids.push(node_id);
-        } else if matches!(child.component_type, ComponentType::For | ComponentType::Show) {
-            // Control-flow component - include its children's nodes
+        } else if matches!(child.component_type, ComponentType::Show) {
+            if child.show_when() {
+                for grandchild in child.children.borrow().iter() {
+                    if let Some(grandchild_layout) = grandchild.layout_node() {
+                        if let Some(node_id) = grandchild_layout.taffy_node() {
+                            node_ids.push(node_id);
+                        }
+                    }
+                }
+            }
+        } else if matches!(child.component_type, ComponentType::For) {
             for grandchild in child.children.borrow().iter() {
                 if let Some(grandchild_layout) = grandchild.layout_node() {
                     if let Some(node_id) = grandchild_layout.taffy_node() {
@@ -972,13 +1237,14 @@ pub fn build_layout_tree(
     component: &Gc<Component>,
     taffy: &mut TaffyTree<()>,
     text_context: &mut TextContext,
+    stylesheet: Option<&crate::style::Stylesheet>,
 ) -> LayoutNode {
     // Build child layout nodes first in the same tree
     let child_layouts: Vec<LayoutNode> = component
         .children
         .borrow()
         .iter()
-        .map(|child| build_layout_tree(child, taffy, text_context))
+        .map(|child| build_layout_tree(child, taffy, text_context, stylesheet))
         .collect();
 
     // Control-flow components (For, Show) are transparent - their children's
@@ -994,13 +1260,20 @@ pub fn build_layout_tree(
         for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
             child.set_layout_node(child_layout.clone());
             child.set_parent(Some(Gc::clone(component)));
+            // Set layout nodes on grandchildren (the actual content inside Show/For)
+            for (i, grandchild) in child.children.borrow().iter().enumerate() {
+                if i < child_layouts.len() {
+                    grandchild.set_layout_node(child_layouts[i].clone());
+                }
+            }
         }
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
     }
 
     // Build this node with children in the shared tree
-    let node = LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context);
+    let node =
+        LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context, stylesheet);
 
     // Store child layouts in their dedicated field for later retrieval
     for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
@@ -1015,12 +1288,10 @@ impl ComponentLifecycle for Component {
     fn mount(&self, _parent: Option<Gc<Component>>) {
         // For Show components, mount/unmount children based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &*self.props.borrow() {
-                if *when {
-                    // Mount children if visible
-                    for child in self.children.borrow().iter() {
-                        child.mount(None);
-                    }
+            if self.show_when() {
+                // Mount children if visible
+                for child in self.children.borrow().iter() {
+                    child.mount(None);
                 }
             }
         } else {
@@ -1065,17 +1336,15 @@ impl ComponentLifecycle for Component {
 
         // For Show components, update children mounting based on when condition
         if let ComponentType::Show = self.component_type {
-            if let ComponentProps::Show { when } = &*self.props.borrow() {
-                if *when {
-                    // Ensure children are mounted
-                    for child in self.children.borrow().iter() {
-                        child.mount(None);
-                    }
-                } else {
-                    // Unmount children if hidden
-                    for child in self.children.borrow().iter() {
-                        child.unmount();
-                    }
+            if self.show_when() {
+                // Ensure children are mounted
+                for child in self.children.borrow().iter() {
+                    child.mount(None);
+                }
+            } else {
+                // Unmount children if hidden
+                for child in self.children.borrow().iter() {
+                    child.unmount();
                 }
             }
         }
@@ -1097,7 +1366,32 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
             if let Ok(layout) = taffy.layout(node_id) {
                 layout_node.layout_result = Some(*layout);
                 layout_node.is_dirty = false;
-                component.set_layout_node(layout_node);
+                component.set_layout_node(layout_node.clone());
+
+                // === 新增：更新 Flex Scroll State ===
+                if matches!(component.component_type, ComponentType::Flex) {
+                    // Use Taffy's scroll dimensions directly
+                    // scroll_width/scroll_height already account for content overflow
+                    let scroll_width = layout.scroll_width();
+                    let scroll_height = layout.scroll_height();
+                    let container_width = layout.size.width;
+                    let container_height = layout.size.height;
+
+                    // 讀取現有的 scroll_state，保留 offset
+                    let existing_state = component.scroll_state();
+
+                    let scroll_state = FlexScrollState {
+                        scroll_offset_x: existing_state.scroll_offset_x,
+                        scroll_offset_y: existing_state.scroll_offset_y,
+                        scroll_width,
+                        scroll_height,
+                        container_width,
+                        container_height,
+                    };
+
+                    component.set_scroll_state(scroll_state);
+                }
+                // === 新增結束 ===
             }
         }
     }
@@ -1106,4 +1400,31 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
     for child in component.children.borrow().iter() {
         propagate_layout_results(child, taffy);
     }
+}
+
+/// Compute layout for a component tree (for testing purposes)
+/// This builds a Taffy tree, computes layout, and propagates results to update scroll_state
+#[cfg(feature = "testing")]
+pub fn compute_layout_for_testing(component: &Gc<Component>, size: vello::kurbo::Size) {
+    use crate::text::TextContext;
+    use taffy::{AvailableSpace, Size as TaffySize, TaffyTree};
+
+    let mut taffy = TaffyTree::new();
+    let mut text_context = TextContext::new();
+    let stylesheet = None;
+
+    let root_layout_node = build_layout_tree(component, &mut taffy, &mut text_context, stylesheet);
+
+    component.set_layout_node(root_layout_node);
+
+    let taffy_size = TaffySize {
+        width: AvailableSpace::Definite(size.width as f32),
+        height: AvailableSpace::Definite(size.height as f32),
+    };
+
+    if let Some(root_id) = component.layout_node().and_then(|ln| ln.taffy_node()) {
+        let _ = taffy.compute_layout(root_id, taffy_size);
+    }
+
+    propagate_layout_results(component, &taffy);
 }

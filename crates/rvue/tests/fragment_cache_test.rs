@@ -14,9 +14,11 @@ fn test_nested_child_transform_update() {
     let view = view! {
         <Flex direction="column" gap=10.0 align_items="center">
             <Text content={text_value} />
-            <Button label="Click" on_click=move || {
+            <Button on_click=move || {
                 set_text_content_clone.set("Updated".to_string());
-            } />
+            }>
+                <Text>Click</Text>
+            </Button>
         </Flex>
     };
 
@@ -51,7 +53,9 @@ fn test_sibling_cache_preserved() {
         <Flex direction="column">
             <Text content={count_label()} />
             <Text content="Static sibling" />
-            <Button label="+" on_click=move || set_count_clone.update(|c| *c += 1) />
+            <Button on_click=move || set_count_clone.update(|c| *c += 1)>
+                <Text>+</Text>
+            </Button>
         </Flex>
     };
 
@@ -126,9 +130,11 @@ fn test_parent_dirty_force_child_regen() {
             <Flex direction="row">
                 <Text content="Inner static" />
             </Flex>
-            <Button label="Update outer" on_click=move || {
+            <Button on_click=move || {
                 set_outer_count_clone.update(|c| *c += 1);
-            } />
+            }>
+                <Text>Update outer</Text>
+            </Button>
         </Flex>
     };
 
@@ -230,22 +236,17 @@ fn test_stress_1000_components() {
 
     const COMPONENT_COUNT: usize = 1000;
 
-    let root = rvue::Component::new(
+    let root = rvue::Component::with_properties(
         0,
         ComponentType::Flex,
-        rvue::ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "flex_start".to_string(),
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     for i in 0..COMPONENT_COUNT {
-        let child = rvue::Component::new(
+        let child = rvue::Component::with_properties(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, color: None },
+            rvue::properties::PropertyMap::new(),
         );
         root.add_child(child);
     }
@@ -295,22 +296,17 @@ fn test_incremental_update_performance() {
 
     const COMPONENT_COUNT: usize = 500;
 
-    let root = rvue::Component::new(
+    let root = rvue::Component::with_properties(
         0,
         ComponentType::Flex,
-        rvue::ComponentProps::Flex {
-            direction: "column".to_string(),
-            gap: 0.0,
-            align_items: "stretch".to_string(),
-            justify_content: "flex_start".to_string(),
-        },
+        rvue::properties::PropertyMap::new(),
     );
 
     for i in 0..COMPONENT_COUNT {
-        let child = rvue::Component::new(
+        let child = rvue::Component::with_properties(
             (i + 1) as u64,
             ComponentType::Text,
-            rvue::ComponentProps::Text { content: ".".to_string(), font_size: None, color: None },
+            rvue::properties::PropertyMap::new(),
         );
         root.add_child(child);
     }

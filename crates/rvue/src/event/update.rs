@@ -30,6 +30,7 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             *widget.is_active.borrow_mut() = should_have_active;
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(should_have_active));
+            cloned.mark_dirty();
         }
     }
 
@@ -41,11 +42,13 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             *prev.is_active.borrow_mut() = false;
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(false));
+            cloned.mark_dirty();
         }
         if let Some(next) = next_active_path.first() {
             *next.is_active.borrow_mut() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(true));
+            cloned.mark_dirty();
         }
     }
 
@@ -59,6 +62,7 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             *widget.is_hovered.borrow_mut() = should_have_hovered;
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(should_have_hovered));
+            cloned.mark_dirty();
         }
     }
 
@@ -70,11 +74,13 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
             *prev.is_hovered.borrow_mut() = false;
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(false));
+            cloned.mark_dirty();
         }
         if let Some(next) = next_hovered_path.first() {
             *next.is_hovered.borrow_mut() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(true));
+            cloned.mark_dirty();
         }
     }
 

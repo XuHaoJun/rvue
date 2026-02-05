@@ -10,6 +10,7 @@ description = "Procedural macros for Rvue framework"
 proc-macro = true
 
 [dependencies]
+rudo-gc.workspace = true
 syn = { version = "2.0", features = ["full", "extra-traits", "visit"] }
 quote = "1.0"
 proc-macro2 = "1.0"
@@ -21,4 +22,5 @@ itertools = "0.12"
 [dev-dependencies]
 trybuild = "1.0"
 rvue = { path = "../rvue" }
+rvue-style = { path = "../rvue-style" }
 taffy = "0.9"
