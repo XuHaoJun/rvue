@@ -505,10 +505,7 @@ fn generate_widget_builder_code(
                 props.value("content", || quote! { "" });
             let widget_ident = Ident::new("Text", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             if is_reactive {
                 quote! {
@@ -531,10 +528,7 @@ fn generate_widget_builder_code(
             let PropValue { value: id_value, .. } = props.value("id", || quote! { "" });
             let widget_ident = Ident::new("Button", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             let class_call = if class_value.to_string() != quote! { "" }.to_string() {
                 quote! { .class(#class_value) }
@@ -572,10 +566,7 @@ fn generate_widget_builder_code(
 
             let widget_ident = Ident::new("Flex", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             quote! {
                 {
@@ -622,10 +613,7 @@ fn generate_widget_builder_code(
             let PropValue { value: value_value, .. } = props.value("value", || quote! { "" });
             let widget_ident = Ident::new("TextInput", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             quote! {
                 {
@@ -638,10 +626,7 @@ fn generate_widget_builder_code(
             let PropValue { value: value_value, .. } = props.value("value", || quote! { 0.0 });
             let widget_ident = Ident::new("NumberInput", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             quote! {
                 {
@@ -655,10 +640,7 @@ fn generate_widget_builder_code(
                 props.value("checked", || quote! { false });
             let widget_ident = Ident::new("Checkbox", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             quote! {
                 {
@@ -673,10 +655,7 @@ fn generate_widget_builder_code(
                 props.value("checked", || quote! { false });
             let widget_ident = Ident::new("Radio", span);
 
-            let style_call = props
-                .optional_value("styles")
-                .map(|v| quote! { .styles(#v) })
-                .unwrap_or_else(|| quote! {});
+            let style_call = extract_style_call(&props);
 
             quote! {
                 {
@@ -765,6 +744,15 @@ impl<'a> WidgetProps<'a> {
             .find(|attr| attr.name() == name)
             .map(|attr| extract_attr_value(attr).value)
     }
+}
+
+/// Extract the style call token stream from widget props.
+/// Returns either `.styles(value)` if styles are present, or an empty token stream.
+fn extract_style_call(props: &WidgetProps) -> TokenStream {
+    props
+        .optional_value("styles")
+        .map(|v| quote! { .styles(#v) })
+        .unwrap_or_else(|| quote! {})
 }
 
 fn extract_attr_value(attr: &RvueAttribute) -> PropValue {
