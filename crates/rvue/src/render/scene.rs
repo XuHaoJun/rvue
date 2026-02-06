@@ -124,6 +124,7 @@ impl Scene {
                         Affine::IDENTITY,
                         &mut already_appended,
                         self.stylesheet.as_ref(),
+                        &mut self.text_context,
                     );
                 } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
@@ -134,6 +135,7 @@ impl Scene {
                         Affine::IDENTITY,
                         &mut already_appended,
                         self.stylesheet.as_ref(),
+                        &mut self.text_context,
                     );
                 }
             }

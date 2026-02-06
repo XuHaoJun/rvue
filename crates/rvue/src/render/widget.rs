@@ -60,6 +60,7 @@ pub fn render_component(
     transform: Affine,
     already_appended: &mut FxHashSet<u64>,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) -> bool {
     let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
@@ -75,10 +76,22 @@ pub fn render_component(
                 render_button(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::TextInput => {
-                render_text_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
+                render_text_input(
+                    component,
+                    &mut local_scene,
+                    Affine::IDENTITY,
+                    stylesheet,
+                    text_context,
+                );
             }
             ComponentType::NumberInput => {
-                render_number_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
+                render_number_input(
+                    component,
+                    &mut local_scene,
+                    Affine::IDENTITY,
+                    stylesheet,
+                    text_context,
+                );
             }
             ComponentType::Checkbox => {
                 render_checkbox(component, &mut local_scene, Affine::IDENTITY, stylesheet);
@@ -124,6 +137,7 @@ pub fn render_component(
             already_appended,
             force_render_children,
             stylesheet,
+            text_context,
         );
     }
 
@@ -137,6 +151,7 @@ fn render_children(
     already_appended: &mut FxHashSet<u64>,
     force_render_children: bool,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     // Check if we need to clip content
     let styles = get_styles(component, stylesheet);
@@ -196,7 +211,14 @@ fn render_children(
         let final_transform = transform * child_transform;
 
         if force_render_children || is_dirty || cache_was_none {
-            render_component(child, scene, final_transform, already_appended, stylesheet);
+            render_component(
+                child,
+                scene,
+                final_transform,
+                already_appended,
+                stylesheet,
+                text_context,
+            );
         }
     }
 
@@ -338,6 +360,7 @@ fn render_text_input(
     scene: &mut vello::Scene,
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
@@ -379,7 +402,6 @@ fn render_text_input(
                 component.text_input_value()
             };
 
-            let mut text_context = crate::text::TextContext::new();
             let mut layout_builder = text_context.layout_ctx.ranged_builder(
                 &mut text_context.font_ctx,
                 &text_value,
@@ -392,7 +414,8 @@ fn render_text_input(
                 std::borrow::Cow::Borrowed("sans-serif"),
             ));
 
-            let text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+            let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+            text_layout.break_all_lines(None);
 
             if !text_value.is_empty() {
                 render_text_layout(&text_layout, scene, transform, text_color);
@@ -501,6 +524,7 @@ fn render_number_input(
     scene: &mut vello::Scene,
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
@@ -539,7 +563,6 @@ fn render_number_input(
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
             if !text_value.is_empty() && text_value != "0" {
-                let mut text_context = crate::text::TextContext::new();
                 let mut layout_builder = text_context.layout_ctx.ranged_builder(
                     &mut text_context.font_ctx,
                     &text_value,
