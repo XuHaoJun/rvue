@@ -4,6 +4,8 @@ use crate::component::{Component, ComponentType, SceneWrapper};
 use crate::style::{resolve_styles_for_component, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use crate::widgets::scroll_bar::{render_horizontal_scrollbar, render_vertical_scrollbar};
+use parley::Cluster;
+use parley::FontStack;
 use parley::Layout;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
@@ -377,24 +379,22 @@ fn render_text_input(
                 component.text_input_value()
             };
 
+            let mut text_context = crate::text::TextContext::new();
+            let mut layout_builder = text_context.layout_ctx.ranged_builder(
+                &mut text_context.font_ctx,
+                &text_value,
+                1.0,
+                true,
+            );
+            layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size as f32));
+            layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
+            layout_builder.push_default(parley::style::FontStack::Source(
+                std::borrow::Cow::Borrowed("sans-serif"),
+            ));
+
+            let text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+
             if !text_value.is_empty() {
-                let mut text_context = crate::text::TextContext::new();
-                let mut layout_builder = text_context.layout_ctx.ranged_builder(
-                    &mut text_context.font_ctx,
-                    &text_value,
-                    1.0,
-                    true,
-                );
-                layout_builder
-                    .push_default(parley::style::StyleProperty::FontSize(font_size as f32));
-                layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
-                layout_builder.push_default(parley::style::FontStack::Source(
-                    std::borrow::Cow::Borrowed("sans-serif"),
-                ));
-
-                let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
-                text_layout.break_all_lines(None);
-
                 render_text_layout(&text_layout, scene, transform, text_color);
             }
 
@@ -410,11 +410,13 @@ fn render_text_input(
                             &text_value,
                             selection.start.min(selection.end),
                             font_size,
+                            Some(&text_layout),
                         );
                         let end_pos = get_text_position(
                             &text_value,
                             selection.start.max(selection.end),
                             font_size,
+                            Some(&text_layout),
                         );
 
                         let selection_rect =
@@ -432,8 +434,12 @@ fn render_text_input(
                         if blink.is_visible() && !is_composing {
                             let cursor_color = Color::BLACK;
 
-                            let cursor_pos =
-                                get_text_position(&text_value, selection.cursor(), font_size);
+                            let cursor_pos = get_text_position(
+                                &text_value,
+                                selection.cursor(),
+                                font_size,
+                                Some(&text_layout),
+                            );
                             let cursor_rect = Rect::new(
                                 cursor_pos.0 as f64 - 1.0,
                                 0.0,
@@ -455,16 +461,38 @@ fn render_text_input(
     }
 }
 
-fn get_text_position(text: &str, byte_index: usize, font_size: f64) -> (f64, f64) {
-    if byte_index == 0 {
+fn get_text_position(
+    text: &str,
+    char_index: usize,
+    font_size: f64,
+    layout: Option<&Layout<BrushIndex>>,
+) -> (f64, f64) {
+    if char_index == 0 {
         return (0.0, font_size);
     }
 
-    let char_index = text.char_indices().nth(byte_index).map(|(i, _)| i).unwrap_or(text.len());
+    if let Some(layout) = layout {
+        let char_count = text.chars().count();
+        let byte_index = if char_index >= char_count {
+            text.len()
+        } else {
+            text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len())
+        };
 
-    let subtext = &text[..char_index.min(text.len())];
+        if let Some(cluster) = Cluster::from_byte_index(layout, byte_index) {
+            let x = cluster.visual_offset().unwrap_or(0.0) as f64;
+            return (x, font_size);
+        }
+    }
+
+    let char_count = text.chars().count();
+    if char_index >= char_count {
+        let width = text.len() as f64 * font_size * 0.6;
+        return (width, font_size);
+    }
+
+    let subtext: String = text.chars().take(char_index).collect();
     let width = subtext.len() as f64 * font_size * 0.6;
-
     (width, font_size)
 }
 
@@ -520,9 +548,8 @@ fn render_number_input(
                 );
                 layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
                 layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
-                layout_builder.push_default(parley::style::FontStack::Source(
-                    std::borrow::Cow::Borrowed("sans-serif"),
-                ));
+                layout_builder
+                    .push_default(FontStack::Source(std::borrow::Cow::Borrowed("sans-serif")));
 
                 let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
                 text_layout.break_all_lines(None);

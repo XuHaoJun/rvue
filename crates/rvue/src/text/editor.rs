@@ -196,7 +196,7 @@ impl TextEditor {
 
         let cursor = self.selection.borrow().cursor();
         let new_text = text.to_string();
-        let new_cursor = cursor + new_text.len();
+        let new_cursor = cursor + new_text.chars().count();
 
         {
             let mut content = self.content.borrow_mut_gen_only();

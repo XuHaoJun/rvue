@@ -1,7 +1,9 @@
 //! Tests for width/height styling system
 
+use rudo_gc::GcCell;
 use rvue::layout::node::LayoutNode;
 use rvue::style::{resolve_styles_for_component, Stylesheet};
+use rvue::text::TextContext;
 use rvue::{Component, ComponentType};
 use rvue_style::{BackgroundColor, Color, ComputedStyles, Height, ReactiveStyles, Size, Width};
 use taffy::TaffyTree;
@@ -69,7 +71,7 @@ fn test_button_with_default_stylesheet_size() {
         &mut taffy,
         &component,
         &[],
-        &mut rvue::text::TextContext::new(),
+        &mut TextContext::new(),
         Some(&stylesheet),
     );
 

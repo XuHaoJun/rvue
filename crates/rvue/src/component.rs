@@ -1337,7 +1337,6 @@ pub fn build_layout_tree(
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
     }
-
     // Build this node with children in the shared tree
     let node =
         LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context, stylesheet);
