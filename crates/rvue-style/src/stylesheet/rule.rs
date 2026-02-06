@@ -185,10 +185,10 @@ mod tests {
         // Universal selector should not contribute to specificity even when combined
         let specificity = Specificity::from_selector("*.class");
         assert_eq!(specificity, Specificity::new(0, 1, 0));
-        
+
         let specificity = Specificity::from_selector("*#id");
         assert_eq!(specificity, Specificity::new(1, 0, 0));
-        
+
         let specificity = Specificity::from_selector("div.class");
         assert_eq!(specificity, Specificity::new(0, 1, 1));
     }
@@ -198,7 +198,7 @@ mod tests {
         // Universal selector should be less specific than element selector
         let universal = Specificity::from_selector("*");
         let element = Specificity::from_selector("div");
-        
+
         assert!(element > universal);
         assert_eq!(universal, Specificity::new(0, 0, 0));
         assert_eq!(element, Specificity::new(0, 0, 1));

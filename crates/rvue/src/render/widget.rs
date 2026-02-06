@@ -397,11 +397,32 @@ fn render_text_input(
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
-            let text_value = if let Some(editor) = component.text_editor() {
-                editor.editor().content()
-            } else {
-                component.text_input_value()
-            };
+            let clip = *component.clip.borrow();
+            let clip_rect = Rect::new(0.0, 0.0, width, height);
+
+            if clip {
+                scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, &clip_rect);
+            }
+
+            let (text_value, composition_range, is_composing) =
+                if let Some(editor) = component.text_editor() {
+                    let editor_ref = editor.editor();
+                    let content = editor_ref.content();
+                    let composition = editor_ref.composition();
+                    if composition.is_empty() {
+                        (content, None, false)
+                    } else {
+                        let cursor_offset = content.chars().count().min(composition.cursor_start);
+                        let left: String = content.chars().take(cursor_offset).collect();
+                        let right: String = content.chars().skip(cursor_offset).collect();
+                        let full_text = format!("{}{}{}", left, composition.text, right);
+                        let composition_start = left.chars().count();
+                        let composition_end = composition_start + composition.text.chars().count();
+                        (full_text, Some((composition_start, composition_end)), true)
+                    }
+                } else {
+                    (component.text_input_value(), None, false)
+                };
 
             let mut layout_builder = text_context.layout_ctx.ranged_builder(
                 &mut text_context.font_ctx,
@@ -420,12 +441,41 @@ fn render_text_input(
 
             if !text_value.is_empty() {
                 render_text_layout(&text_layout, scene, transform, text_color);
+
+                if is_composing {
+                    if let Some((comp_start, comp_end)) = composition_range {
+                        render_composition_underline(
+                            &text_layout,
+                            &text_value,
+                            comp_start,
+                            comp_end,
+                            scene,
+                            transform,
+                            text_color,
+                        );
+                    }
+                }
             }
 
             if *component.is_focused.borrow() {
                 if let Some(editor) = component.text_editor() {
-                    let selection = editor.editor().selection();
-                    let is_composing = editor.editor().is_composing();
+                    let editor_ref = editor.editor();
+                    let selection = editor_ref.selection();
+                    let is_composing = editor_ref.is_composing();
+
+                    let cursor_idx = if is_composing {
+                        let composition = editor_ref.composition();
+                        let cursor_offset = editor_ref.composition_cursor_offset();
+                        cursor_offset
+                            + composition.cursor_start.min(composition.text.chars().count())
+                    } else {
+                        selection.cursor()
+                    };
+
+                    let cursor_pos =
+                        get_text_position(&text_value, cursor_idx, font_size, Some(&text_layout));
+
+                    component.set_ime_area(cursor_pos.0 - 1.0, 0.0, 2.0, height);
 
                     if !selection.is_empty() && !is_composing {
                         let selection_color = Color::from_rgba8(0, 120, 215, 100);
@@ -455,17 +505,8 @@ fn render_text_input(
                     }
 
                     if let Some(blink) = component.cursor_blink() {
-                        if blink.is_visible() && !is_composing {
+                        if blink.is_visible() {
                             let cursor_color = Color::BLACK;
-
-                            let cursor_idx = selection.cursor();
-
-                            let cursor_pos = get_text_position(
-                                &text_value,
-                                cursor_idx,
-                                font_size,
-                                Some(&text_layout),
-                            );
 
                             let cursor_rect = Rect::new(
                                 cursor_pos.0 as f64 - 1.0,
@@ -482,10 +523,36 @@ fn render_text_input(
                             );
                         }
                     }
+                } else {
+                    component.clear_ime_area();
                 }
+            }
+
+            if clip {
+                scene.pop_layer();
             }
         }
     }
+}
+
+fn render_composition_underline(
+    layout: &Layout<BrushIndex>,
+    text: &str,
+    comp_start: usize,
+    comp_end: usize,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    text_color: Color,
+) {
+    let underline_y = layout.height() as f64 - 2.0;
+
+    let start_pos = get_text_position(text, comp_start, layout.height() as f64, Some(layout));
+    let end_pos = get_text_position(text, comp_end, layout.height() as f64, Some(layout));
+
+    let underline_width = (end_pos.0 - start_pos.0).max(2.0);
+    let underline_rect = Rect::new(start_pos.0 as f64, underline_y, underline_width, 2.0);
+
+    scene.fill(vello::peniko::Fill::NonZero, transform, text_color, None, &underline_rect);
 }
 
 fn get_text_position(

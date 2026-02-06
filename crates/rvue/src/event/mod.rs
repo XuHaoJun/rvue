@@ -264,11 +264,20 @@ mod tests {
             _ => panic!("Expected Enabled"),
         }
 
-        let preedit = ImeEvent::Preedit("test".to_string(), 5);
+        let preedit = ImeEvent::Preedit("test".to_string(), Some((5, 5)));
         match preedit {
-            ImeEvent::Preedit(text, cursor) => {
+            ImeEvent::Preedit(text, cursor_range) => {
                 assert_eq!(text, "test");
-                assert_eq!(cursor, 5);
+                assert_eq!(cursor_range, Some((5, 5)));
+            }
+            _ => panic!("Expected Preedit"),
+        }
+
+        let preedit_empty = ImeEvent::Preedit("".to_string(), None);
+        match preedit_empty {
+            ImeEvent::Preedit(text, cursor_range) => {
+                assert_eq!(text, "");
+                assert_eq!(cursor_range, None);
             }
             _ => panic!("Expected Preedit"),
         }

@@ -79,20 +79,54 @@ fn test_text_input_composition() {
     let editor = SharedTextEditor::new();
 
     // Start composition
-    editor.editor().set_composition("你好", 2);
+    editor.editor().set_composition("你好", Some((2, 2)));
     assert!(editor.editor().is_composing());
     assert_eq!(editor.editor().composition().text, "你好");
-    assert_eq!(editor.editor().composition().cursor, 2);
+    assert_eq!(editor.editor().composition().cursor_start, 2);
+    assert_eq!(editor.editor().composition().cursor_end, 2);
 
     // Clear composition
     editor.editor().clear_composition();
     assert!(!editor.editor().is_composing());
 
     // Commit composition
-    editor.editor().set_composition("世界", 2);
+    editor.editor().set_composition("世界", Some((2, 2)));
     editor.editor().commit_composition();
     let _ = editor.editor().content(); // Drop the borrow
     assert_eq!(editor.editor().content(), "世界");
+}
+
+#[test]
+fn test_text_input_composition_with_content() {
+    let editor = SharedTextEditor::new();
+
+    // Insert some content first
+    editor.editor().insert_text("Hello");
+
+    // Start composition at position 1 (after "H")
+    editor.editor().set_composition("你好", Some((1, 1)));
+
+    // The text with composition should show the composition inserted at cursor
+    let full_text = editor.editor().text_with_composition();
+    assert_eq!(full_text, "H你好ello");
+
+    // The cursor offset should be at position 1 (after H)
+    assert_eq!(editor.editor().composition_cursor_offset(), 1);
+}
+
+#[test]
+fn test_text_input_composition_cursor_range() {
+    let editor = SharedTextEditor::new();
+
+    // Insert content
+    editor.editor().insert_text("Hello");
+
+    // Start composition with cursor at position 2 (after "He")
+    editor.editor().set_composition("你好", Some((1, 1)));
+
+    let composition = editor.editor().composition();
+    assert_eq!(composition.cursor_start, 1);
+    assert_eq!(composition.cursor_end, 1);
 }
 
 #[test]

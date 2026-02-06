@@ -275,6 +275,12 @@ pub struct Component {
     pub text_editor: GcCell<Option<SharedTextEditor>>,
     /// Cursor blink state for TextInput components
     pub cursor_blink: GcCell<Option<GcCursorBlinkState>>,
+    /// Whether to clip content to the component bounds.
+    /// Used by TextInput to hide overflowing text.
+    pub clip: GcCell<bool>,
+    /// IME area for positioning the IME candidate window.
+    /// This is updated when the cursor moves during composition.
+    pub ime_area: GcCell<Option<(f64, f64, f64, f64)>>,
 }
 
 unsafe impl Trace for Component {
@@ -301,6 +307,7 @@ unsafe impl Trace for Component {
         self.element_id.trace(visitor);
         self.text_editor.trace(visitor);
         self.cursor_blink.trace(visitor);
+        self.ime_area.trace(visitor);
     }
 }
 
@@ -333,6 +340,8 @@ impl Clone for Component {
             is_in_scrolling_parent: AtomicBool::new(false),
             text_editor: GcCell::new(self.text_editor.borrow().clone()),
             cursor_blink: GcCell::new(self.cursor_blink.borrow().clone()),
+            clip: GcCell::new(*self.clip.borrow()),
+            ime_area: GcCell::new(*self.ime_area.borrow()),
         }
     }
 }
@@ -401,6 +410,8 @@ impl Component {
             is_in_scrolling_parent: AtomicBool::new(false),
             text_editor: GcCell::new(None),
             cursor_blink: GcCell::new(None),
+            clip: GcCell::new(false),
+            ime_area: GcCell::new(None),
         })
     }
 
@@ -755,6 +766,12 @@ impl Component {
         self.properties.borrow().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
+    /// Set clip mode for this component.
+    /// When true, content overflowing the component bounds will be hidden.
+    pub fn set_clip(&self, clip: bool) {
+        *self.clip.borrow_mut_gen_only() = clip;
+    }
+
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
         self.properties.borrow_mut_gen_only().insert(NumberInputValue(value));
@@ -814,6 +831,18 @@ impl Component {
         if let Some(blink) = self.cursor_blink.borrow().as_ref() {
             blink.reset();
         }
+    }
+
+    pub fn set_ime_area(&self, x: f64, y: f64, width: f64, height: f64) {
+        *self.ime_area.borrow_mut_gen_only() = Some((x, y, width, height));
+    }
+
+    pub fn ime_area(&self) -> Option<(f64, f64, f64, f64)> {
+        *self.ime_area.borrow()
+    }
+
+    pub fn clear_ime_area(&self) {
+        *self.ime_area.borrow_mut_gen_only() = None;
     }
 
     pub fn is_composing(&self) -> bool {

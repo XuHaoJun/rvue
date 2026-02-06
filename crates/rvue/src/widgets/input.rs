@@ -12,24 +12,35 @@ use rvue_style::ReactiveStyles;
 pub struct TextInput {
     value: ReactiveValue<String>,
     styles: Option<ReactiveStyles>,
+    clip: ReactiveValue<bool>,
 }
 
 unsafe impl Trace for TextInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
         self.styles.trace(visitor);
+        self.clip.trace(visitor);
     }
 }
 
 impl TextInput {
     /// Create a new TextInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { value: value.into_reactive(), styles: None }
+        Self { value: value.into_reactive(), styles: None, clip: ReactiveValue::Static(true) }
     }
 
     /// Set the styles directly
     pub fn styles(mut self, styles: ReactiveStyles) -> Self {
         self.styles = Some(styles);
+        self
+    }
+
+    /// Whether to clip the text to the input boundaries.
+    ///
+    /// When true (default), text that overflows the input box will be hidden.
+    /// When false, overflowing text will be visible.
+    pub fn clip(mut self, clip: impl Into<ReactiveValue<bool>>) -> Self {
+        self.clip = clip.into();
         self
     }
 }
@@ -38,6 +49,7 @@ impl TextInput {
 pub struct TextInputState {
     component: Gc<Component>,
     value_effect: Option<Gc<crate::effect::Effect>>,
+    clip_effect: Option<Gc<crate::effect::Effect>>,
 }
 
 impl TextInputState {
@@ -51,6 +63,9 @@ unsafe impl Trace for TextInputState {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.component.trace(visitor);
         if let Some(effect) = &self.value_effect {
+            effect.trace(visitor);
+        }
+        if let Some(effect) = &self.clip_effect {
             effect.trace(visitor);
         }
     }
@@ -99,6 +114,9 @@ impl Widget for TextInput {
         }
         component.set_widget_styles(widget_styles);
 
+        // Set clip to true by default (text overflow will be hidden)
+        component.set_clip(self.clip.get());
+
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
@@ -116,17 +134,31 @@ impl Widget for TextInput {
             None
         };
 
-        TextInputState { component, value_effect }
+        TextInputState { component, value_effect, clip_effect: None }
     }
 
     fn rebuild(self, state: &mut Self::State) {
+        let clip = self.clip.get();
+        state.component.set_clip(clip);
+
+        if self.clip.is_reactive() {
+            if state.clip_effect.is_none() {
+                let comp = Gc::clone(&state.component);
+                let clip = self.clip.clone();
+                let effect = create_effect(move || {
+                    comp.set_clip(clip.get());
+                });
+                state.component.add_effect(Gc::clone(&effect));
+                state.clip_effect = Some(effect);
+            }
+        }
+
         if self.value.is_reactive() {
             if state.value_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let value = self.value.clone();
                 let effect = create_effect(move || {
                     let new_value = value.get();
-                    // Update both the property and the text editor
                     comp.set_text_input_value(new_value.clone());
                     if let Some(editor) = comp.text_editor() {
                         editor.editor().set_content(new_value);
@@ -138,7 +170,6 @@ impl Widget for TextInput {
         } else {
             let new_value = self.value.get();
             state.component.set_text_input_value(new_value.clone());
-            // Also update the text editor for non-reactive case
             if let Some(editor) = state.component.text_editor() {
                 editor.editor().set_content(new_value);
             }

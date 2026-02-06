@@ -3141,6 +3141,7 @@ dependencies = [
  "thiserror 2.0.18",
  "ui-events",
  "ui-events-winit",
+ "unicode-segmentation",
  "vello",
  "wgpu",
  "wgpu-profiler",

@@ -411,11 +411,11 @@ fn handle_ime_event(
 ) {
     if let Some(editor) = component.text_editor() {
         match event {
-            crate::event::types::ImeEvent::Preedit(text, cursor) => {
+            crate::event::types::ImeEvent::Preedit(text, cursor_range) => {
                 if text.is_empty() {
                     editor.editor().clear_composition();
                 } else {
-                    editor.editor().set_composition(text, *cursor);
+                    editor.editor().set_composition(text, *cursor_range);
                 }
                 component.reset_cursor_blink();
                 component.mark_dirty();

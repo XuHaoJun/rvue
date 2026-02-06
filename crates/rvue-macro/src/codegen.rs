@@ -749,10 +749,7 @@ impl<'a> WidgetProps<'a> {
 /// Extract the style call token stream from widget props.
 /// Returns either `.styles(value)` if styles are present, or an empty token stream.
 fn extract_style_call(props: &WidgetProps) -> TokenStream {
-    props
-        .optional_value("styles")
-        .map(|v| quote! { .styles(#v) })
-        .unwrap_or_else(|| quote! {})
+    props.optional_value("styles").map(|v| quote! { .styles(#v) }).unwrap_or_else(|| quote! {})
 }
 
 fn extract_attr_value(attr: &RvueAttribute) -> PropValue {

@@ -673,7 +673,7 @@ impl ApplicationHandler for AppState<'_> {
                         crate::event::types::ImeEvent::Enabled(crate::event::types::ImeCause::Other)
                     }
                     winit::event::Ime::Preedit(text, cursor) => {
-                        crate::event::types::ImeEvent::Preedit(text, cursor.map_or(0, |c| c.0))
+                        crate::event::types::ImeEvent::Preedit(text, cursor)
                     }
                     winit::event::Ime::Commit(text) => crate::event::types::ImeEvent::Commit(text),
                     winit::event::Ime::Disabled => crate::event::types::ImeEvent::Disabled,

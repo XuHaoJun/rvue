@@ -7,6 +7,7 @@
 //! - Basic text editing operations
 
 use rudo_gc::{Gc, GcCell, Trace};
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Selection {
@@ -43,7 +44,8 @@ impl Selection {
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ImeComposition {
     pub text: String,
-    pub cursor: usize,
+    pub cursor_start: usize,
+    pub cursor_end: usize,
 }
 
 unsafe impl Trace for ImeComposition {
@@ -57,7 +59,8 @@ impl ImeComposition {
 
     pub fn clear(&mut self) {
         self.text.clear();
-        self.cursor = 0;
+        self.cursor_start = 0;
+        self.cursor_end = 0;
     }
 }
 
@@ -102,6 +105,30 @@ impl TextEditor {
         self.content.borrow().clone()
     }
 
+    pub fn text_with_composition(&self) -> String {
+        let content = self.content.borrow();
+        let composition = self.composition.borrow();
+        if composition.is_empty() {
+            content.clone()
+        } else {
+            let cursor = content.chars().count().min(composition.cursor_start);
+            let content_chars: Vec<char> = content.chars().collect();
+            let left: String = content_chars[..cursor].iter().collect();
+            let right: String = content_chars[cursor..].iter().collect();
+            format!("{}{}{}", left, composition.text, right)
+        }
+    }
+
+    pub fn composition_cursor_offset(&self) -> usize {
+        let content = self.content.borrow();
+        let composition = self.composition.borrow();
+        if composition.is_empty() {
+            content.chars().count()
+        } else {
+            content.chars().count().min(composition.cursor_start)
+        }
+    }
+
     pub fn set_content(&self, text: String) {
         *self.content.borrow_mut_gen_only() = text;
         *self.selection.borrow_mut_gen_only() = Selection::default();
@@ -140,8 +167,10 @@ impl TextEditor {
         self.composition.borrow().clone()
     }
 
-    pub fn set_composition(&self, text: &str, cursor: usize) {
-        *self.composition.borrow_mut_gen_only() = ImeComposition { text: text.to_string(), cursor };
+    pub fn set_composition(&self, text: &str, cursor_range: Option<(usize, usize)>) {
+        let (start, end) = cursor_range.unwrap_or((text.len(), text.len()));
+        *self.composition.borrow_mut_gen_only() =
+            ImeComposition { text: text.to_string(), cursor_start: start, cursor_end: end };
     }
 
     pub fn clear_composition(&self) {
@@ -357,15 +386,25 @@ impl WordBoundary for str {
             return Some(0);
         }
 
-        let mut pos = 0usize;
-        for (byte_idx, ch) in self.char_indices() {
-            if ch.is_alphanumeric() || ch == '_' {
-                pos = byte_idx;
-            } else if pos > 0 {
-                return Some(pos);
+        let graphemes: Vec<&str> = self.grapheme_indices(true).map(|(_, g)| g).collect();
+        let byte_indices: Vec<usize> = self.grapheme_indices(true).map(|(i, _)| i).collect();
+
+        if graphemes.is_empty() {
+            return Some(0);
+        }
+
+        let mut found_word = false;
+        for (i, g) in graphemes.iter().enumerate() {
+            let is_word_char =
+                g.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+            if is_word_char {
+                found_word = true;
+            } else if found_word && i > 0 {
+                return Some(byte_indices[i]);
             }
         }
-        Some(if pos > 0 { pos } else { self.len() })
+
+        Some(if found_word { self.len() } else { 0 })
     }
 
     fn word_boundary_right(&self) -> Option<usize> {
@@ -373,14 +412,24 @@ impl WordBoundary for str {
             return Some(0);
         }
 
+        let graphemes: Vec<&str> = self.grapheme_indices(true).map(|(_, g)| g).collect();
+        let byte_indices: Vec<usize> = self.grapheme_indices(true).map(|(i, _)| i).collect();
+
+        if graphemes.is_empty() {
+            return Some(0);
+        }
+
         let mut found_word = false;
-        for (byte_idx, ch) in self.char_indices() {
-            if ch.is_alphanumeric() || ch == '_' {
+        for (i, g) in graphemes.iter().enumerate() {
+            let is_word_char =
+                g.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+            if is_word_char {
                 found_word = true;
             } else if found_word {
-                return Some(byte_idx);
+                return Some(byte_indices[i]);
             }
         }
+
         Some(self.len())
     }
 }
