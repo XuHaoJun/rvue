@@ -10,6 +10,8 @@ use crate::properties::{
     TextInputValue, WidgetStyles,
 };
 use crate::render::FlexScrollState;
+use crate::text::cursor::GcCursorBlinkState;
+use crate::text::editor::SharedTextEditor;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
@@ -269,6 +271,10 @@ pub struct Component {
     /// When a parent overflow container applies scroll_transform, children should
     /// not apply their own scroll_transform to avoid coordinate space issues.
     pub is_in_scrolling_parent: AtomicBool,
+    /// Text editor state for TextInput components
+    pub text_editor: GcCell<Option<SharedTextEditor>>,
+    /// Cursor blink state for TextInput components
+    pub cursor_blink: GcCell<Option<GcCursorBlinkState>>,
 }
 
 unsafe impl Trace for Component {
@@ -293,6 +299,8 @@ unsafe impl Trace for Component {
         self.contexts.trace(visitor);
         self.classes.trace(visitor);
         self.element_id.trace(visitor);
+        self.text_editor.trace(visitor);
+        self.cursor_blink.trace(visitor);
     }
 }
 
@@ -323,6 +331,8 @@ impl Clone for Component {
             classes: GcCell::new(self.classes.borrow().clone()),
             element_id: GcCell::new(self.element_id.borrow().clone()),
             is_in_scrolling_parent: AtomicBool::new(false),
+            text_editor: GcCell::new(self.text_editor.borrow().clone()),
+            cursor_blink: GcCell::new(self.cursor_blink.borrow().clone()),
         }
     }
 }
@@ -359,6 +369,7 @@ impl Component {
             | ComponentType::Checkbox
             | ComponentType::Radio => {
                 flags.insert(ComponentFlags::ACCEPTS_POINTER);
+                flags.insert(ComponentFlags::ACCEPTS_FOCUS);
             }
             _ => {}
         }
@@ -388,6 +399,8 @@ impl Component {
             classes: GcCell::new(Vec::new()),
             element_id: GcCell::new(None),
             is_in_scrolling_parent: AtomicBool::new(false),
+            text_editor: GcCell::new(None),
+            cursor_blink: GcCell::new(None),
         })
     }
 
@@ -773,6 +786,38 @@ impl Component {
     /// Get for item count
     pub fn for_item_count(&self) -> usize {
         self.properties.borrow().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
+    }
+
+    pub fn init_text_editor(&self, text: &str) {
+        let editor = SharedTextEditor::with_text(text);
+        *self.text_editor.borrow_mut_gen_only() = Some(editor);
+        *self.cursor_blink.borrow_mut_gen_only() = Some(GcCursorBlinkState::new());
+    }
+
+    pub fn text_editor(&self) -> Option<SharedTextEditor> {
+        self.text_editor.borrow().clone()
+    }
+
+    pub fn cursor_blink(&self) -> Option<GcCursorBlinkState> {
+        self.cursor_blink.borrow().clone()
+    }
+
+    pub fn update_cursor_blink(&self, interval_ms: u64, is_focused: bool) -> bool {
+        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+            blink.update(interval_ms, is_focused)
+        } else {
+            false
+        }
+    }
+
+    pub fn reset_cursor_blink(&self) {
+        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+            blink.reset();
+        }
+    }
+
+    pub fn is_composing(&self) -> bool {
+        self.text_editor.borrow().as_ref().map(|e| e.editor().is_composing()).unwrap_or(false)
     }
 
     pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)

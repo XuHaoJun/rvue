@@ -86,17 +86,29 @@ impl Widget for TextInput {
 
         let component = Component::with_properties(id, ComponentType::TextInput, properties);
 
+        // Initialize text editor state for TextInput
+        component.init_text_editor(&initial_value);
+
         // Initialize WidgetStyles in PropertyMap for layout calculations
-        if let Some(styles) = computed_styles {
-            component.set_widget_styles(styles);
+        let mut widget_styles = computed_styles.unwrap_or_default();
+        if widget_styles.width.is_none() {
+            widget_styles.width = Some(rvue_style::Width(rvue_style::Size::Pixels(200.0)));
         }
+        if widget_styles.height.is_none() {
+            widget_styles.height = Some(rvue_style::Height(rvue_style::Size::Pixels(30.0)));
+        }
+        component.set_widget_styles(widget_styles);
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
             let effect = create_effect(move || {
                 let new_value = value.get();
-                comp.set_text_input_value(new_value);
+                // Update both the property and the text editor
+                comp.set_text_input_value(new_value.clone());
+                if let Some(editor) = comp.text_editor() {
+                    editor.editor().set_content(new_value);
+                }
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -114,14 +126,22 @@ impl Widget for TextInput {
                 let value = self.value.clone();
                 let effect = create_effect(move || {
                     let new_value = value.get();
-                    comp.set_text_input_value(new_value);
+                    // Update both the property and the text editor
+                    comp.set_text_input_value(new_value.clone());
+                    if let Some(editor) = comp.text_editor() {
+                        editor.editor().set_content(new_value);
+                    }
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.value_effect = Some(effect);
             }
         } else {
             let new_value = self.value.get();
-            state.component.set_text_input_value(new_value);
+            state.component.set_text_input_value(new_value.clone());
+            // Also update the text editor for non-reactive case
+            if let Some(editor) = state.component.text_editor() {
+                editor.editor().set_content(new_value);
+            }
         }
     }
 }
@@ -206,9 +226,14 @@ impl Widget for NumberInput {
         let component = Component::with_properties(id, ComponentType::NumberInput, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
-        if let Some(styles) = computed_styles {
-            component.set_widget_styles(styles);
+        let mut widget_styles = computed_styles.unwrap_or_default();
+        if widget_styles.width.is_none() {
+            widget_styles.width = Some(rvue_style::Width(rvue_style::Size::Pixels(100.0)));
         }
+        if widget_styles.height.is_none() {
+            widget_styles.height = Some(rvue_style::Height(rvue_style::Size::Pixels(30.0)));
+        }
+        component.set_widget_styles(widget_styles);
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);

@@ -339,7 +339,6 @@ fn render_text_input(
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
-    let text_value = component.text_input_value();
 
     let text_color = styles
         .text_color
@@ -350,7 +349,7 @@ fn render_text_input(
         })
         .unwrap_or(Color::BLACK);
 
-    let font_size = styles.font_size.as_ref().map(|fs| fs.0).unwrap_or(14.0);
+    let font_size = styles.font_size.as_ref().map(|fs| fs.0 as f64).unwrap_or(14.0);
     let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
     if let Some(layout) = layout_node {
@@ -372,6 +371,12 @@ fn render_text_input(
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
+            let text_value = if let Some(editor) = component.text_editor() {
+                editor.editor().content()
+            } else {
+                component.text_input_value()
+            };
+
             if !text_value.is_empty() {
                 let mut text_context = crate::text::TextContext::new();
                 let mut layout_builder = text_context.layout_ctx.ranged_builder(
@@ -380,7 +385,8 @@ fn render_text_input(
                     1.0,
                     true,
                 );
-                layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
+                layout_builder
+                    .push_default(parley::style::StyleProperty::FontSize(font_size as f32));
                 layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
                 layout_builder.push_default(parley::style::FontStack::Source(
                     std::borrow::Cow::Borrowed("sans-serif"),
@@ -391,8 +397,75 @@ fn render_text_input(
 
                 render_text_layout(&text_layout, scene, transform, text_color);
             }
+
+            if *component.is_focused.borrow() {
+                if let Some(editor) = component.text_editor() {
+                    let selection = editor.editor().selection();
+                    let is_composing = editor.editor().is_composing();
+
+                    if !selection.is_empty() && !is_composing {
+                        let selection_color = Color::from_rgba8(0, 120, 215, 100);
+
+                        let start_pos = get_text_position(
+                            &text_value,
+                            selection.start.min(selection.end),
+                            font_size,
+                        );
+                        let end_pos = get_text_position(
+                            &text_value,
+                            selection.start.max(selection.end),
+                            font_size,
+                        );
+
+                        let selection_rect =
+                            Rect::new(start_pos.0 as f64, 0.0, end_pos.0 as f64, height);
+                        scene.fill(
+                            vello::peniko::Fill::NonZero,
+                            transform,
+                            selection_color,
+                            None,
+                            &selection_rect,
+                        );
+                    }
+
+                    if let Some(blink) = component.cursor_blink() {
+                        if blink.is_visible() && !is_composing {
+                            let cursor_color = Color::BLACK;
+
+                            let cursor_pos =
+                                get_text_position(&text_value, selection.cursor(), font_size);
+                            let cursor_rect = Rect::new(
+                                cursor_pos.0 as f64 - 1.0,
+                                0.0,
+                                cursor_pos.0 as f64 + 1.0,
+                                height,
+                            );
+                            scene.fill(
+                                vello::peniko::Fill::NonZero,
+                                transform,
+                                cursor_color,
+                                None,
+                                &cursor_rect,
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+fn get_text_position(text: &str, byte_index: usize, font_size: f64) -> (f64, f64) {
+    if byte_index == 0 {
+        return (0.0, font_size);
+    }
+
+    let char_index = text.char_indices().nth(byte_index).map(|(i, _)| i).unwrap_or(text.len());
+
+    let subtext = &text[..char_index.min(text.len())];
+    let width = subtext.len() as f64 * font_size * 0.6;
+
+    (width, font_size)
 }
 
 fn render_number_input(

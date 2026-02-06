@@ -2,6 +2,9 @@ use parley::fontique::{Collection, CollectionOptions, SourceCache};
 use parley::{FontContext, Layout, LayoutContext};
 use vello::peniko::{Color, Fill};
 
+pub mod cursor;
+pub mod editor;
+
 #[derive(Clone, PartialEq, Default, Debug)]
 pub struct BrushIndex(pub usize);
 
