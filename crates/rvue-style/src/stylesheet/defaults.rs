@@ -3,7 +3,9 @@
 //! These defaults provide sensible starting sizes for all components.
 //! They can be overridden by user-provided stylesheets via CSS selectors.
 
-use crate::properties::{Height, Size, Width};
+use crate::properties::{
+    BackgroundColor, BorderColor, BorderStyle, BorderWidth, Height, Size, Width,
+};
 use crate::property::Properties;
 use crate::stylesheet::{StyleRule, Stylesheet};
 
@@ -11,6 +13,39 @@ fn add_size_rule(sheet: &mut Stylesheet, selector: &'static str, width: Width, h
     let mut props = Properties::new();
     props.insert(width);
     props.insert(height);
+    sheet.add_rule(StyleRule::parse(selector, props));
+}
+
+fn add_input_rules(sheet: &mut Stylesheet, selector: &'static str) {
+    let mut props = Properties::new();
+    props.insert(Width(Size::Pixels(200.0)));
+    props.insert(Height(Size::Pixels(30.0)));
+    props.insert(BackgroundColor(crate::Color::rgb(255, 255, 255)));
+    props.insert(BorderColor(crate::Color::rgb(180, 180, 180)));
+    props.insert(BorderStyle::Solid);
+    props.insert(BorderWidth(1.0));
+    sheet.add_rule(StyleRule::parse(selector, props));
+}
+
+fn add_checkbox_rules(sheet: &mut Stylesheet, selector: &'static str) {
+    let mut props = Properties::new();
+    props.insert(Width(Size::Pixels(20.0)));
+    props.insert(Height(Size::Pixels(20.0)));
+    props.insert(BackgroundColor(crate::Color::rgb(255, 255, 255)));
+    props.insert(BorderColor(crate::Color::rgb(100, 100, 100)));
+    props.insert(BorderStyle::Solid);
+    props.insert(BorderWidth(1.0));
+    sheet.add_rule(StyleRule::parse(selector, props));
+}
+
+fn add_radio_rules(sheet: &mut Stylesheet, selector: &'static str) {
+    let mut props = Properties::new();
+    props.insert(Width(Size::Pixels(20.0)));
+    props.insert(Height(Size::Pixels(20.0)));
+    props.insert(BackgroundColor(crate::Color::rgb(255, 255, 255)));
+    props.insert(BorderColor(crate::Color::rgb(100, 100, 100)));
+    props.insert(BorderStyle::Solid);
+    props.insert(BorderWidth(1.0));
     sheet.add_rule(StyleRule::parse(selector, props));
 }
 
@@ -34,13 +69,13 @@ pub fn default_stylesheet() -> Stylesheet {
     add_size_rule(&mut sheet, "button", Width(Size::Pixels(120.0)), Height(Size::Pixels(40.0)));
 
     // Input defaults (general input tag)
-    add_size_rule(&mut sheet, "input", Width(Size::Pixels(200.0)), Height(Size::Pixels(30.0)));
+    add_input_rules(&mut sheet, "input");
 
-    // Checkbox defaults - use class selector for now
-    add_size_rule(&mut sheet, "checkbox", Width(Size::Pixels(20.0)), Height(Size::Pixels(20.0)));
+    // Checkbox defaults
+    add_checkbox_rules(&mut sheet, "checkbox");
 
-    // Radio defaults - use class selector for now
-    add_size_rule(&mut sheet, "radio", Width(Size::Pixels(20.0)), Height(Size::Pixels(20.0)));
+    // Radio defaults
+    add_radio_rules(&mut sheet, "radio");
 
     // Progress bar defaults
     add_size_rule(&mut sheet, "progress", Width(Size::Pixels(200.0)), Height(Size::Pixels(20.0)));

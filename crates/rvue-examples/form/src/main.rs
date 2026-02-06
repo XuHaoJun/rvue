@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let form_view = create_form_view();
 
     // Run the application
-    rvue::run_app(|| form_view)?;
+    rvue::run_app_with_stylesheet(|| form_view, None)?;
 
     Ok(())
 }

@@ -339,12 +339,24 @@ fn render_text_input(
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
+    let text_value = component.text_input_value();
+
+    let text_color = styles
+        .text_color
+        .as_ref()
+        .map(|tc| {
+            let rgb = tc.0 .0;
+            Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+        })
+        .unwrap_or(Color::BLACK);
+
+    let font_size = styles.font_size.as_ref().map(|fs| fs.0).unwrap_or(14.0);
+    let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
     if let Some(layout) = layout_node {
         if let Some(input_layout) = layout.layout() {
             let width = input_layout.size.width as f64;
             let height = input_layout.size.height as f64;
-            let _rect = Rect::new(0.0, 0.0, width, height);
 
             let bg_color = styles
                 .background_color
@@ -355,12 +367,30 @@ fn render_text_input(
                 })
                 .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
-
             let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
+
+            if !text_value.is_empty() {
+                let mut text_context = crate::text::TextContext::new();
+                let mut layout_builder = text_context.layout_ctx.ranged_builder(
+                    &mut text_context.font_ctx,
+                    &text_value,
+                    1.0,
+                    true,
+                );
+                layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
+                layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
+                layout_builder.push_default(parley::style::FontStack::Source(
+                    std::borrow::Cow::Borrowed("sans-serif"),
+                ));
+
+                let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+                text_layout.break_all_lines(None);
+
+                render_text_layout(&text_layout, scene, transform, text_color);
+            }
         }
     }
 }
@@ -373,12 +403,25 @@ fn render_number_input(
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
+    let number_value = component.number_input_value();
+    let text_value = if number_value == 0.0 { String::new() } else { number_value.to_string() };
+
+    let text_color = styles
+        .text_color
+        .as_ref()
+        .map(|tc| {
+            let rgb = tc.0 .0;
+            Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+        })
+        .unwrap_or(Color::BLACK);
+
+    let font_size = styles.font_size.as_ref().map(|fs| fs.0).unwrap_or(14.0);
+    let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
     if let Some(layout) = layout_node {
         if let Some(input_layout) = layout.layout() {
             let width = input_layout.size.width as f64;
             let height = input_layout.size.height as f64;
-            let _rect = Rect::new(0.0, 0.0, width, height);
 
             let bg_color = styles
                 .background_color
@@ -389,12 +432,30 @@ fn render_number_input(
                 })
                 .unwrap_or_else(|| Color::from_rgb8(255, 255, 255));
 
-            let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
-
             let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
+
+            if !text_value.is_empty() && text_value != "0" {
+                let mut text_context = crate::text::TextContext::new();
+                let mut layout_builder = text_context.layout_ctx.ranged_builder(
+                    &mut text_context.font_ctx,
+                    &text_value,
+                    1.0,
+                    true,
+                );
+                layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
+                layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
+                layout_builder.push_default(parley::style::FontStack::Source(
+                    std::borrow::Cow::Borrowed("sans-serif"),
+                ));
+
+                let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+                text_layout.break_all_lines(None);
+
+                render_text_layout(&text_layout, scene, transform, text_color);
+            }
         }
     }
 }
@@ -407,6 +468,7 @@ fn render_checkbox(
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
+    let is_checked = component.checkbox_checked();
 
     if let Some(layout) = layout_node {
         if let Some(checkbox_layout) = layout.layout() {
@@ -424,12 +486,42 @@ fn render_checkbox(
 
             let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
-            let _rect = Rect::new(0.0, 0.0, width.min(height), height.min(width));
             let size = width.min(height);
             let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(scene, transform, &Some(styles), 0.0, 0.0, size, size, border_radius);
+            render_border(
+                scene,
+                transform,
+                &Some(styles.clone()),
+                0.0,
+                0.0,
+                size,
+                size,
+                border_radius,
+            );
+
+            if is_checked {
+                let checked_color = styles
+                    .color
+                    .as_ref()
+                    .map(|c| {
+                        let rgb = c.0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(0, 120, 215));
+
+                let inner_size = size - 6.0;
+                let inner_rect =
+                    RoundedRect::new(3.0, 3.0, inner_size, inner_size, border_radius.max(2.0));
+                scene.fill(
+                    vello::peniko::Fill::NonZero,
+                    transform,
+                    checked_color,
+                    None,
+                    &inner_rect,
+                );
+            }
         }
     }
 }
@@ -442,6 +534,7 @@ fn render_radio(
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
+    let is_checked = component.radio_checked();
 
     if let Some(layout) = layout_node {
         if let Some(radio_layout) = layout.layout() {
@@ -483,6 +576,27 @@ fn render_radio(
                     border_color,
                     None,
                     &border_circle,
+                );
+            }
+
+            if is_checked {
+                let checked_color = styles
+                    .color
+                    .as_ref()
+                    .map(|c| {
+                        let rgb = c.0;
+                        Color::from_rgb8(rgb.r, rgb.g, rgb.b)
+                    })
+                    .unwrap_or_else(|| Color::from_rgb8(0, 120, 215));
+
+                let inner_size = size / 3.0;
+                let inner_circle = Circle::new((center_x, center_y), inner_size);
+                scene.fill(
+                    vello::peniko::Fill::NonZero,
+                    transform,
+                    checked_color,
+                    None,
+                    &inner_circle,
                 );
             }
         }
