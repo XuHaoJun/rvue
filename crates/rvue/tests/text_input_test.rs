@@ -3,10 +3,7 @@
 //! These tests verify that keyboard input works correctly on TextInput
 //! without requiring a GUI window.
 
-use rudo_gc::Gc;
-use rvue::properties::{PropertyMap, TextInputValue};
 use rvue::text::editor::SharedTextEditor;
-use rvue::{Component, ComponentType};
 
 #[test]
 fn test_text_input_editor_initialization() {
@@ -115,7 +112,7 @@ fn test_text_input_cursor_blink_state() {
 #[test]
 fn test_text_input_keyboard_event_insert() {
     use rvue::event::types::{KeyState, KeyboardEvent};
-    use winit::keyboard::{Key, NamedKey};
+    use winit::keyboard::Key;
 
     let editor = SharedTextEditor::new();
 
@@ -134,13 +131,10 @@ fn test_text_input_keyboard_event_insert() {
     };
 
     // Process the event (simulating what handle_text_input_keyboard_event does)
-    match &event.key {
-        Key::Character(ch) => {
-            if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo {
-                editor.editor().insert_text(ch);
-            }
+    if let Key::Character(ch) = &event.key {
+        if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo {
+            editor.editor().insert_text(ch);
         }
-        _ => {}
     }
 
     assert_eq!(editor.editor().content(), "a");
@@ -164,11 +158,8 @@ fn test_text_input_keyboard_event_backspace() {
         repeat: false,
     };
 
-    match &event.key {
-        Key::Named(NamedKey::Backspace) => {
-            editor.editor().backspace();
-        }
-        _ => {}
+    if let Key::Named(NamedKey::Backspace) = &event.key {
+        editor.editor().backspace();
     }
 
     let _ = editor.editor().content(); // Drop the borrow
@@ -193,11 +184,8 @@ fn test_text_input_keyboard_event_sequence() {
             repeat: false,
         };
 
-        match &event.key {
-            Key::Character(c) => {
-                editor.editor().insert_text(c);
-            }
-            _ => {}
+        if let Key::Character(c) = &event.key {
+            editor.editor().insert_text(c);
         }
     }
     assert_eq!(editor.editor().content(), "hello");
@@ -211,11 +199,8 @@ fn test_text_input_keyboard_event_sequence() {
         repeat: false,
     };
 
-    match &backspace_event.key {
-        Key::Named(NamedKey::Backspace) => {
-            editor.editor().backspace();
-        }
-        _ => {}
+    if let Key::Named(NamedKey::Backspace) = &backspace_event.key {
+        editor.editor().backspace();
     }
 
     assert_eq!(editor.editor().content(), "hell");
@@ -228,11 +213,8 @@ fn test_text_input_ime_commit() {
     // Simulate IME commit
     let event = rvue::event::types::ImeEvent::Commit("你好".to_string());
 
-    match event {
-        rvue::event::types::ImeEvent::Commit(text) => {
-            editor.editor().insert_text(&text);
-        }
-        _ => {}
+    if let rvue::event::types::ImeEvent::Commit(text) = event {
+        editor.editor().insert_text(&text);
     }
 
     assert_eq!(editor.editor().content(), "你好");
@@ -240,7 +222,7 @@ fn test_text_input_ime_commit() {
 
 #[test]
 fn test_text_input_focus_and_keyboard_flow() {
-    use rvue::event::types::{KeyState, KeyboardEvent, TextEvent};
+    use rvue::event::types::{KeyState, KeyboardEvent};
     use winit::keyboard::{Key, NamedKey};
 
     // Simulate the full flow: focus -> keyboard event -> text insertion
@@ -303,11 +285,8 @@ fn test_text_input_focus_and_keyboard_flow() {
         repeat: false,
     };
 
-    match &key_event.key {
-        Key::Named(NamedKey::Backspace) => {
-            editor.editor().backspace();
-        }
-        _ => {}
+    if let Key::Named(NamedKey::Backspace) = &key_event.key {
+        editor.editor().backspace();
     }
 
     assert_eq!(editor.editor().content(), "a");

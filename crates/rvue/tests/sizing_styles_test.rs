@@ -1,6 +1,5 @@
 //! Tests for width/height styling system
 
-use rudo_gc::GcCell;
 use rvue::layout::node::LayoutNode;
 use rvue::style::{resolve_styles_for_component, Stylesheet};
 use rvue::text::TextContext;
