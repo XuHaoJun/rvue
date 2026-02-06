@@ -7,6 +7,7 @@ use crate::widgets::scroll_bar::{render_horizontal_scrollbar, render_vertical_sc
 use parley::Cluster;
 use parley::FontStack;
 use parley::Layout;
+use parley::PositionedLayoutItem;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
 use rvue_style::{BorderStyle, ComputedStyles};
@@ -457,12 +458,15 @@ fn render_text_input(
                         if blink.is_visible() && !is_composing {
                             let cursor_color = Color::BLACK;
 
+                            let cursor_idx = selection.cursor();
+
                             let cursor_pos = get_text_position(
                                 &text_value,
-                                selection.cursor(),
+                                cursor_idx,
                                 font_size,
                                 Some(&text_layout),
                             );
+
                             let cursor_rect = Rect::new(
                                 cursor_pos.0 as f64 - 1.0,
                                 0.0,
@@ -495,17 +499,46 @@ fn get_text_position(
     }
 
     if let Some(layout) = layout {
-        let char_count = text.chars().count();
-        let byte_index = if char_index >= char_count {
-            text.len()
-        } else {
-            text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len())
-        };
+        // For cursor position at end of text, use layout.width()
+        if char_index >= text.chars().count() {
+            return (layout.width() as f64, font_size);
+        }
+
+        // Try to get position from clusters
+        let byte_index = text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len());
 
         if let Some(cluster) = Cluster::from_byte_index(layout, byte_index) {
             let x = cluster.visual_offset().unwrap_or(0.0) as f64;
             return (x, font_size);
         }
+
+        // Fallback: iterate through glyph runs to find position based on character count
+        let mut current_char_pos = 0;
+        let mut x_pos = 0.0f64;
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
+                    let char_count = glyph_run.glyphs().count();
+                    let run_end = current_char_pos + char_count;
+
+                    // Check if this glyph run covers our char_index
+                    if current_char_pos <= char_index && char_index <= run_end {
+                        return (x_pos, font_size);
+                    }
+                    x_pos += glyph_run.advance() as f64;
+                    current_char_pos = run_end;
+                }
+            }
+        }
+
+        // Last resort fallback - use layout width proportionally
+        let total_chars = text.chars().count();
+        if total_chars > 0 {
+            let proportion = char_index as f64 / total_chars as f64;
+            return (layout.width() as f64 * proportion, font_size);
+        }
+
+        return (layout.width() as f64, font_size);
     }
 
     let char_count = text.chars().count();
