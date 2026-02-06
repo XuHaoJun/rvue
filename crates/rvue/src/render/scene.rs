@@ -106,7 +106,7 @@ impl Scene {
 
             if let Some(node_id) = layout.taffy_node() {
                 if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {
-                    eprintln!("Scene layout calculation failed: {:?}", e);
+                    log::error!("Scene layout calculation failed: {:?}", e);
                 }
             }
 

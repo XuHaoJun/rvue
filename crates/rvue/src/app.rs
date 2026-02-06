@@ -340,11 +340,6 @@ impl ApplicationHandler for AppState<'_> {
                     return;
                 }
                 ui_events_winit::WindowEventTranslation::Keyboard(key_event) => {
-                    eprintln!(
-                        "[DEBUG app] Translated keyboard event: key={:?}, state={:?}",
-                        key_event.key, key_event.state
-                    );
-
                     // Process pending focus before handling keyboard events
                     run_update_focus_pass(self);
 
@@ -574,14 +569,6 @@ impl ApplicationHandler for AppState<'_> {
                         repeat: key_event.repeat,
                     };
 
-                    eprintln!(
-                        "[DEBUG app] After focus pass: focused={:?}",
-                        self.focus_state
-                            .focused
-                            .as_ref()
-                            .map(|c| format!("{:?}", c.component_type))
-                    );
-
                     run_text_event_pass(self, &crate::event::types::TextEvent::Keyboard(key_event));
                     self.request_redraw_if_dirty();
                     return;
@@ -664,30 +651,8 @@ impl ApplicationHandler for AppState<'_> {
                 run_pointer_event_pass(self, &PointerEvent::Leave(Default::default()));
             }
             WindowEvent::KeyboardInput { event: input, .. } => {
-                eprintln!(
-                    "[DEBUG app] KeyboardInput: key={:?}, state={:?}",
-                    input.logical_key, input.state
-                );
-                eprintln!(
-                    "[DEBUG app] focused={:?}, pending_focus={:?}",
-                    self.focus_state.focused.as_ref().map(|c| format!("{:?}", c.component_type)),
-                    self.focus_state
-                        .pending_focus
-                        .as_ref()
-                        .map(|c| format!("{:?}", c.component_type))
-                );
-
                 // Process pending focus before handling keyboard events
                 run_update_focus_pass(self);
-
-                eprintln!(
-                    "[DEBUG app] After focus pass: focused={:?}, pending_focus={:?}",
-                    self.focus_state.focused.as_ref().map(|c| format!("{:?}", c.component_type)),
-                    self.focus_state
-                        .pending_focus
-                        .as_ref()
-                        .map(|c| format!("{:?}", c.component_type))
-                );
 
                 let key_event = RvueKeyboardEvent {
                     key: input.logical_key,
@@ -819,7 +784,7 @@ impl<'a> AppState<'a> {
 
             let duration_ms = metrics.duration.as_millis();
             if duration_ms > 16 {
-                eprintln!("WARNING: GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
+                log::warn!("GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
             }
         }
     }
@@ -848,7 +813,7 @@ impl<'a> AppState<'a> {
             Ok(Some(st)) => st,
             Ok(None) => return,
             Err(e) => {
-                eprintln!("Rendering initialization failed: {}", e);
+                log::error!("Rendering initialization failed: {}", e);
                 return;
             }
         };
@@ -942,7 +907,7 @@ impl<'a> AppState<'a> {
             &surface.target_view,
             &render_params,
         ) {
-            eprintln!("Vello render to texture failed: {}", e);
+            log::error!("Vello render to texture failed: {}", e);
             return;
         }
 
@@ -1006,13 +971,13 @@ impl<'a> AppState<'a> {
                 match surface.surface.get_current_texture() {
                     Ok(texture) => Ok(Some(texture)),
                     Err(e) => {
-                        eprintln!("Failed to get surface texture after resize: {}", e);
+                        log::error!("Failed to get surface texture after resize: {}", e);
                         Ok(None)
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Failed to get surface texture: {}", e);
+                log::error!("Failed to get surface texture: {}", e);
                 Ok(None)
             }
         }

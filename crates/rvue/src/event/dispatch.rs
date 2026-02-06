@@ -316,22 +316,7 @@ pub fn run_text_event_pass(
         .or_else(|| app_state.pending_focus().clone())
         .or_else(|| app_state.fallback().clone());
 
-    eprintln!(
-        "[DEBUG] run_text_event_pass: event={:?}, focused={:?}, pending_focus={:?}",
-        match event {
-            TextEvent::Keyboard(k) => format!("Keyboard({:?})", k.key),
-            TextEvent::Ime(i) => format!("Ime({:?})", i),
-            TextEvent::Paste(t) => format!("Paste({})", t),
-        },
-        app_state.focused().as_ref().map(|c| format!("{:?}", c.component_type)),
-        app_state.pending_focus().as_ref().map(|c| format!("{:?}", c.component_type))
-    );
-
     if let Some(target) = target {
-        eprintln!(
-            "[DEBUG] run_text_event_pass: dispatching to target type={:?}",
-            target.component_type
-        );
         if let TextEvent::Keyboard(key_event) = event {
             if key_event.key == Key::Named(NamedKey::Tab) && key_event.state == KeyState::Down {
                 let forward = !key_event.modifiers.shift;
@@ -344,7 +329,6 @@ pub fn run_text_event_pass(
 
         dispatch_text_event(app_state, &target, event)
     } else {
-        eprintln!("[DEBUG] run_text_event_pass: No target found, event not handled");
         Handled::No
     }
 }
@@ -354,16 +338,10 @@ fn dispatch_text_event(
     target: &Gc<Component>,
     event: &TextEvent,
 ) -> Handled {
-    eprintln!("[DEBUG dispatch_text_event] target.component_type={:?}", target.component_type);
-
     let mut current = Some(Gc::clone(target));
     let mut handled = Handled::No;
 
     while let Some(component) = current {
-        eprintln!(
-            "[DEBUG dispatch_text_event] checking component type={:?}",
-            component.component_type
-        );
         if component.is_disabled() {
             current = component.parent.borrow().clone();
             continue;
@@ -376,15 +354,9 @@ fn dispatch_text_event(
         match event {
             TextEvent::Keyboard(e) => {
                 let is_text_input = matches!(component.component_type, ComponentType::TextInput);
-                eprintln!(
-                    "[DEBUG dispatch] component_type={:?}, is_text_input={}",
-                    component.component_type, is_text_input
-                );
 
                 if is_text_input {
-                    eprintln!("[DEBUG dispatch] calling handle_text_input_keyboard_event");
                     handle_text_input_keyboard_event(&component, e, &mut ctx);
-                    eprintln!("[DEBUG dispatch] after handle_text_input_keyboard_event, ctx.is_handled()={}", ctx.is_handled());
                 }
 
                 if !ctx.is_handled() {
@@ -473,56 +445,36 @@ fn handle_text_input_keyboard_event(
     event: &crate::event::types::KeyboardEvent,
     ctx: &mut EventContext,
 ) {
-    eprintln!(
-        "[DEBUG] handle_text_input_keyboard_event: key={:?}, state={:?}, is_focused={}",
-        event.key,
-        event.state,
-        *component.is_focused.borrow()
-    );
-
     if event.state != KeyState::Down {
-        eprintln!("[DEBUG] handle_text_input_keyboard_event: Ignoring non-Down event");
         return;
     }
 
     if let Some(editor) = component.text_editor() {
         let text_editor = editor.editor();
-        let before_content = text_editor.content();
 
         match &event.key {
             Key::Character(ch) => {
                 if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo {
-                    eprintln!("[DEBUG] Inserting character: '{}'", ch);
                     text_editor.insert_text(ch);
                     component.reset_cursor_blink();
                     component.mark_dirty();
                     update_text_input_value(component);
                     ctx.stop_propagation();
-                    eprintln!("[DEBUG] After insert: content='{}'", text_editor.content());
-                } else {
-                    eprintln!(
-                        "[DEBUG] Ignoring character due to modifiers: alt={}, ctrl={}, logo={}",
-                        event.modifiers.alt, event.modifiers.ctrl, event.modifiers.logo
-                    );
                 }
             }
             Key::Named(NamedKey::Backspace) => {
-                eprintln!("[DEBUG] Backspace: before='{}'", before_content);
                 text_editor.backspace();
                 component.reset_cursor_blink();
                 component.mark_dirty();
                 update_text_input_value(component);
                 ctx.stop_propagation();
-                eprintln!("[DEBUG] After backspace: content='{}'", text_editor.content());
             }
             Key::Named(NamedKey::Delete) => {
-                eprintln!("[DEBUG] Delete: before='{}'", before_content);
                 text_editor.delete();
                 component.reset_cursor_blink();
                 component.mark_dirty();
                 update_text_input_value(component);
                 ctx.stop_propagation();
-                eprintln!("[DEBUG] After delete: content='{}'", text_editor.content());
             }
             Key::Named(NamedKey::Enter) => {
                 ctx.stop_propagation();
