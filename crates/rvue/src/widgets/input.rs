@@ -141,16 +141,14 @@ impl Widget for TextInput {
         let clip = self.clip.get();
         state.component.set_clip(clip);
 
-        if self.clip.is_reactive() {
-            if state.clip_effect.is_none() {
-                let comp = Gc::clone(&state.component);
-                let clip = self.clip.clone();
-                let effect = create_effect(move || {
-                    comp.set_clip(clip.get());
-                });
-                state.component.add_effect(Gc::clone(&effect));
-                state.clip_effect = Some(effect);
-            }
+        if self.clip.is_reactive() && state.clip_effect.is_none() {
+            let comp = Gc::clone(&state.component);
+            let clip = self.clip.clone();
+            let effect = create_effect(move || {
+                comp.set_clip(clip.get());
+            });
+            state.component.add_effect(Gc::clone(&effect));
+            state.clip_effect = Some(effect);
         }
 
         if self.value.is_reactive() {
