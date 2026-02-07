@@ -94,6 +94,12 @@ cargo test -- --nocapture --test-threads=1           # Show output for debugging
 
 ## Rudo-GC Guidelines
 
+Rvue uses **rudo-gc** for hybrid garbage collection. The rudo-gc crate is actively developed; when you need implementation details, barriers, or API behavior that isn’t clear from this doc or the public API:
+
+- **Read the source**: Use the **learn-projects/rudo** directory in this workspace. It is the upstream repo that contains the rudo-gc implementation (e.g. `crates/rudo-gc/`).
+- Prefer searching or reading under `learn-projects/rudo/` for types like `Gc`, `GcCell`, `Trace`, `GcCapture`, `borrow_mut`, `borrow_mut_gen_only`, incremental marking, or async/tokio integration.
+- Paths are relative to the workspace root, e.g. `learn-projects/rudo/crates/rudo-gc/src/`.
+
 ### When to Use `borrow_mut()` vs `borrow_mut_gen_only()`
 
 **Use `borrow_mut()` when:**
