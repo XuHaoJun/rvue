@@ -19,3 +19,9 @@
 [submodule "learn-projects/taffy"]
 	path = learn-projects/taffy
 	url = git@github.com:DioxusLabs/taffy.git
+[submodule "learn-projects/dioxus"]
+	path = learn-projects/dioxus
+	url = git@github.com:DioxusLabs/dioxus.git
+[submodule "learn-projects/freya"]
+	path = learn-projects/freya
+	url = git@github.com:marc2332/freya.git
