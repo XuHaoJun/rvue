@@ -29,7 +29,7 @@ impl Selection {
     }
 
     pub fn cursor(&self) -> usize {
-        self.end.max(self.start)
+        self.end
     }
 
     pub fn from_cursor(cursor: usize) -> Self {
