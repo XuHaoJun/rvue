@@ -404,25 +404,21 @@ fn render_text_input(
                 scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, &clip_rect);
             }
 
-            let (text_value, composition_range, is_composing) =
-                if let Some(editor) = component.text_editor() {
-                    let editor_ref = editor.editor();
-                    let content = editor_ref.content();
-                    let composition = editor_ref.composition();
-                    if composition.is_empty() {
-                        (content, None, false)
-                    } else {
-                        let cursor_offset = editor_ref.selection().cursor();
-                        let left: String = content.chars().take(cursor_offset).collect();
-                        let right: String = content.chars().skip(cursor_offset).collect();
-                        let full_text = format!("{}{}{}", left, composition.text, right);
-                        let composition_start = left.chars().count();
-                        let composition_end = composition_start + composition.text.chars().count();
-                        (full_text, Some((composition_start, composition_end)), true)
-                    }
+            let text_value = if let Some(editor) = component.text_editor() {
+                let editor_ref = editor.editor();
+                let content = editor_ref.content();
+                let composition = editor_ref.composition();
+                if composition.is_empty() {
+                    content
                 } else {
-                    (component.text_input_value(), None, false)
-                };
+                    let cursor_offset = editor_ref.selection().cursor();
+                    let left: String = content.chars().take(cursor_offset).collect();
+                    let right: String = content.chars().skip(cursor_offset).collect();
+                    format!("{}{}{}", left, composition.text, right)
+                }
+            } else {
+                component.text_input_value()
+            };
 
             let font_stack = "Noto Sans CJK SC, Noto Sans CJK, Noto Sans, sans-serif";
 
@@ -443,20 +439,6 @@ fn render_text_input(
 
             if !text_value.is_empty() {
                 render_text_layout(&text_layout, scene, transform, text_color);
-
-                if is_composing {
-                    if let Some((comp_start, comp_end)) = composition_range {
-                        render_composition_underline(
-                            &text_layout,
-                            &text_value,
-                            comp_start,
-                            comp_end,
-                            scene,
-                            transform,
-                            text_color,
-                        );
-                    }
-                }
             }
 
             if *component.is_focused.borrow() {
@@ -634,36 +616,6 @@ fn get_text_position(
     let subtext: String = text.chars().take(char_index).collect();
     let width = subtext.len() as f64 * font_size * 0.6;
     (width, font_size)
-}
-
-fn render_composition_underline(
-    layout: &Layout<BrushIndex>,
-    text: &str,
-    comp_start: usize,
-    comp_end: usize,
-    scene: &mut vello::Scene,
-    transform: Affine,
-    _text_color: Color,
-) {
-    if comp_start >= comp_end || comp_start >= text.len() || comp_end > text.len() + 1 {
-        return;
-    }
-
-    let subtext: String = text.chars().skip(comp_start).take(comp_end - comp_start).collect();
-    if subtext.is_empty() {
-        return;
-    }
-
-    let start_pos = get_text_position(&subtext, 0, layout.height() as f64, Some(layout));
-    let end_pos =
-        get_text_position(&subtext, subtext.chars().count(), layout.height() as f64, Some(layout));
-
-    let underline_y = layout.height() as f64 - 4.0;
-    let underline_width = (end_pos.0 - start_pos.0).max(2.0);
-    let underline_color = Color::from_rgba8(100, 100, 100, 180);
-    let underline_rect = Rect::new(start_pos.0 as f64, underline_y, underline_width, 2.0);
-
-    scene.fill(vello::peniko::Fill::NonZero, transform, underline_color, None, &underline_rect);
 }
 
 fn render_checkbox(
