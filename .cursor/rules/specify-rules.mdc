@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2026-01-17
 
 ## Active Technologies
+- Rust 2021 Edition, minimum 1.84+ (workspace `rust-version = "1.84"`) + rudo-gc 0.7 (GC), vello 0.7 (rendering), taffy 0.9 (layout), winit 0.30 (event loop), once_cell 1 (lazy statics) (003-rvue-async-support)
+- N/A (desktop GUI framework) (003-rvue-async-support)
 
 - Rust (latest stable, minimum 1.75+) (002-rvue-mvp)
 
@@ -22,6 +24,7 @@ cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECH
 Rust (latest stable, minimum 1.75+): Follow standard conventions
 
 ## Recent Changes
+- 003-rvue-async-support: Added Rust 2021 Edition, minimum 1.84+ (workspace `rust-version = "1.84"`) + rudo-gc 0.7 (GC), vello 0.7 (rendering), taffy 0.9 (layout), winit 0.30 (event loop), once_cell 1 (lazy statics)
 
 - 002-rvue-mvp: Added Rust (latest stable, minimum 1.75+)
 
