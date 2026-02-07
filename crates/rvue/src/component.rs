@@ -517,6 +517,14 @@ impl Component {
         self.effects.borrow_mut().push(effect);
     }
 
+    /// Remove an effect from this component
+    pub fn remove_effect(&self, effect: &Gc<Effect>) {
+        let mut effects = self.effects.borrow_mut();
+        if let Some(pos) = effects.iter().position(|e| Gc::ptr_eq(e, effect)) {
+            effects.remove(pos);
+        }
+    }
+
     pub fn accepts_pointer_interaction(&self) -> bool {
         self.flags.borrow().contains(ComponentFlags::ACCEPTS_POINTER)
     }

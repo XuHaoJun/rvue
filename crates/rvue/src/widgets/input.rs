@@ -81,6 +81,12 @@ impl Mountable for TextInputState {
 
     fn unmount(&self) {
         self.component.set_parent(None);
+        if let Some(ref effect) = self.value_effect {
+            self.component.remove_effect(effect);
+        }
+        if let Some(ref effect) = self.clip_effect {
+            self.component.remove_effect(effect);
+        }
     }
 }
 

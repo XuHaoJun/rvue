@@ -66,7 +66,6 @@ pub struct FocusState {
     pub focused: Option<Gc<Component>>,
     pub fallback: Option<Gc<Component>>,
     pub pending_focus: Option<Gc<Component>>,
-    pub focus_anchor: Option<Gc<Component>>,
 }
 
 /// Application state
@@ -304,12 +303,7 @@ impl<'a> AppState<'a> {
             view: None,
             scene: RvueScene::new(),
             stylesheet: None,
-            focus_state: FocusState {
-                focused: None,
-                fallback: None,
-                pending_focus: None,
-                focus_anchor: None,
-            },
+            focus_state: FocusState { focused: None, fallback: None, pending_focus: None },
             pointer_capture: GcCell::new(None),
             last_pointer_pos: None,
             hovered_component: GcCell::new(None),
