@@ -308,6 +308,11 @@ fn render_text_layout(
                     })
                     .collect();
 
+                let first_glyph_id = vello_glyphs.first().map(|g| g.id).unwrap_or(0);
+                if first_glyph_id == 0 {
+                    log::warn!("render_text_layout: glyph ID 0 detected - font may not have required glyphs");
+                }
+
                 scene
                     .draw_glyphs(run.font())
                     .font_size(run.font_size())
@@ -404,25 +409,44 @@ fn render_text_input(
                 scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, &clip_rect);
             }
 
-            let (text_value, composition_range, is_composing) =
-                if let Some(editor) = component.text_editor() {
-                    let editor_ref = editor.editor();
-                    let content = editor_ref.content();
-                    let composition = editor_ref.composition();
-                    if composition.is_empty() {
-                        (content, None, false)
-                    } else {
-                        let cursor_offset = content.chars().count().min(composition.cursor_start);
-                        let left: String = content.chars().take(cursor_offset).collect();
-                        let right: String = content.chars().skip(cursor_offset).collect();
-                        let full_text = format!("{}{}{}", left, composition.text, right);
-                        let composition_start = left.chars().count();
-                        let composition_end = composition_start + composition.text.chars().count();
-                        (full_text, Some((composition_start, composition_end)), true)
-                    }
+            let (text_value, composition_range, is_composing) = if let Some(editor) =
+                component.text_editor()
+            {
+                let editor_ref = editor.editor();
+                let content = editor_ref.content();
+                let composition = editor_ref.composition();
+                if composition.is_empty() {
+                    (content, None, false)
                 } else {
-                    (component.text_input_value(), None, false)
-                };
+                    let cursor_offset = editor_ref.selection().cursor();
+                    let left: String = content.chars().take(cursor_offset).collect();
+                    let right: String = content.chars().skip(cursor_offset).collect();
+                    let full_text = format!("{}{}{}", left, composition.text, right);
+                    let composition_start = left.chars().count();
+                    let composition_end = composition_start + composition.text.chars().count();
+                    log::debug!(
+                            "Composition: content='{}', cursor_offset={}, preedit='{}', cursor_start={}, composition_start={}, full_text='{}'",
+                            content,
+                            cursor_offset,
+                            composition.text,
+                            composition.cursor_start,
+                            composition_start,
+                            full_text
+                        );
+                    (full_text, Some((composition_start, composition_end)), true)
+                }
+            } else {
+                (component.text_input_value(), None, false)
+            };
+
+            log::debug!(
+                "IME render: text='{}', is_composing={}, composition_range={:?}",
+                text_value,
+                is_composing,
+                composition_range
+            );
+
+            let font_stack = "Noto Sans CJK SC, Noto Sans CJK, Noto Sans, sans-serif";
 
             let mut layout_builder = text_context.layout_ctx.ranged_builder(
                 &mut text_context.font_ctx,
@@ -433,7 +457,7 @@ fn render_text_input(
             layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size as f32));
             layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
             layout_builder.push_default(parley::style::FontStack::Source(
-                std::borrow::Cow::Borrowed("sans-serif"),
+                std::borrow::Cow::Borrowed(font_stack),
             ));
 
             let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
@@ -464,16 +488,33 @@ fn render_text_input(
                     let is_composing = editor_ref.is_composing();
 
                     let cursor_idx = if is_composing {
-                        let composition = editor_ref.composition();
-                        let cursor_offset = editor_ref.composition_cursor_offset();
-                        cursor_offset
-                            + composition.cursor_start.min(composition.text.chars().count())
+                        let cursor_in_content = selection.cursor();
+                        let comp = editor_ref.composition();
+                        let preedit_char_offset = comp.text.chars().take(comp.cursor_start).count();
+                        let idx = cursor_in_content + preedit_char_offset;
+                        log::debug!(
+                            "IME cursor: content='{}', cursor_in_content={}, preedit='{}', cursor_start={}, preedit_char_offset={}, cursor_idx={}",
+                            editor_ref.content(),
+                            cursor_in_content,
+                            comp.text,
+                            comp.cursor_start,
+                            preedit_char_offset,
+                            idx
+                        );
+                        idx
                     } else {
                         selection.cursor()
                     };
 
                     let cursor_pos =
                         get_text_position(&text_value, cursor_idx, font_size, Some(&text_layout));
+
+                    log::debug!(
+                        "IME cursor pos: cursor_idx={}, cursor_x={}, cursor_y={}",
+                        cursor_idx,
+                        cursor_pos.0,
+                        cursor_pos.1
+                    );
 
                     component.set_ime_area(cursor_pos.0 - 1.0, 0.0, 2.0, height);
 
@@ -533,90 +574,6 @@ fn render_text_input(
             }
         }
     }
-}
-
-fn render_composition_underline(
-    layout: &Layout<BrushIndex>,
-    text: &str,
-    comp_start: usize,
-    comp_end: usize,
-    scene: &mut vello::Scene,
-    transform: Affine,
-    text_color: Color,
-) {
-    let underline_y = layout.height() as f64 - 2.0;
-
-    let start_pos = get_text_position(text, comp_start, layout.height() as f64, Some(layout));
-    let end_pos = get_text_position(text, comp_end, layout.height() as f64, Some(layout));
-
-    let underline_width = (end_pos.0 - start_pos.0).max(2.0);
-    let underline_rect = Rect::new(start_pos.0 as f64, underline_y, underline_width, 2.0);
-
-    scene.fill(vello::peniko::Fill::NonZero, transform, text_color, None, &underline_rect);
-}
-
-fn get_text_position(
-    text: &str,
-    char_index: usize,
-    font_size: f64,
-    layout: Option<&Layout<BrushIndex>>,
-) -> (f64, f64) {
-    if char_index == 0 {
-        return (0.0, font_size);
-    }
-
-    if let Some(layout) = layout {
-        // For cursor position at end of text, use layout.width()
-        if char_index >= text.chars().count() {
-            return (layout.width() as f64, font_size);
-        }
-
-        // Try to get position from clusters
-        let byte_index = text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len());
-
-        if let Some(cluster) = Cluster::from_byte_index(layout, byte_index) {
-            let x = cluster.visual_offset().unwrap_or(0.0) as f64;
-            return (x, font_size);
-        }
-
-        // Fallback: iterate through glyph runs to find position based on character count
-        let mut current_char_pos = 0;
-        let mut x_pos = 0.0f64;
-        for line in layout.lines() {
-            for item in line.items() {
-                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
-                    let char_count = glyph_run.glyphs().count();
-                    let run_end = current_char_pos + char_count;
-
-                    // Check if this glyph run covers our char_index
-                    if current_char_pos <= char_index && char_index <= run_end {
-                        return (x_pos, font_size);
-                    }
-                    x_pos += glyph_run.advance() as f64;
-                    current_char_pos = run_end;
-                }
-            }
-        }
-
-        // Last resort fallback - use layout width proportionally
-        let total_chars = text.chars().count();
-        if total_chars > 0 {
-            let proportion = char_index as f64 / total_chars as f64;
-            return (layout.width() as f64 * proportion, font_size);
-        }
-
-        return (layout.width() as f64, font_size);
-    }
-
-    let char_count = text.chars().count();
-    if char_index >= char_count {
-        let width = text.len() as f64 * font_size * 0.6;
-        return (width, font_size);
-    }
-
-    let subtext: String = text.chars().take(char_index).collect();
-    let width = subtext.len() as f64 * font_size * 0.6;
-    (width, font_size)
 }
 
 fn render_number_input(
@@ -681,6 +638,85 @@ fn render_number_input(
             }
         }
     }
+}
+
+fn get_text_position(
+    text: &str,
+    char_index: usize,
+    font_size: f64,
+    layout: Option<&Layout<BrushIndex>>,
+) -> (f64, f64) {
+    if char_index == 0 {
+        return (0.0, font_size);
+    }
+
+    if let Some(layout) = layout {
+        if char_index >= text.chars().count() {
+            return (layout.width() as f64, font_size);
+        }
+
+        let byte_index = text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len());
+
+        if let Some(cluster) = Cluster::from_byte_index(layout, byte_index) {
+            let x = cluster.visual_offset().unwrap_or(0.0) as f64;
+            return (x, font_size);
+        }
+
+        let mut current_char_pos = 0;
+        let mut x_pos = 0.0f64;
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
+                    let char_count = glyph_run.glyphs().count();
+                    let run_end = current_char_pos + char_count;
+
+                    if current_char_pos <= char_index && char_index <= run_end {
+                        return (x_pos, font_size);
+                    }
+                    x_pos += glyph_run.advance() as f64;
+                    current_char_pos = run_end;
+                }
+            }
+        }
+
+        let total_chars = text.chars().count();
+        if total_chars > 0 {
+            let proportion = char_index as f64 / total_chars as f64;
+            return (layout.width() as f64 * proportion, font_size);
+        }
+
+        return (layout.width() as f64, font_size);
+    }
+
+    let char_count = text.chars().count();
+    if char_index >= char_count {
+        let width = text.len() as f64 * font_size * 0.6;
+        return (width, font_size);
+    }
+
+    let subtext: String = text.chars().take(char_index).collect();
+    let width = subtext.len() as f64 * font_size * 0.6;
+    (width, font_size)
+}
+
+fn render_composition_underline(
+    layout: &Layout<BrushIndex>,
+    text: &str,
+    comp_start: usize,
+    comp_end: usize,
+    scene: &mut vello::Scene,
+    transform: Affine,
+    text_color: Color,
+) {
+    let underline_y = layout.height() as f64 - 2.0;
+
+    let start_pos = get_text_position(text, comp_start, layout.height() as f64, Some(layout));
+    let end_pos = get_text_position(text, comp_end, layout.height() as f64, Some(layout));
+
+    let underline_width = (end_pos.0 - start_pos.0).max(2.0);
+    let underline_rect = Rect::new(start_pos.0 as f64, underline_y, underline_width, 2.0);
+
+    scene.fill(vello::peniko::Fill::NonZero, transform, text_color, None, &underline_rect);
 }
 
 fn render_checkbox(

@@ -217,11 +217,13 @@ impl<'a> AppStateLike for AppState<'a> {
                 return;
             }
 
-            let ime_area = focused.ime_area();
-            if ime_area != self.last_sent_ime_area {
-                self.last_sent_ime_area = ime_area;
+            let _ime_area = focused.ime_area();
+            let global_ime_area = Self::get_global_ime_area(focused);
+
+            if global_ime_area != self.last_sent_ime_area {
+                self.last_sent_ime_area = global_ime_area;
                 if let Some(window) = &self.window {
-                    if let Some((x, y, width, height)) = ime_area {
+                    if let Some((x, y, width, height)) = global_ime_area {
                         use winit::dpi::{LogicalPosition, LogicalSize};
                         window.set_ime_cursor_area(
                             LogicalPosition::new(x, y),
@@ -347,6 +349,25 @@ impl<'a> AppState<'a> {
 
         run_pointer_event_pass(self, &converted_event);
         self.request_redraw_if_dirty();
+    }
+
+    fn get_global_ime_area(component: &Gc<Component>) -> Option<(f64, f64, f64, f64)> {
+        let ime_area = component.ime_area()?;
+        let (local_x, local_y, width, height) = ime_area;
+
+        let mut global_x = local_x;
+        let mut global_y = local_y;
+        let mut current = Some(Gc::clone(component));
+
+        while let Some(comp) = current {
+            if let Some((px, py)) = comp.layout_position() {
+                global_x += px;
+                global_y += py;
+            }
+            current = comp.parent.borrow().as_ref().cloned();
+        }
+
+        Some((global_x, global_y, width, height))
     }
 }
 

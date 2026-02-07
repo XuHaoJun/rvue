@@ -122,13 +122,20 @@ impl TextEditor {
         let content = self.content.borrow();
         let composition = self.composition.borrow();
         if composition.is_empty() {
-            content.clone()
+            let result = content.clone();
+            log::debug!("text_with_composition: empty, returning '{}'", result);
+            result
         } else {
-            let cursor = content.chars().count().min(composition.cursor_start);
+            let cursor_offset = content.chars().count().min(composition.cursor_start);
             let content_chars: Vec<char> = content.chars().collect();
-            let left: String = content_chars[..cursor].iter().collect();
-            let right: String = content_chars[cursor..].iter().collect();
-            format!("{}{}{}", left, composition.text, right)
+            let left: String = content_chars[..cursor_offset].iter().collect();
+            let right: String = content_chars[cursor_offset..].iter().collect();
+            let full_text = format!("{}{}{}", left, composition.text, right);
+            log::debug!(
+                "text_with_composition: content='{}', cursor_offset={}, left='{}', preedit='{}', right='{}', result='{}'",
+                content, cursor_offset, left, composition.text, right, full_text
+            );
+            full_text
         }
     }
 
@@ -136,10 +143,27 @@ impl TextEditor {
         let content = self.content.borrow();
         let composition = self.composition.borrow();
         if composition.is_empty() {
-            content.chars().count()
+            let count = content.chars().count();
+            log::debug!("composition_cursor_offset: empty, returning char count={}", count);
+            count
         } else {
-            content.chars().count().min(composition.cursor_start)
+            let content_count = content.chars().count();
+            let offset = content_count.min(composition.cursor_start);
+            log::debug!(
+                "composition_cursor_offset: content='{}' ({} chars), cursor_start={}, returning={}",
+                content,
+                content_count,
+                composition.cursor_start,
+                offset
+            );
+            offset
         }
+    }
+
+    pub fn preedit_start_offset(&self) -> usize {
+        let offset = self.composition_cursor_offset();
+        log::debug!("preedit_start_offset: returning {}", offset);
+        offset
     }
 
     pub fn set_content(&self, text: String) {
@@ -182,6 +206,13 @@ impl TextEditor {
 
     pub fn set_composition(&self, text: &str, cursor_range: Option<(usize, usize)>) {
         let (start, end) = cursor_range.unwrap_or((text.len(), text.len()));
+        log::debug!(
+            "set_composition: text='{}', cursor_range={:?}, cursor_start={}, cursor_end={}",
+            text,
+            cursor_range,
+            start,
+            end
+        );
         *self.composition.borrow_mut_gen_only() =
             ImeComposition { text: text.to_string(), cursor_start: start, cursor_end: end };
     }

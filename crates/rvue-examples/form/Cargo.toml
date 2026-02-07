@@ -9,3 +9,4 @@ license.workspace = true
 rvue = { path = "../../rvue" }
 rvue-macro = { path = "../../rvue-macro" }
 rvue-style = { path = "../../rvue-style" }
+env_logger = "0.10"

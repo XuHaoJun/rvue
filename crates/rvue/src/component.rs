@@ -849,6 +849,14 @@ impl Component {
         *self.ime_area.borrow_mut_gen_only() = None;
     }
 
+    pub fn layout_position(&self) -> Option<(f64, f64)> {
+        self.layout_node
+            .borrow()
+            .as_ref()
+            .and_then(|n| n.layout_result)
+            .map(|layout| (layout.location.x as f64, layout.location.y as f64))
+    }
+
     pub fn is_composing(&self) -> bool {
         self.text_editor.borrow().as_ref().map(|e| e.editor().is_composing()).unwrap_or(false)
     }
