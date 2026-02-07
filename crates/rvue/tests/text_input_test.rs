@@ -14,14 +14,20 @@ fn test_text_input_editor_initialization() {
 }
 
 #[test]
-fn test_text_input_insert_text() {
+fn test_emoji_text_edit() {
     let editor = SharedTextEditor::new();
 
-    editor.editor().insert_text("a");
-    assert_eq!(editor.editor().content(), "a");
+    editor.editor().insert_text("你好👋世界");
+    assert_eq!(editor.editor().content(), "你好👋世界");
 
-    editor.editor().insert_text("bc");
-    assert_eq!(editor.editor().content(), "abc");
+    editor.editor().backspace();
+    assert_eq!(editor.editor().content(), "你好👋世");
+
+    editor.editor().backspace();
+    assert_eq!(editor.editor().content(), "你好👋");
+
+    editor.editor().backspace();
+    assert_eq!(editor.editor().content(), "你好");
 }
 
 #[test]
@@ -353,4 +359,39 @@ fn test_text_input_accepts_focus() {
         flags.contains(ComponentFlags::ACCEPTS_FOCUS),
         "TextInput should have ACCEPTS_FOCUS flag"
     );
+}
+
+#[test]
+fn test_mixed_text_edit() {
+    let editor = SharedTextEditor::new();
+
+    editor.editor().insert_text("Hello世界");
+    assert_eq!(editor.editor().content(), "Hello世界");
+
+    editor.editor().move_to(5);
+    editor.editor().insert_text("你好");
+    assert_eq!(editor.editor().content(), "Hello你好世界");
+}
+
+#[test]
+fn test_chinese_text_backspace() {
+    let editor = SharedTextEditor::new();
+
+    editor.editor().insert_text("中文");
+    assert_eq!(editor.editor().content(), "中文");
+
+    editor.editor().backspace();
+    assert_eq!(editor.editor().content(), "中");
+}
+
+#[test]
+fn test_chinese_text_delete() {
+    let editor = SharedTextEditor::new();
+
+    editor.editor().insert_text("中文");
+    assert_eq!(editor.editor().content(), "中文");
+
+    editor.editor().move_to_start();
+    editor.editor().delete();
+    assert_eq!(editor.editor().content(), "文");
 }

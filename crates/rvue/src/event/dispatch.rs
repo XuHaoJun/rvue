@@ -450,6 +450,12 @@ fn handle_text_input_keyboard_event(
     }
 
     if let Some(editor) = component.text_editor() {
+        if editor.editor().is_composing() {
+            return;
+        }
+    }
+
+    if let Some(editor) = component.text_editor() {
         let text_editor = editor.editor();
 
         match &event.key {

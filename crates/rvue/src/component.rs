@@ -525,6 +525,10 @@ impl Component {
         self.flags.borrow().contains(ComponentFlags::ACCEPTS_FOCUS)
     }
 
+    pub fn accepts_text_input(&self) -> bool {
+        matches!(self.component_type, ComponentType::TextInput | ComponentType::NumberInput)
+    }
+
     pub fn is_disabled(&self) -> bool {
         self.flags.borrow().contains(ComponentFlags::IS_DISABLED)
     }

@@ -57,6 +57,9 @@ pub trait AppStateLike {
     fn clear_pointer_capture(&mut self);
     fn scroll_drag_state(&self) -> Option<ScrollDragState>;
     fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>);
+    fn enable_ime(&mut self);
+    fn disable_ime(&mut self);
+    fn update_ime_cursor_area(&mut self);
 }
 
 pub struct FocusState {
@@ -84,6 +87,8 @@ pub struct AppState<'a> {
     pub last_gc_count: usize,
     pub last_anim_duration: Option<u64>,
     pub needs_cursor_blink_update: bool,
+    pub is_ime_active: bool,
+    pub last_sent_ime_area: Option<(f64, f64, f64, f64)>,
     renderer: Option<Renderer>,
     surface: Option<RenderSurface<'a>>,
     render_cx: Option<RenderContext>,
@@ -182,6 +187,51 @@ impl<'a> AppStateLike for AppState<'a> {
     fn set_needs_cursor_blink_update(&mut self) {
         self.needs_cursor_blink_update = true;
     }
+
+    fn enable_ime(&mut self) {
+        if !self.is_ime_active {
+            self.is_ime_active = true;
+            if let Some(window) = &self.window {
+                window.set_ime_allowed(true);
+            }
+        }
+    }
+
+    fn disable_ime(&mut self) {
+        if self.is_ime_active {
+            self.is_ime_active = false;
+            self.last_sent_ime_area = None;
+            if let Some(window) = &self.window {
+                window.set_ime_allowed(false);
+            }
+        }
+    }
+
+    fn update_ime_cursor_area(&mut self) {
+        if !self.is_ime_active {
+            return;
+        }
+
+        if let Some(focused) = self.focused().as_ref() {
+            if !focused.accepts_text_input() {
+                return;
+            }
+
+            let ime_area = focused.ime_area();
+            if ime_area != self.last_sent_ime_area {
+                self.last_sent_ime_area = ime_area;
+                if let Some(window) = &self.window {
+                    if let Some((x, y, width, height)) = ime_area {
+                        use winit::dpi::{LogicalPosition, LogicalSize};
+                        window.set_ime_cursor_area(
+                            LogicalPosition::new(x, y),
+                            LogicalSize::new(width, height),
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl EventContextOps for AppState<'_> {
@@ -269,6 +319,8 @@ impl<'a> AppState<'a> {
             last_gc_count: 0,
             last_anim_duration: None,
             needs_cursor_blink_update: false,
+            is_ime_active: false,
+            last_sent_ime_area: None,
             event_translator: WinitTranslator::new(),
         }
     }
@@ -932,6 +984,8 @@ impl<'a> AppState<'a> {
 
         // GPU synchronization
         let _ = device.poll(wgpu::PollType::wait_indefinitely());
+
+        self.update_ime_cursor_area();
     }
 
     fn get_or_create_surface(

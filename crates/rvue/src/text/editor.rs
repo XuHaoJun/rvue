@@ -101,6 +101,19 @@ impl TextEditor {
         }
     }
 
+    fn char_index_to_byte_index(&self, char_index: usize) -> usize {
+        self.content
+            .borrow()
+            .char_indices()
+            .nth(char_index)
+            .map(|(i, _)| i)
+            .unwrap_or(self.content.borrow().len())
+    }
+
+    fn char_count(&self) -> usize {
+        self.content.borrow().chars().count()
+    }
+
     pub fn content(&self) -> String {
         self.content.borrow().clone()
     }
@@ -210,10 +223,13 @@ impl TextEditor {
         let start = selection.start.min(selection.end);
         let end = selection.end.max(selection.start);
 
+        let start_byte = self.char_index_to_byte_index(start);
+        let end_byte = self.char_index_to_byte_index(end);
+
         {
             let mut content = self.content.borrow_mut_gen_only();
             let old_text = content.clone();
-            let new_content = format!("{}{}", &old_text[..start], &old_text[end..]);
+            let new_content = format!("{}{}", &old_text[..start_byte], &old_text[end_byte..]);
             *content = new_content;
         }
 
@@ -224,16 +240,17 @@ impl TextEditor {
         self.delete_selection();
 
         let cursor = self.selection.borrow().cursor();
-        let new_text = text.to_string();
-        let new_cursor = cursor + new_text.chars().count();
+        let cursor_byte = self.char_index_to_byte_index(cursor);
 
         {
             let mut content = self.content.borrow_mut_gen_only();
             let old_text = content.clone();
-            let new_content = format!("{}{}{}", &old_text[..cursor], new_text, &old_text[cursor..]);
+            let new_content =
+                format!("{}{}{}", &old_text[..cursor_byte], text, &old_text[cursor_byte..]);
             *content = new_content;
         }
 
+        let new_cursor = cursor + text.chars().count();
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(new_cursor);
     }
 
@@ -251,10 +268,16 @@ impl TextEditor {
             return;
         }
 
-        let mut content = self.content.borrow_mut_gen_only();
-        let old_text = content.clone();
-        let new_content = format!("{}{}", &old_text[..cursor - 1], &old_text[cursor..]);
-        *content = new_content;
+        let prev_char_byte = self.char_index_to_byte_index(cursor - 1);
+        let cursor_byte = self.char_index_to_byte_index(cursor);
+
+        {
+            let mut content = self.content.borrow_mut_gen_only();
+            let old_text = content.clone();
+            let new_content =
+                format!("{}{}", &old_text[..prev_char_byte], &old_text[cursor_byte..]);
+            *content = new_content;
+        }
 
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(cursor - 1);
     }
@@ -267,30 +290,37 @@ impl TextEditor {
         }
 
         let cursor = selection.cursor();
-        let text_len = self.content.borrow().len();
-        if cursor >= text_len {
+        let char_count = self.char_count();
+
+        if cursor >= char_count {
             return;
         }
 
-        let mut content = self.content.borrow_mut_gen_only();
-        let old_text = content.clone();
-        let new_content = format!("{}{}", &old_text[..cursor], &old_text[cursor + 1..]);
-        *content = new_content;
+        let cursor_byte = self.char_index_to_byte_index(cursor);
+        let next_char_byte = self.char_index_to_byte_index(cursor + 1);
+
+        {
+            let mut content = self.content.borrow_mut_gen_only();
+            let old_text = content.clone();
+            let new_content =
+                format!("{}{}", &old_text[..cursor_byte], &old_text[next_char_byte..]);
+            *content = new_content;
+        }
     }
 
     pub fn move_cursor(&self, delta: isize) {
         let selection = self.selection.borrow();
         let cursor = selection.cursor();
-        let text_len = self.content.borrow().len();
-        let new_cursor = (cursor as isize + delta).clamp(0, text_len as isize) as usize;
+        let char_count = self.char_count();
+        let new_cursor = (cursor as isize + delta).clamp(0, char_count as isize) as usize;
         drop(selection);
 
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(new_cursor);
     }
 
     pub fn move_to(&self, position: usize) {
-        let text_len = self.content.borrow().len();
-        let position = position.min(text_len);
+        let char_count = self.char_count();
+        let position = position.min(char_count);
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(position);
     }
 
@@ -299,44 +329,116 @@ impl TextEditor {
     }
 
     pub fn move_to_end(&self) {
-        let len = self.content.borrow().len();
+        let len = self.char_count();
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(len);
     }
 
     pub fn move_word_left(&self) {
         let cursor = self.selection.borrow().cursor();
-        let text = self.content.borrow();
-        let new_cursor = text[..cursor].word_boundary_left().unwrap_or(0);
-        drop(text);
+        let content = self.content.borrow();
 
+        let grapheme_count = content.chars().count();
+        if cursor == 0 || grapheme_count == 0 {
+            return;
+        }
+
+        let before_cursor: String = content.chars().take(cursor).collect();
+        let grapheme_indices: Vec<usize> = before_cursor
+            .grapheme_indices(true)
+            .map(|(i, _)| i)
+            .chain(std::iter::once(before_cursor.len()))
+            .collect();
+
+        let mut new_cursor = 0usize;
+        for i in (0..grapheme_indices.len() - 1).rev() {
+            let grapheme_start = grapheme_indices[i];
+            let grapheme_end = grapheme_indices[i + 1];
+            let grapheme = &before_cursor[grapheme_start..grapheme_end];
+
+            if grapheme.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false) {
+                new_cursor = i;
+            } else if new_cursor != 0 {
+                break;
+            } else {
+                new_cursor = i;
+            }
+        }
+
+        drop(content);
         *self.selection.borrow_mut_gen_only() = Selection::from_cursor(new_cursor);
     }
 
     pub fn move_word_right(&self) {
         let cursor = self.selection.borrow().cursor();
-        let text = self.content.borrow();
-        let text_len = text.len();
-        let new_cursor = cursor.saturating_add(text[cursor..].word_boundary_left().unwrap_or(0));
-        if new_cursor < text_len {
-            let additional = text[new_cursor..].word_boundary_left().unwrap_or(0);
-            let final_cursor = (new_cursor + additional).min(text_len);
-            *self.selection.borrow_mut_gen_only() = Selection::from_cursor(final_cursor);
-        } else {
-            *self.selection.borrow_mut_gen_only() = Selection::from_cursor(text_len);
+        let content = self.content.borrow();
+
+        let grapheme_count = content.chars().count();
+        if cursor >= grapheme_count {
+            *self.selection.borrow_mut_gen_only() = Selection::from_cursor(grapheme_count);
+            return;
         }
+
+        let after_cursor: String = content.chars().skip(cursor).collect();
+        let grapheme_indices: Vec<usize> = after_cursor
+            .grapheme_indices(true)
+            .map(|(i, _)| i)
+            .chain(std::iter::once(after_cursor.len()))
+            .collect();
+
+        let mut found_word = false;
+        let mut new_cursor = cursor;
+
+        for i in 0..grapheme_indices.len() - 1 {
+            let grapheme = &after_cursor[grapheme_indices[i]..grapheme_indices[i + 1]];
+            let is_word =
+                grapheme.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+
+            if is_word {
+                found_word = true;
+            } else if found_word {
+                break;
+            }
+            new_cursor += 1;
+        }
+
+        drop(content);
+        *self.selection.borrow_mut_gen_only() = Selection::from_cursor(new_cursor);
     }
 
     pub fn delete_word(&self) {
         let cursor = self.selection.borrow().cursor();
-        let text = self.content.borrow();
-        let word_end = cursor.saturating_add(text[cursor..].word_boundary_left().unwrap_or(0));
-        drop(text);
+        let content = self.content.borrow();
+
+        let grapheme_count = content.chars().count();
+        if cursor >= grapheme_count {
+            return;
+        }
+
+        let after_cursor: String = content.chars().skip(cursor).collect();
+        let grapheme_indices: Vec<usize> = after_cursor
+            .grapheme_indices(true)
+            .map(|(i, _)| i)
+            .chain(std::iter::once(after_cursor.len()))
+            .collect();
+
+        let mut word_end = cursor;
+        for i in 0..grapheme_indices.len() - 1 {
+            let grapheme = &after_cursor[grapheme_indices[i]..grapheme_indices[i + 1]];
+            if grapheme.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false) {
+                word_end = cursor + i + 1;
+            } else if word_end > cursor {
+                break;
+            }
+        }
 
         if word_end > cursor {
-            let mut content = self.content.borrow_mut_gen_only();
-            let old_text = content.clone();
-            let new_content = format!("{}{}", &old_text[..cursor], &old_text[word_end..]);
-            *content = new_content;
+            let cursor_byte = self.char_index_to_byte_index(cursor);
+            let word_end_byte = self.char_index_to_byte_index(word_end);
+
+            let mut content_mut = self.content.borrow_mut_gen_only();
+            let old_text = content_mut.clone();
+            let new_content = format!("{}{}", &old_text[..cursor_byte], &old_text[word_end_byte..]);
+            *content_mut = new_content;
             *self.selection.borrow_mut_gen_only() = Selection::from_cursor(cursor);
         }
     }
@@ -344,20 +446,55 @@ impl TextEditor {
     pub fn backdelete_word(&self) {
         let selection = self.selection.borrow();
         if !selection.is_empty() {
+            drop(selection);
             self.delete_selection();
             return;
         }
 
         let cursor = selection.cursor();
-        let text = self.content.borrow();
-        let word_start = text[..cursor].word_boundary_right().unwrap_or(0);
-        drop(text);
+        if cursor == 0 {
+            return;
+        }
 
-        if cursor > word_start {
-            let mut content = self.content.borrow_mut_gen_only();
-            let old_text = content.clone();
-            let new_content = format!("{}{}", &old_text[..word_start], &old_text[cursor..]);
-            *content = new_content;
+        let content = self.content.borrow();
+
+        let before_cursor: String = content.chars().take(cursor).collect();
+        let grapheme_indices: Vec<usize> = before_cursor
+            .grapheme_indices(true)
+            .map(|(i, _)| i)
+            .chain(std::iter::once(before_cursor.len()))
+            .collect();
+
+        let mut word_start = 0usize;
+        let mut found_word = false;
+
+        for i in (0..grapheme_indices.len()).rev() {
+            if i == 0 {
+                word_start = 0;
+                break;
+            }
+            let grapheme = &before_cursor[grapheme_indices[i - 1]..grapheme_indices[i]];
+            let is_word =
+                grapheme.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+
+            if is_word {
+                found_word = true;
+            } else if found_word {
+                word_start = i;
+                break;
+            }
+        }
+
+        if word_start < cursor {
+            let word_start_byte = self.char_index_to_byte_index(word_start);
+            let cursor_byte = self.char_index_to_byte_index(cursor);
+
+            drop(content);
+            let mut content_mut = self.content.borrow_mut_gen_only();
+            let old_text = content_mut.clone();
+            let new_content =
+                format!("{}{}", &old_text[..word_start_byte], &old_text[cursor_byte..]);
+            *content_mut = new_content;
             *self.selection.borrow_mut_gen_only() = Selection::from_cursor(word_start);
         }
     }
@@ -372,65 +509,6 @@ impl TextEditor {
         let end = selection.end.max(selection.start);
         let content = self.content.borrow();
         Some(content[start..end].to_string())
-    }
-}
-
-trait WordBoundary {
-    fn word_boundary_left(&self) -> Option<usize>;
-    fn word_boundary_right(&self) -> Option<usize>;
-}
-
-impl WordBoundary for str {
-    fn word_boundary_left(&self) -> Option<usize> {
-        if self.is_empty() {
-            return Some(0);
-        }
-
-        let graphemes: Vec<&str> = self.grapheme_indices(true).map(|(_, g)| g).collect();
-        let byte_indices: Vec<usize> = self.grapheme_indices(true).map(|(i, _)| i).collect();
-
-        if graphemes.is_empty() {
-            return Some(0);
-        }
-
-        let mut found_word = false;
-        for (i, g) in graphemes.iter().enumerate() {
-            let is_word_char =
-                g.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
-            if is_word_char {
-                found_word = true;
-            } else if found_word && i > 0 {
-                return Some(byte_indices[i]);
-            }
-        }
-
-        Some(if found_word { self.len() } else { 0 })
-    }
-
-    fn word_boundary_right(&self) -> Option<usize> {
-        if self.is_empty() {
-            return Some(0);
-        }
-
-        let graphemes: Vec<&str> = self.grapheme_indices(true).map(|(_, g)| g).collect();
-        let byte_indices: Vec<usize> = self.grapheme_indices(true).map(|(i, _)| i).collect();
-
-        if graphemes.is_empty() {
-            return Some(0);
-        }
-
-        let mut found_word = false;
-        for (i, g) in graphemes.iter().enumerate() {
-            let is_word_char =
-                g.chars().next().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
-            if is_word_char {
-                found_word = true;
-            } else if found_word {
-                return Some(byte_indices[i]);
-            }
-        }
-
-        Some(self.len())
     }
 }
 
