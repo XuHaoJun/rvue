@@ -10,6 +10,8 @@ use crate::properties::{
     TextInputValue, WidgetStyles,
 };
 use crate::render::FlexScrollState;
+use crate::text::cursor::GcCursorBlinkState;
+use crate::text::editor::SharedTextEditor;
 use crate::text::TextContext;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
@@ -269,6 +271,16 @@ pub struct Component {
     /// When a parent overflow container applies scroll_transform, children should
     /// not apply their own scroll_transform to avoid coordinate space issues.
     pub is_in_scrolling_parent: AtomicBool,
+    /// Text editor state for TextInput components
+    pub text_editor: GcCell<Option<SharedTextEditor>>,
+    /// Cursor blink state for TextInput components
+    pub cursor_blink: GcCell<Option<GcCursorBlinkState>>,
+    /// Whether to clip content to the component bounds.
+    /// Used by TextInput to hide overflowing text.
+    pub clip: GcCell<bool>,
+    /// IME area for positioning the IME candidate window.
+    /// This is updated when the cursor moves during composition.
+    pub ime_area: GcCell<Option<(f64, f64, f64, f64)>>,
 }
 
 unsafe impl Trace for Component {
@@ -293,6 +305,9 @@ unsafe impl Trace for Component {
         self.contexts.trace(visitor);
         self.classes.trace(visitor);
         self.element_id.trace(visitor);
+        self.text_editor.trace(visitor);
+        self.cursor_blink.trace(visitor);
+        self.ime_area.trace(visitor);
     }
 }
 
@@ -323,6 +338,10 @@ impl Clone for Component {
             classes: GcCell::new(self.classes.borrow().clone()),
             element_id: GcCell::new(self.element_id.borrow().clone()),
             is_in_scrolling_parent: AtomicBool::new(false),
+            text_editor: GcCell::new(self.text_editor.borrow().clone()),
+            cursor_blink: GcCell::new(self.cursor_blink.borrow().clone()),
+            clip: GcCell::new(*self.clip.borrow()),
+            ime_area: GcCell::new(*self.ime_area.borrow()),
         }
     }
 }
@@ -359,6 +378,7 @@ impl Component {
             | ComponentType::Checkbox
             | ComponentType::Radio => {
                 flags.insert(ComponentFlags::ACCEPTS_POINTER);
+                flags.insert(ComponentFlags::ACCEPTS_FOCUS);
             }
             _ => {}
         }
@@ -388,6 +408,10 @@ impl Component {
             classes: GcCell::new(Vec::new()),
             element_id: GcCell::new(None),
             is_in_scrolling_parent: AtomicBool::new(false),
+            text_editor: GcCell::new(None),
+            cursor_blink: GcCell::new(None),
+            clip: GcCell::new(false),
+            ime_area: GcCell::new(None),
         })
     }
 
@@ -493,12 +517,24 @@ impl Component {
         self.effects.borrow_mut().push(effect);
     }
 
+    /// Remove an effect from this component
+    pub fn remove_effect(&self, effect: &Gc<Effect>) {
+        let mut effects = self.effects.borrow_mut();
+        if let Some(pos) = effects.iter().position(|e| Gc::ptr_eq(e, effect)) {
+            effects.remove(pos);
+        }
+    }
+
     pub fn accepts_pointer_interaction(&self) -> bool {
         self.flags.borrow().contains(ComponentFlags::ACCEPTS_POINTER)
     }
 
     pub fn accepts_focus(&self) -> bool {
         self.flags.borrow().contains(ComponentFlags::ACCEPTS_FOCUS)
+    }
+
+    pub fn accepts_text_input(&self) -> bool {
+        matches!(self.component_type, ComponentType::TextInput | ComponentType::NumberInput)
     }
 
     pub fn is_disabled(&self) -> bool {
@@ -742,6 +778,12 @@ impl Component {
         self.properties.borrow().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
+    /// Set clip mode for this component.
+    /// When true, content overflowing the component bounds will be hidden.
+    pub fn set_clip(&self, clip: bool) {
+        *self.clip.borrow_mut_gen_only() = clip;
+    }
+
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
         self.properties.borrow_mut_gen_only().insert(NumberInputValue(value));
@@ -773,6 +815,58 @@ impl Component {
     /// Get for item count
     pub fn for_item_count(&self) -> usize {
         self.properties.borrow().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
+    }
+
+    pub fn init_text_editor(&self, text: &str) {
+        let editor = SharedTextEditor::with_text(text);
+        *self.text_editor.borrow_mut_gen_only() = Some(editor);
+        *self.cursor_blink.borrow_mut_gen_only() = Some(GcCursorBlinkState::new());
+    }
+
+    pub fn text_editor(&self) -> Option<SharedTextEditor> {
+        self.text_editor.borrow().clone()
+    }
+
+    pub fn cursor_blink(&self) -> Option<GcCursorBlinkState> {
+        self.cursor_blink.borrow().clone()
+    }
+
+    pub fn update_cursor_blink(&self, interval_ms: u64, is_focused: bool) -> bool {
+        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+            blink.update(interval_ms, is_focused)
+        } else {
+            false
+        }
+    }
+
+    pub fn reset_cursor_blink(&self) {
+        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+            blink.reset();
+        }
+    }
+
+    pub fn set_ime_area(&self, x: f64, y: f64, width: f64, height: f64) {
+        *self.ime_area.borrow_mut_gen_only() = Some((x, y, width, height));
+    }
+
+    pub fn ime_area(&self) -> Option<(f64, f64, f64, f64)> {
+        *self.ime_area.borrow()
+    }
+
+    pub fn clear_ime_area(&self) {
+        *self.ime_area.borrow_mut_gen_only() = None;
+    }
+
+    pub fn layout_position(&self) -> Option<(f64, f64)> {
+        self.layout_node
+            .borrow()
+            .as_ref()
+            .and_then(|n| n.layout_result)
+            .map(|layout| (layout.location.x as f64, layout.location.y as f64))
+    }
+
+    pub fn is_composing(&self) -> bool {
+        self.text_editor.borrow().as_ref().map(|e| e.editor().is_composing()).unwrap_or(false)
     }
 
     pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1292,7 +1386,6 @@ pub fn build_layout_tree(
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
     }
-
     // Build this node with children in the shared tree
     let node =
         LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context, stylesheet);

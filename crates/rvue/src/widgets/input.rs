@@ -12,24 +12,35 @@ use rvue_style::ReactiveStyles;
 pub struct TextInput {
     value: ReactiveValue<String>,
     styles: Option<ReactiveStyles>,
+    clip: ReactiveValue<bool>,
 }
 
 unsafe impl Trace for TextInput {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.value.trace(visitor);
         self.styles.trace(visitor);
+        self.clip.trace(visitor);
     }
 }
 
 impl TextInput {
     /// Create a new TextInput widget with a value
     pub fn new(value: impl crate::widget::IntoReactiveValue<String>) -> Self {
-        Self { value: value.into_reactive(), styles: None }
+        Self { value: value.into_reactive(), styles: None, clip: ReactiveValue::Static(true) }
     }
 
     /// Set the styles directly
     pub fn styles(mut self, styles: ReactiveStyles) -> Self {
         self.styles = Some(styles);
+        self
+    }
+
+    /// Whether to clip the text to the input boundaries.
+    ///
+    /// When true (default), text that overflows the input box will be hidden.
+    /// When false, overflowing text will be visible.
+    pub fn clip(mut self, clip: impl Into<ReactiveValue<bool>>) -> Self {
+        self.clip = clip.into();
         self
     }
 }
@@ -38,6 +49,7 @@ impl TextInput {
 pub struct TextInputState {
     component: Gc<Component>,
     value_effect: Option<Gc<crate::effect::Effect>>,
+    clip_effect: Option<Gc<crate::effect::Effect>>,
 }
 
 impl TextInputState {
@@ -53,6 +65,9 @@ unsafe impl Trace for TextInputState {
         if let Some(effect) = &self.value_effect {
             effect.trace(visitor);
         }
+        if let Some(effect) = &self.clip_effect {
+            effect.trace(visitor);
+        }
     }
 }
 
@@ -66,6 +81,12 @@ impl Mountable for TextInputState {
 
     fn unmount(&self) {
         self.component.set_parent(None);
+        if let Some(ref effect) = self.value_effect {
+            self.component.remove_effect(effect);
+        }
+        if let Some(ref effect) = self.clip_effect {
+            self.component.remove_effect(effect);
+        }
     }
 }
 
@@ -86,17 +107,32 @@ impl Widget for TextInput {
 
         let component = Component::with_properties(id, ComponentType::TextInput, properties);
 
+        // Initialize text editor state for TextInput
+        component.init_text_editor(&initial_value);
+
         // Initialize WidgetStyles in PropertyMap for layout calculations
-        if let Some(styles) = computed_styles {
-            component.set_widget_styles(styles);
+        let mut widget_styles = computed_styles.unwrap_or_default();
+        if widget_styles.width.is_none() {
+            widget_styles.width = Some(rvue_style::Width(rvue_style::Size::Pixels(200.0)));
         }
+        if widget_styles.height.is_none() {
+            widget_styles.height = Some(rvue_style::Height(rvue_style::Size::Pixels(30.0)));
+        }
+        component.set_widget_styles(widget_styles);
+
+        // Set clip to true by default (text overflow will be hidden)
+        component.set_clip(self.clip.get());
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);
             let value = self.value.clone();
             let effect = create_effect(move || {
                 let new_value = value.get();
-                comp.set_text_input_value(new_value);
+                // Update both the property and the text editor
+                comp.set_text_input_value(new_value.clone());
+                if let Some(editor) = comp.text_editor() {
+                    editor.editor().set_content(new_value);
+                }
             });
             component.add_effect(Gc::clone(&effect));
             Some(effect)
@@ -104,24 +140,43 @@ impl Widget for TextInput {
             None
         };
 
-        TextInputState { component, value_effect }
+        TextInputState { component, value_effect, clip_effect: None }
     }
 
     fn rebuild(self, state: &mut Self::State) {
+        let clip = self.clip.get();
+        state.component.set_clip(clip);
+
+        if self.clip.is_reactive() && state.clip_effect.is_none() {
+            let comp = Gc::clone(&state.component);
+            let clip = self.clip.clone();
+            let effect = create_effect(move || {
+                comp.set_clip(clip.get());
+            });
+            state.component.add_effect(Gc::clone(&effect));
+            state.clip_effect = Some(effect);
+        }
+
         if self.value.is_reactive() {
             if state.value_effect.is_none() {
                 let comp = Gc::clone(&state.component);
                 let value = self.value.clone();
                 let effect = create_effect(move || {
                     let new_value = value.get();
-                    comp.set_text_input_value(new_value);
+                    comp.set_text_input_value(new_value.clone());
+                    if let Some(editor) = comp.text_editor() {
+                        editor.editor().set_content(new_value);
+                    }
                 });
                 state.component.add_effect(Gc::clone(&effect));
                 state.value_effect = Some(effect);
             }
         } else {
             let new_value = self.value.get();
-            state.component.set_text_input_value(new_value);
+            state.component.set_text_input_value(new_value.clone());
+            if let Some(editor) = state.component.text_editor() {
+                editor.editor().set_content(new_value);
+            }
         }
     }
 }
@@ -206,9 +261,14 @@ impl Widget for NumberInput {
         let component = Component::with_properties(id, ComponentType::NumberInput, properties);
 
         // Initialize WidgetStyles in PropertyMap for layout calculations
-        if let Some(styles) = computed_styles {
-            component.set_widget_styles(styles);
+        let mut widget_styles = computed_styles.unwrap_or_default();
+        if widget_styles.width.is_none() {
+            widget_styles.width = Some(rvue_style::Width(rvue_style::Size::Pixels(100.0)));
         }
+        if widget_styles.height.is_none() {
+            widget_styles.height = Some(rvue_style::Height(rvue_style::Size::Pixels(30.0)));
+        }
+        component.set_widget_styles(widget_styles);
 
         let value_effect = if is_reactive {
             let comp = Gc::clone(&component);

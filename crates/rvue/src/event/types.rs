@@ -123,7 +123,7 @@ pub enum ImeCause {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImeEvent {
     Enabled(ImeCause),
-    Preedit(String, usize),
+    Preedit(String, Option<(usize, usize)>),
     Commit(String),
     Disabled,
 }

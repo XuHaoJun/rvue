@@ -2,11 +2,14 @@
 
 use crate::component::{Component, ComponentLifecycle};
 use crate::event::context::EventContextOps;
-use crate::event::dispatch::{run_pointer_event_pass, run_text_event_pass};
+use crate::event::dispatch::{
+    run_pointer_event_pass, run_text_event_pass, update_cursor_blink_states,
+};
 use crate::event::handler::ScrollDragState;
 use crate::event::hit_test::hit_test;
 use crate::event::types::{
-    map_scroll_delta, KeyboardEvent, PointerButtonEvent, PointerEvent, PointerMoveEvent,
+    map_scroll_delta, KeyState as RvueKeyState, KeyboardEvent as RvueKeyboardEvent,
+    Modifiers as RvueModifiers, PointerButtonEvent, PointerEvent, PointerMoveEvent,
 };
 use crate::event::update::{run_update_focus_pass, run_update_pointer_pass};
 use crate::event::winit_translator::{get_pointer_event_position, WinitTranslator};
@@ -50,16 +53,19 @@ pub trait AppStateLike {
     fn set_needs_pointer_pass_update(&mut self, _value: bool);
     fn needs_pointer_pass_update(&self) -> bool;
     fn set_focused(&mut self, focused: Option<Gc<Component>>);
+    fn set_needs_cursor_blink_update(&mut self);
     fn clear_pointer_capture(&mut self);
     fn scroll_drag_state(&self) -> Option<ScrollDragState>;
     fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>);
+    fn enable_ime(&mut self);
+    fn disable_ime(&mut self);
+    fn update_ime_cursor_area(&mut self);
 }
 
 pub struct FocusState {
     pub focused: Option<Gc<Component>>,
     pub fallback: Option<Gc<Component>>,
     pub pending_focus: Option<Gc<Component>>,
-    pub focus_anchor: Option<Gc<Component>>,
 }
 
 /// Application state
@@ -78,6 +84,10 @@ pub struct AppState<'a> {
     pub needs_pointer_pass_update: bool,
     pub scroll_drag_state: Option<ScrollDragState>,
     pub last_gc_count: usize,
+    pub last_anim_duration: Option<u64>,
+    pub needs_cursor_blink_update: bool,
+    pub is_ime_active: bool,
+    pub last_sent_ime_area: Option<(f64, f64, f64, f64)>,
     renderer: Option<Renderer>,
     surface: Option<RenderSurface<'a>>,
     render_cx: Option<RenderContext>,
@@ -172,6 +182,57 @@ impl<'a> AppStateLike for AppState<'a> {
     fn set_scroll_drag_state(&mut self, state: Option<ScrollDragState>) {
         self.scroll_drag_state = state;
     }
+
+    fn set_needs_cursor_blink_update(&mut self) {
+        self.needs_cursor_blink_update = true;
+    }
+
+    fn enable_ime(&mut self) {
+        if !self.is_ime_active {
+            self.is_ime_active = true;
+            if let Some(window) = &self.window {
+                window.set_ime_allowed(true);
+            }
+        }
+    }
+
+    fn disable_ime(&mut self) {
+        if self.is_ime_active {
+            self.is_ime_active = false;
+            self.last_sent_ime_area = None;
+            if let Some(window) = &self.window {
+                window.set_ime_allowed(false);
+            }
+        }
+    }
+
+    fn update_ime_cursor_area(&mut self) {
+        if !self.is_ime_active {
+            return;
+        }
+
+        if let Some(focused) = self.focused().as_ref() {
+            if !focused.accepts_text_input() {
+                return;
+            }
+
+            let _ime_area = focused.ime_area();
+            let global_ime_area = Self::get_global_ime_area(focused);
+
+            if global_ime_area != self.last_sent_ime_area {
+                self.last_sent_ime_area = global_ime_area;
+                if let Some(window) = &self.window {
+                    if let Some((x, y, width, height)) = global_ime_area {
+                        use winit::dpi::{LogicalPosition, LogicalSize};
+                        window.set_ime_cursor_area(
+                            LogicalPosition::new(x, y),
+                            LogicalSize::new(width, height),
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl EventContextOps for AppState<'_> {
@@ -198,6 +259,7 @@ impl EventContextOps for AppState<'_> {
 
     fn request_focus(&mut self) {
         // Focus will be applied in the next update pass
+        // The actual focus target is set by EventContext using self.target
     }
 
     fn resign_focus(&mut self) {
@@ -221,6 +283,14 @@ impl EventContextOps for AppState<'_> {
     fn has_pointer_capture(&self) -> bool {
         false
     }
+
+    fn set_pending_focus(&mut self, component: Gc<Component>) {
+        self.focus_state.pending_focus = Some(component);
+    }
+
+    fn set_needs_cursor_blink_update(&mut self) {
+        self.needs_cursor_blink_update = true;
+    }
 }
 
 impl<'a> AppState<'a> {
@@ -233,12 +303,7 @@ impl<'a> AppState<'a> {
             view: None,
             scene: RvueScene::new(),
             stylesheet: None,
-            focus_state: FocusState {
-                focused: None,
-                fallback: None,
-                pending_focus: None,
-                focus_anchor: None,
-            },
+            focus_state: FocusState { focused: None, fallback: None, pending_focus: None },
             pointer_capture: GcCell::new(None),
             last_pointer_pos: None,
             hovered_component: GcCell::new(None),
@@ -248,6 +313,10 @@ impl<'a> AppState<'a> {
             needs_pointer_pass_update: false,
             scroll_drag_state: None,
             last_gc_count: 0,
+            last_anim_duration: None,
+            needs_cursor_blink_update: false,
+            is_ime_active: false,
+            last_sent_ime_area: None,
             event_translator: WinitTranslator::new(),
         }
     }
@@ -274,6 +343,25 @@ impl<'a> AppState<'a> {
 
         run_pointer_event_pass(self, &converted_event);
         self.request_redraw_if_dirty();
+    }
+
+    fn get_global_ime_area(component: &Gc<Component>) -> Option<(f64, f64, f64, f64)> {
+        let ime_area = component.ime_area()?;
+        let (local_x, local_y, width, height) = ime_area;
+
+        let mut global_x = local_x;
+        let mut global_y = local_y;
+        let mut current = Some(Gc::clone(component));
+
+        while let Some(comp) = current {
+            if let Some((px, py)) = comp.layout_position() {
+                global_x += px;
+                global_y += py;
+            }
+            current = comp.parent.borrow().as_ref().cloned();
+        }
+
+        Some((global_x, global_y, width, height))
     }
 }
 
@@ -318,7 +406,238 @@ impl ApplicationHandler for AppState<'_> {
                     self.handle_translated_pointer_event(pointer_event, scale_factor);
                     return;
                 }
-                ui_events_winit::WindowEventTranslation::Keyboard(_) => {
+                ui_events_winit::WindowEventTranslation::Keyboard(key_event) => {
+                    // Process pending focus before handling keyboard events
+                    run_update_focus_pass(self);
+
+                    // Convert ui-events keyboard event to rvue keyboard event
+                    // Note: code field conversion is simplified since text input mainly uses 'key'
+                    let physical_code = match key_event.code {
+                        keyboard_types::Code::KeyA => winit::keyboard::KeyCode::KeyA,
+                        keyboard_types::Code::KeyB => winit::keyboard::KeyCode::KeyB,
+                        keyboard_types::Code::KeyC => winit::keyboard::KeyCode::KeyC,
+                        keyboard_types::Code::KeyD => winit::keyboard::KeyCode::KeyD,
+                        keyboard_types::Code::KeyE => winit::keyboard::KeyCode::KeyE,
+                        keyboard_types::Code::KeyF => winit::keyboard::KeyCode::KeyF,
+                        keyboard_types::Code::KeyG => winit::keyboard::KeyCode::KeyG,
+                        keyboard_types::Code::KeyH => winit::keyboard::KeyCode::KeyH,
+                        keyboard_types::Code::KeyI => winit::keyboard::KeyCode::KeyI,
+                        keyboard_types::Code::KeyJ => winit::keyboard::KeyCode::KeyJ,
+                        keyboard_types::Code::KeyK => winit::keyboard::KeyCode::KeyK,
+                        keyboard_types::Code::KeyL => winit::keyboard::KeyCode::KeyL,
+                        keyboard_types::Code::KeyM => winit::keyboard::KeyCode::KeyM,
+                        keyboard_types::Code::KeyN => winit::keyboard::KeyCode::KeyN,
+                        keyboard_types::Code::KeyO => winit::keyboard::KeyCode::KeyO,
+                        keyboard_types::Code::KeyP => winit::keyboard::KeyCode::KeyP,
+                        keyboard_types::Code::KeyQ => winit::keyboard::KeyCode::KeyQ,
+                        keyboard_types::Code::KeyR => winit::keyboard::KeyCode::KeyR,
+                        keyboard_types::Code::KeyS => winit::keyboard::KeyCode::KeyS,
+                        keyboard_types::Code::KeyT => winit::keyboard::KeyCode::KeyT,
+                        keyboard_types::Code::KeyU => winit::keyboard::KeyCode::KeyU,
+                        keyboard_types::Code::KeyV => winit::keyboard::KeyCode::KeyV,
+                        keyboard_types::Code::KeyW => winit::keyboard::KeyCode::KeyW,
+                        keyboard_types::Code::KeyX => winit::keyboard::KeyCode::KeyX,
+                        keyboard_types::Code::KeyY => winit::keyboard::KeyCode::KeyY,
+                        keyboard_types::Code::KeyZ => winit::keyboard::KeyCode::KeyZ,
+                        keyboard_types::Code::Digit1 => winit::keyboard::KeyCode::Digit1,
+                        keyboard_types::Code::Digit2 => winit::keyboard::KeyCode::Digit2,
+                        keyboard_types::Code::Digit3 => winit::keyboard::KeyCode::Digit3,
+                        keyboard_types::Code::Digit4 => winit::keyboard::KeyCode::Digit4,
+                        keyboard_types::Code::Digit5 => winit::keyboard::KeyCode::Digit5,
+                        keyboard_types::Code::Digit6 => winit::keyboard::KeyCode::Digit6,
+                        keyboard_types::Code::Digit7 => winit::keyboard::KeyCode::Digit7,
+                        keyboard_types::Code::Digit8 => winit::keyboard::KeyCode::Digit8,
+                        keyboard_types::Code::Digit9 => winit::keyboard::KeyCode::Digit9,
+                        keyboard_types::Code::Digit0 => winit::keyboard::KeyCode::Digit0,
+                        keyboard_types::Code::Enter => winit::keyboard::KeyCode::Enter,
+                        keyboard_types::Code::Escape => winit::keyboard::KeyCode::Escape,
+                        keyboard_types::Code::Backspace => winit::keyboard::KeyCode::Backspace,
+                        keyboard_types::Code::Tab => winit::keyboard::KeyCode::Tab,
+                        keyboard_types::Code::Space => winit::keyboard::KeyCode::Space,
+                        keyboard_types::Code::Minus => winit::keyboard::KeyCode::Minus,
+                        keyboard_types::Code::Equal => winit::keyboard::KeyCode::Equal,
+                        keyboard_types::Code::BracketLeft => winit::keyboard::KeyCode::BracketLeft,
+                        keyboard_types::Code::BracketRight => {
+                            winit::keyboard::KeyCode::BracketRight
+                        }
+                        keyboard_types::Code::Backslash => winit::keyboard::KeyCode::Backslash,
+                        keyboard_types::Code::Semicolon => winit::keyboard::KeyCode::Semicolon,
+                        keyboard_types::Code::Quote => winit::keyboard::KeyCode::Quote,
+                        keyboard_types::Code::Backquote => winit::keyboard::KeyCode::Backquote,
+                        keyboard_types::Code::Comma => winit::keyboard::KeyCode::Comma,
+                        keyboard_types::Code::Period => winit::keyboard::KeyCode::Period,
+                        keyboard_types::Code::Slash => winit::keyboard::KeyCode::Slash,
+                        keyboard_types::Code::CapsLock => winit::keyboard::KeyCode::CapsLock,
+                        keyboard_types::Code::F1 => winit::keyboard::KeyCode::F1,
+                        keyboard_types::Code::F2 => winit::keyboard::KeyCode::F2,
+                        keyboard_types::Code::F3 => winit::keyboard::KeyCode::F3,
+                        keyboard_types::Code::F4 => winit::keyboard::KeyCode::F4,
+                        keyboard_types::Code::F5 => winit::keyboard::KeyCode::F5,
+                        keyboard_types::Code::F6 => winit::keyboard::KeyCode::F6,
+                        keyboard_types::Code::F7 => winit::keyboard::KeyCode::F7,
+                        keyboard_types::Code::F8 => winit::keyboard::KeyCode::F8,
+                        keyboard_types::Code::F9 => winit::keyboard::KeyCode::F9,
+                        keyboard_types::Code::F10 => winit::keyboard::KeyCode::F10,
+                        keyboard_types::Code::F11 => winit::keyboard::KeyCode::F11,
+                        keyboard_types::Code::F12 => winit::keyboard::KeyCode::F12,
+                        keyboard_types::Code::Insert => winit::keyboard::KeyCode::Insert,
+                        keyboard_types::Code::Home => winit::keyboard::KeyCode::Home,
+                        keyboard_types::Code::PageUp => winit::keyboard::KeyCode::PageUp,
+                        keyboard_types::Code::Delete => winit::keyboard::KeyCode::Delete,
+                        keyboard_types::Code::End => winit::keyboard::KeyCode::End,
+                        keyboard_types::Code::PageDown => winit::keyboard::KeyCode::PageDown,
+                        keyboard_types::Code::ArrowRight => winit::keyboard::KeyCode::ArrowRight,
+                        keyboard_types::Code::ArrowLeft => winit::keyboard::KeyCode::ArrowLeft,
+                        keyboard_types::Code::ArrowDown => winit::keyboard::KeyCode::ArrowDown,
+                        keyboard_types::Code::ArrowUp => winit::keyboard::KeyCode::ArrowUp,
+                        keyboard_types::Code::Numpad1 => winit::keyboard::KeyCode::Numpad1,
+                        keyboard_types::Code::Numpad2 => winit::keyboard::KeyCode::Numpad2,
+                        keyboard_types::Code::Numpad3 => winit::keyboard::KeyCode::Numpad3,
+                        keyboard_types::Code::Numpad4 => winit::keyboard::KeyCode::Numpad4,
+                        keyboard_types::Code::Numpad5 => winit::keyboard::KeyCode::Numpad5,
+                        keyboard_types::Code::Numpad6 => winit::keyboard::KeyCode::Numpad6,
+                        keyboard_types::Code::Numpad7 => winit::keyboard::KeyCode::Numpad7,
+                        keyboard_types::Code::Numpad8 => winit::keyboard::KeyCode::Numpad8,
+                        keyboard_types::Code::Numpad9 => winit::keyboard::KeyCode::Numpad9,
+                        keyboard_types::Code::Numpad0 => winit::keyboard::KeyCode::Numpad0,
+                        keyboard_types::Code::NumpadDecimal => {
+                            winit::keyboard::KeyCode::NumpadDecimal
+                        }
+                        keyboard_types::Code::NumpadEnter => winit::keyboard::KeyCode::NumpadEnter,
+                        keyboard_types::Code::NumpadAdd => winit::keyboard::KeyCode::NumpadAdd,
+                        keyboard_types::Code::NumpadSubtract => {
+                            winit::keyboard::KeyCode::NumpadSubtract
+                        }
+                        keyboard_types::Code::NumpadMultiply => {
+                            winit::keyboard::KeyCode::NumpadMultiply
+                        }
+                        keyboard_types::Code::NumpadDivide => {
+                            winit::keyboard::KeyCode::NumpadDivide
+                        }
+                        // For unknown codes, use Backquote as a fallback
+                        _ => winit::keyboard::KeyCode::Backquote,
+                    };
+
+                    let key_event = RvueKeyboardEvent {
+                        key: match &key_event.key {
+                            ui_events::keyboard::Key::Character(c) => {
+                                winit::keyboard::Key::Character(c.as_str().into())
+                            }
+                            ui_events::keyboard::Key::Named(named) => {
+                                winit::keyboard::Key::Named(match named {
+                                    ui_events::keyboard::NamedKey::Backspace => {
+                                        winit::keyboard::NamedKey::Backspace
+                                    }
+                                    ui_events::keyboard::NamedKey::Tab => {
+                                        winit::keyboard::NamedKey::Tab
+                                    }
+                                    ui_events::keyboard::NamedKey::Enter => {
+                                        winit::keyboard::NamedKey::Enter
+                                    }
+                                    ui_events::keyboard::NamedKey::Escape => {
+                                        winit::keyboard::NamedKey::Escape
+                                    }
+                                    ui_events::keyboard::NamedKey::ArrowDown => {
+                                        winit::keyboard::NamedKey::ArrowDown
+                                    }
+                                    ui_events::keyboard::NamedKey::ArrowLeft => {
+                                        winit::keyboard::NamedKey::ArrowLeft
+                                    }
+                                    ui_events::keyboard::NamedKey::ArrowRight => {
+                                        winit::keyboard::NamedKey::ArrowRight
+                                    }
+                                    ui_events::keyboard::NamedKey::ArrowUp => {
+                                        winit::keyboard::NamedKey::ArrowUp
+                                    }
+                                    ui_events::keyboard::NamedKey::Delete => {
+                                        winit::keyboard::NamedKey::Delete
+                                    }
+                                    ui_events::keyboard::NamedKey::Home => {
+                                        winit::keyboard::NamedKey::Home
+                                    }
+                                    ui_events::keyboard::NamedKey::End => {
+                                        winit::keyboard::NamedKey::End
+                                    }
+                                    ui_events::keyboard::NamedKey::PageUp => {
+                                        winit::keyboard::NamedKey::PageUp
+                                    }
+                                    ui_events::keyboard::NamedKey::PageDown => {
+                                        winit::keyboard::NamedKey::PageDown
+                                    }
+                                    ui_events::keyboard::NamedKey::Insert => {
+                                        winit::keyboard::NamedKey::Insert
+                                    }
+                                    ui_events::keyboard::NamedKey::F1 => {
+                                        winit::keyboard::NamedKey::F1
+                                    }
+                                    ui_events::keyboard::NamedKey::F2 => {
+                                        winit::keyboard::NamedKey::F2
+                                    }
+                                    ui_events::keyboard::NamedKey::F3 => {
+                                        winit::keyboard::NamedKey::F3
+                                    }
+                                    ui_events::keyboard::NamedKey::F4 => {
+                                        winit::keyboard::NamedKey::F4
+                                    }
+                                    ui_events::keyboard::NamedKey::F5 => {
+                                        winit::keyboard::NamedKey::F5
+                                    }
+                                    ui_events::keyboard::NamedKey::F6 => {
+                                        winit::keyboard::NamedKey::F6
+                                    }
+                                    ui_events::keyboard::NamedKey::F7 => {
+                                        winit::keyboard::NamedKey::F7
+                                    }
+                                    ui_events::keyboard::NamedKey::F8 => {
+                                        winit::keyboard::NamedKey::F8
+                                    }
+                                    ui_events::keyboard::NamedKey::F9 => {
+                                        winit::keyboard::NamedKey::F9
+                                    }
+                                    ui_events::keyboard::NamedKey::F10 => {
+                                        winit::keyboard::NamedKey::F10
+                                    }
+                                    ui_events::keyboard::NamedKey::F11 => {
+                                        winit::keyboard::NamedKey::F11
+                                    }
+                                    ui_events::keyboard::NamedKey::F12 => {
+                                        winit::keyboard::NamedKey::F12
+                                    }
+                                    ui_events::keyboard::NamedKey::CapsLock => {
+                                        winit::keyboard::NamedKey::CapsLock
+                                    }
+                                    ui_events::keyboard::NamedKey::Shift => {
+                                        winit::keyboard::NamedKey::Shift
+                                    }
+                                    ui_events::keyboard::NamedKey::Control => {
+                                        winit::keyboard::NamedKey::Control
+                                    }
+                                    ui_events::keyboard::NamedKey::Alt => {
+                                        winit::keyboard::NamedKey::Alt
+                                    }
+                                    ui_events::keyboard::NamedKey::Meta => {
+                                        winit::keyboard::NamedKey::Meta
+                                    }
+                                    _ => winit::keyboard::NamedKey::Cancel,
+                                })
+                            }
+                        },
+                        code: winit::keyboard::PhysicalKey::Code(physical_code),
+                        state: match key_event.state {
+                            ui_events::keyboard::KeyState::Down => RvueKeyState::Down,
+                            ui_events::keyboard::KeyState::Up => RvueKeyState::Up,
+                        },
+                        modifiers: RvueModifiers {
+                            shift: key_event.modifiers.shift(),
+                            ctrl: key_event.modifiers.ctrl(),
+                            alt: key_event.modifiers.alt(),
+                            logo: key_event.modifiers.meta(),
+                        },
+                        repeat: key_event.repeat,
+                    };
+
+                    run_text_event_pass(self, &crate::event::types::TextEvent::Keyboard(key_event));
+                    self.request_redraw_if_dirty();
                     return;
                 }
             }
@@ -399,7 +718,10 @@ impl ApplicationHandler for AppState<'_> {
                 run_pointer_event_pass(self, &PointerEvent::Leave(Default::default()));
             }
             WindowEvent::KeyboardInput { event: input, .. } => {
-                let key_event = KeyboardEvent {
+                // Process pending focus before handling keyboard events
+                run_update_focus_pass(self);
+
+                let key_event = RvueKeyboardEvent {
                     key: input.logical_key,
                     code: input.physical_key,
                     state: input.state.into(),
@@ -410,12 +732,15 @@ impl ApplicationHandler for AppState<'_> {
                 self.request_redraw_if_dirty();
             }
             WindowEvent::Ime(ime_event) => {
+                // Process pending focus before handling IME events
+                run_update_focus_pass(self);
+
                 let ime = match ime_event {
                     winit::event::Ime::Enabled => {
                         crate::event::types::ImeEvent::Enabled(crate::event::types::ImeCause::Other)
                     }
                     winit::event::Ime::Preedit(text, cursor) => {
-                        crate::event::types::ImeEvent::Preedit(text, cursor.map_or(0, |c| c.0))
+                        crate::event::types::ImeEvent::Preedit(text, cursor)
                     }
                     winit::event::Ime::Commit(text) => crate::event::types::ImeEvent::Commit(text),
                     winit::event::Ime::Disabled => crate::event::types::ImeEvent::Disabled,
@@ -501,6 +826,17 @@ impl<'a> AppState<'a> {
         }
         run_update_focus_pass(self);
 
+        // Update cursor blink animation
+        if self.needs_cursor_blink_update {
+            if let Some(duration) = self.last_anim_duration {
+                update_cursor_blink_states(&self.root_component(), duration);
+            }
+            self.needs_cursor_blink_update = false;
+        }
+
+        // Request redraw after focus changes to ensure cursor renders
+        self.request_redraw_if_dirty();
+
         // Process component lifecycle updates and effects
         self.root_component().update();
 
@@ -515,7 +851,7 @@ impl<'a> AppState<'a> {
 
             let duration_ms = metrics.duration.as_millis();
             if duration_ms > 16 {
-                eprintln!("WARNING: GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
+                log::warn!("GC pause of {}ms exceeded frame budget (16ms)!", duration_ms);
             }
         }
     }
@@ -544,7 +880,7 @@ impl<'a> AppState<'a> {
             Ok(Some(st)) => st,
             Ok(None) => return,
             Err(e) => {
-                eprintln!("Rendering initialization failed: {}", e);
+                log::error!("Rendering initialization failed: {}", e);
                 return;
             }
         };
@@ -638,7 +974,7 @@ impl<'a> AppState<'a> {
             &surface.target_view,
             &render_params,
         ) {
-            eprintln!("Vello render to texture failed: {}", e);
+            log::error!("Vello render to texture failed: {}", e);
             return;
         }
 
@@ -663,6 +999,8 @@ impl<'a> AppState<'a> {
 
         // GPU synchronization
         let _ = device.poll(wgpu::PollType::wait_indefinitely());
+
+        self.update_ime_cursor_area();
     }
 
     fn get_or_create_surface(
@@ -702,13 +1040,13 @@ impl<'a> AppState<'a> {
                 match surface.surface.get_current_texture() {
                     Ok(texture) => Ok(Some(texture)),
                     Err(e) => {
-                        eprintln!("Failed to get surface texture after resize: {}", e);
+                        log::error!("Failed to get surface texture after resize: {}", e);
                         Ok(None)
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Failed to get surface texture: {}", e);
+                log::error!("Failed to get surface texture: {}", e);
                 Ok(None)
             }
         }

@@ -14,6 +14,8 @@ pub trait EventContextOps {
     fn target(&self) -> Gc<Component>;
     fn local_position(&self, window_pos: Point) -> Point;
     fn has_pointer_capture(&self) -> bool;
+    fn set_pending_focus(&mut self, component: Gc<Component>);
+    fn set_needs_cursor_blink_update(&mut self);
 }
 
 pub struct EventContext<'a> {
@@ -60,6 +62,8 @@ impl<'a> EventContext<'a> {
 
     pub fn request_focus(&mut self) {
         self.app_state.request_focus();
+        self.app_state.set_pending_focus(Gc::clone(&self.target));
+        self.app_state.set_needs_cursor_blink_update();
     }
 
     pub fn resign_focus(&mut self) {

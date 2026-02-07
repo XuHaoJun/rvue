@@ -5,6 +5,8 @@ use rvue::prelude::*;
 use rvue_macro::view;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     // Create form view
     let form_view = create_form_view();
 

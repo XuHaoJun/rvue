@@ -26,8 +26,8 @@ pub trait Property: Default + Clone + Send + Sync + 'static {
 
 struct DynProperty {
     type_id: TypeId,
-    ptr: *mut u8,        // Pointer to aligned memory containing the value
-    layout: Layout,      // Memory layout (size and alignment)
+    ptr: *mut u8,   // Pointer to aligned memory containing the value
+    layout: Layout, // Memory layout (size and alignment)
     drop_fn: unsafe fn(*mut u8, Layout), // Function to drop the value stored in bytes
     clone_fn: unsafe fn(*const u8, Layout) -> *mut u8, // Function to clone the value stored in bytes
 }
@@ -44,13 +44,13 @@ impl DynProperty {
             if ptr.is_null() {
                 alloc::handle_alloc_error(layout);
             }
-            
+
             // Use ManuallyDrop to prevent the original value from being dropped
             // when it goes out of scope. The value is moved into the allocated memory
             // and will be dropped when DynProperty is dropped via the drop_fn.
             let value = std::mem::ManuallyDrop::new(value);
             std::ptr::write(ptr as *mut P, std::ptr::read(&*value));
-            
+
             Self {
                 type_id: TypeId::of::<P>(),
                 ptr,

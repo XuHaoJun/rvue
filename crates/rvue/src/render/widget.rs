@@ -4,7 +4,10 @@ use crate::component::{Component, ComponentType, SceneWrapper};
 use crate::style::{resolve_styles_for_component, Stylesheet};
 use crate::text::{BrushIndex, ParleyLayoutWrapper};
 use crate::widgets::scroll_bar::{render_horizontal_scrollbar, render_vertical_scrollbar};
+use parley::Cluster;
+use parley::FontStack;
 use parley::Layout;
+use parley::PositionedLayoutItem;
 use rudo_gc::Gc;
 use rustc_hash::FxHashSet;
 use rvue_style::{BorderStyle, ComputedStyles};
@@ -58,6 +61,7 @@ pub fn render_component(
     transform: Affine,
     already_appended: &mut FxHashSet<u64>,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) -> bool {
     let is_dirty = component.is_dirty();
     let cache_was_none = component.vello_cache.borrow().is_none();
@@ -73,10 +77,22 @@ pub fn render_component(
                 render_button(component, &mut local_scene, Affine::IDENTITY, stylesheet);
             }
             ComponentType::TextInput => {
-                render_text_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
+                render_text_input(
+                    component,
+                    &mut local_scene,
+                    Affine::IDENTITY,
+                    stylesheet,
+                    text_context,
+                );
             }
             ComponentType::NumberInput => {
-                render_number_input(component, &mut local_scene, Affine::IDENTITY, stylesheet);
+                render_number_input(
+                    component,
+                    &mut local_scene,
+                    Affine::IDENTITY,
+                    stylesheet,
+                    text_context,
+                );
             }
             ComponentType::Checkbox => {
                 render_checkbox(component, &mut local_scene, Affine::IDENTITY, stylesheet);
@@ -122,6 +138,7 @@ pub fn render_component(
             already_appended,
             force_render_children,
             stylesheet,
+            text_context,
         );
     }
 
@@ -135,6 +152,7 @@ fn render_children(
     already_appended: &mut FxHashSet<u64>,
     force_render_children: bool,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     // Check if we need to clip content
     let styles = get_styles(component, stylesheet);
@@ -194,7 +212,14 @@ fn render_children(
         let final_transform = transform * child_transform;
 
         if force_render_children || is_dirty || cache_was_none {
-            render_component(child, scene, final_transform, already_appended, stylesheet);
+            render_component(
+                child,
+                scene,
+                final_transform,
+                already_appended,
+                stylesheet,
+                text_context,
+            );
         }
     }
 
@@ -336,10 +361,10 @@ fn render_text_input(
     scene: &mut vello::Scene,
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
-    let text_value = component.text_input_value();
 
     let text_color = styles
         .text_color
@@ -350,7 +375,7 @@ fn render_text_input(
         })
         .unwrap_or(Color::BLACK);
 
-    let font_size = styles.font_size.as_ref().map(|fs| fs.0).unwrap_or(14.0);
+    let font_size = styles.font_size.as_ref().map(|fs| fs.0 as f64).unwrap_or(14.0);
     let border_radius = styles.border_radius.as_ref().map(|r| r.0 as f64).unwrap_or(4.0);
 
     if let Some(layout) = layout_node {
@@ -372,24 +397,99 @@ fn render_text_input(
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
+            let clip = *component.clip.borrow();
+            let clip_rect = Rect::new(0.0, 0.0, width, height);
+
+            if clip {
+                scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, &clip_rect);
+            }
+
+            let text_value = if let Some(editor) = component.text_editor() {
+                let editor_ref = editor.editor();
+                let content = editor_ref.content();
+                let composition = editor_ref.composition();
+                if composition.is_empty() {
+                    content
+                } else {
+                    let cursor_offset = editor_ref.selection().cursor();
+                    let left: String = content.chars().take(cursor_offset).collect();
+                    let right: String = content.chars().skip(cursor_offset).collect();
+                    format!("{}{}{}", left, composition.text, right)
+                }
+            } else {
+                component.text_input_value()
+            };
+
+            let font_stack = "Noto Sans CJK SC, Noto Sans CJK, Noto Sans, sans-serif";
+
+            let mut layout_builder = text_context.layout_ctx.ranged_builder(
+                &mut text_context.font_ctx,
+                &text_value,
+                1.0,
+                true,
+            );
+            layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size as f32));
+            layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
+            layout_builder.push_default(parley::style::FontStack::Source(
+                std::borrow::Cow::Borrowed(font_stack),
+            ));
+
+            let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
+            text_layout.break_all_lines(None);
+
             if !text_value.is_empty() {
-                let mut text_context = crate::text::TextContext::new();
-                let mut layout_builder = text_context.layout_ctx.ranged_builder(
-                    &mut text_context.font_ctx,
-                    &text_value,
-                    1.0,
-                    true,
-                );
-                layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
-                layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
-                layout_builder.push_default(parley::style::FontStack::Source(
-                    std::borrow::Cow::Borrowed("sans-serif"),
-                ));
-
-                let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
-                text_layout.break_all_lines(None);
-
                 render_text_layout(&text_layout, scene, transform, text_color);
+            }
+
+            if *component.is_focused.borrow() {
+                if let Some(editor) = component.text_editor() {
+                    let editor_ref = editor.editor();
+                    let selection = editor_ref.selection();
+                    let is_composing = editor_ref.is_composing();
+
+                    let cursor_idx = if is_composing {
+                        let content_count = editor_ref.content().chars().count();
+                        let comp = editor_ref.composition();
+                        let preedit_char_offset = comp.text.chars().take(comp.cursor_start).count();
+                        let preedit_char_count = comp.text.chars().count();
+                        let cursor_idx_rendered = content_count + preedit_char_count;
+                        let cursor_idx_final = content_count + preedit_char_offset;
+                        (cursor_idx_rendered, cursor_idx_final)
+                    } else {
+                        (selection.cursor(), selection.cursor())
+                    };
+
+                    let cursor_pos =
+                        get_text_position(&text_value, cursor_idx.0, font_size, Some(&text_layout));
+
+                    component.set_ime_area(cursor_pos.0 - 1.0, 0.0, 2.0, height);
+
+                    if let Some(blink) = component.cursor_blink() {
+                        if blink.is_visible() {
+                            let cursor_color = Color::BLACK;
+
+                            let cursor_rect = Rect::new(
+                                cursor_pos.0 as f64 - 1.0,
+                                0.0,
+                                cursor_pos.0 as f64 + 1.0,
+                                height,
+                            );
+                            scene.fill(
+                                vello::peniko::Fill::NonZero,
+                                transform,
+                                cursor_color,
+                                None,
+                                &cursor_rect,
+                            );
+                        }
+                    }
+                } else {
+                    component.clear_ime_area();
+                }
+            }
+
+            if clip {
+                scene.pop_layer();
             }
         }
     }
@@ -400,6 +500,7 @@ fn render_number_input(
     scene: &mut vello::Scene,
     transform: Affine,
     stylesheet: Option<&Stylesheet>,
+    text_context: &mut crate::text::TextContext,
 ) {
     let styles = get_styles(component, stylesheet);
     let layout_node = component.layout_node();
@@ -438,7 +539,6 @@ fn render_number_input(
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
             if !text_value.is_empty() && text_value != "0" {
-                let mut text_context = crate::text::TextContext::new();
                 let mut layout_builder = text_context.layout_ctx.ranged_builder(
                     &mut text_context.font_ctx,
                     &text_value,
@@ -447,9 +547,8 @@ fn render_number_input(
                 );
                 layout_builder.push_default(parley::style::StyleProperty::FontSize(font_size));
                 layout_builder.push_default(parley::style::StyleProperty::Brush(BrushIndex(0)));
-                layout_builder.push_default(parley::style::FontStack::Source(
-                    std::borrow::Cow::Borrowed("sans-serif"),
-                ));
+                layout_builder
+                    .push_default(FontStack::Source(std::borrow::Cow::Borrowed("sans-serif")));
 
                 let mut text_layout: Layout<BrushIndex> = layout_builder.build(&text_value);
                 text_layout.break_all_lines(None);
@@ -458,6 +557,65 @@ fn render_number_input(
             }
         }
     }
+}
+
+fn get_text_position(
+    text: &str,
+    char_index: usize,
+    font_size: f64,
+    layout: Option<&Layout<BrushIndex>>,
+) -> (f64, f64) {
+    if char_index == 0 {
+        return (0.0, font_size);
+    }
+
+    if let Some(layout) = layout {
+        if char_index >= text.chars().count() {
+            return (layout.width() as f64, font_size);
+        }
+
+        let byte_index = text.char_indices().nth(char_index).map(|(i, _)| i).unwrap_or(text.len());
+
+        if let Some(cluster) = Cluster::from_byte_index(layout, byte_index) {
+            let x = cluster.visual_offset().unwrap_or(0.0) as f64;
+            return (x, font_size);
+        }
+
+        let mut current_char_pos = 0;
+        let mut x_pos = 0.0f64;
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(glyph_run) = item {
+                    let char_count = glyph_run.glyphs().count();
+                    let run_end = current_char_pos + char_count;
+
+                    if current_char_pos <= char_index && char_index <= run_end {
+                        return (x_pos, font_size);
+                    }
+                    x_pos += glyph_run.advance() as f64;
+                    current_char_pos = run_end;
+                }
+            }
+        }
+
+        let total_chars = text.chars().count();
+        if total_chars > 0 {
+            let proportion = char_index as f64 / total_chars as f64;
+            return (layout.width() as f64 * proportion, font_size);
+        }
+
+        return (layout.width() as f64, font_size);
+    }
+
+    let char_count = text.chars().count();
+    if char_index >= char_count {
+        let width = text.len() as f64 * font_size * 0.6;
+        return (width, font_size);
+    }
+
+    let subtext: String = text.chars().take(char_index).collect();
+    let width = subtext.len() as f64 * font_size * 0.6;
+    (width, font_size)
 }
 
 fn render_checkbox(

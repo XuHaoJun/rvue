@@ -185,6 +185,13 @@ fn dispatch_pointer_event(
                     handler.call(e, &mut ctx);
                 }
 
+                if matches!(
+                    component.component_type,
+                    ComponentType::TextInput | ComponentType::NumberInput
+                ) {
+                    ctx.request_focus();
+                }
+
                 if handlers.get_click().is_some() {
                     ctx.capture_pointer();
                 }
@@ -302,7 +309,12 @@ pub fn run_text_event_pass(
     app_state: &mut (impl crate::app::AppStateLike + crate::event::context::EventContextOps),
     event: &TextEvent,
 ) -> Handled {
-    let target = app_state.focused().clone().or_else(|| app_state.fallback().clone());
+    // Check focused first, then pending_focus (which might have been set by a recent click)
+    let target = app_state
+        .focused()
+        .clone()
+        .or_else(|| app_state.pending_focus().clone())
+        .or_else(|| app_state.fallback().clone());
 
     if let Some(target) = target {
         if let TextEvent::Keyboard(key_event) = event {
@@ -340,20 +352,44 @@ fn dispatch_text_event(
 
         let handlers = component.event_handlers.borrow();
         match event {
-            TextEvent::Keyboard(e) => match e.state {
-                KeyState::Down => {
-                    if let Some(handler) = handlers.get_key_down() {
-                        handler.call(e, &mut ctx);
+            TextEvent::Keyboard(e) => {
+                let is_text_input = matches!(component.component_type, ComponentType::TextInput);
+
+                if is_text_input {
+                    handle_text_input_keyboard_event(&component, e, &mut ctx);
+                }
+
+                if !ctx.is_handled() {
+                    match e.state {
+                        KeyState::Down => {
+                            if let Some(handler) = handlers.get_key_down() {
+                                handler.call(e, &mut ctx);
+                            }
+                        }
+                        KeyState::Up => {
+                            if let Some(handler) = handlers.get_key_up() {
+                                handler.call(e, &mut ctx);
+                            }
+                        }
                     }
                 }
-                KeyState::Up => {
-                    if let Some(handler) = handlers.get_key_up() {
-                        handler.call(e, &mut ctx);
+            }
+            TextEvent::Ime(e) => {
+                if matches!(component.component_type, ComponentType::TextInput) {
+                    handle_ime_event(&component, e, &mut ctx);
+                }
+            }
+            TextEvent::Paste(text) => {
+                if matches!(component.component_type, ComponentType::TextInput) {
+                    if let Some(editor) = component.text_editor() {
+                        editor.editor().insert_text(text);
+                        component.reset_cursor_blink();
+                        component.mark_dirty();
+                        update_text_input_value(&component);
+                        ctx.stop_propagation();
                     }
                 }
-            },
-            TextEvent::Ime(_) => {}
-            TextEvent::Paste(_) => {}
+            }
         }
 
         if ctx.is_handled() {
@@ -366,4 +402,147 @@ fn dispatch_text_event(
     }
 
     handled
+}
+
+fn handle_ime_event(
+    component: &Gc<Component>,
+    event: &crate::event::types::ImeEvent,
+    ctx: &mut EventContext,
+) {
+    if let Some(editor) = component.text_editor() {
+        match event {
+            crate::event::types::ImeEvent::Preedit(text, cursor_range) => {
+                if text.is_empty() {
+                    editor.editor().clear_composition();
+                } else {
+                    editor.editor().set_composition(text, *cursor_range);
+                }
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            crate::event::types::ImeEvent::Commit(text) => {
+                editor.editor().insert_text(text);
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                update_text_input_value(component);
+                ctx.stop_propagation();
+            }
+            crate::event::types::ImeEvent::Disabled => {
+                editor.editor().clear_composition();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            crate::event::types::ImeEvent::Enabled(_) => {
+                ctx.stop_propagation();
+            }
+        }
+    }
+}
+
+fn handle_text_input_keyboard_event(
+    component: &Gc<Component>,
+    event: &crate::event::types::KeyboardEvent,
+    ctx: &mut EventContext,
+) {
+    if event.state != KeyState::Down {
+        return;
+    }
+
+    if let Some(editor) = component.text_editor() {
+        if editor.editor().is_composing() {
+            return;
+        }
+        let text_editor = editor.editor();
+
+        match &event.key {
+            Key::Character(ch) => {
+                if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo {
+                    text_editor.insert_text(ch);
+                    component.reset_cursor_blink();
+                    component.mark_dirty();
+                    update_text_input_value(component);
+                    ctx.stop_propagation();
+                }
+            }
+            Key::Named(NamedKey::Backspace) => {
+                text_editor.backspace();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                update_text_input_value(component);
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::Delete) => {
+                text_editor.delete();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                update_text_input_value(component);
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::Enter) => {
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::ArrowLeft) => {
+                text_editor.move_cursor(-1);
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::ArrowRight) => {
+                text_editor.move_cursor(1);
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::ArrowUp) => {
+                text_editor.move_to_start();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::ArrowDown) => {
+                text_editor.move_to_end();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::Home) => {
+                text_editor.move_to_start();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::End) => {
+                text_editor.move_to_end();
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                ctx.stop_propagation();
+            }
+            Key::Named(NamedKey::Tab) => {
+                ctx.stop_propagation();
+            }
+            _ => {}
+        }
+    }
+}
+
+fn update_text_input_value(component: &Gc<Component>) {
+    if let Some(editor) = component.text_editor() {
+        let content = editor.editor().content();
+        component.set_text_input_value(content);
+    }
+}
+
+pub fn update_cursor_blink_states(component: &Gc<Component>, interval_ms: u64) {
+    let is_focused = *component.is_focused.borrow();
+
+    if let Some(blink) = component.cursor_blink() {
+        if blink.update(interval_ms, is_focused) {
+            component.mark_dirty();
+        }
+    }
+
+    for child in component.children.borrow().iter() {
+        update_cursor_blink_states(child, interval_ms);
+    }
 }

@@ -89,6 +89,9 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
 }
 
 pub fn run_update_focus_pass(app_state: &mut impl crate::app::AppStateLike) {
+    let prev_focused_text_input =
+        app_state.focused().as_ref().map(|c| c.accepts_text_input()).unwrap_or(false);
+
     if let Some(pending) = app_state.pending_focus().take() {
         let prev_focused = app_state.focused().clone();
 
@@ -120,6 +123,15 @@ pub fn run_update_focus_pass(app_state: &mut impl crate::app::AppStateLike) {
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::ChildFocusChanged(should_have_focus));
         }
+    }
+
+    let next_focused_text_input =
+        app_state.focused().as_ref().map(|c| c.accepts_text_input()).unwrap_or(false);
+
+    if prev_focused_text_input && !next_focused_text_input {
+        app_state.disable_ime();
+    } else if !prev_focused_text_input && next_focused_text_input {
+        app_state.enable_ime();
     }
 
     *app_state.focused_path() = next_focused_path;

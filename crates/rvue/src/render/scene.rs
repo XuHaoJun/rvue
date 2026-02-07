@@ -106,7 +106,7 @@ impl Scene {
 
             if let Some(node_id) = layout.taffy_node() {
                 if let Err(e) = self.taffy.compute_layout(node_id, Size::MAX_CONTENT) {
-                    eprintln!("Scene layout calculation failed: {:?}", e);
+                    log::error!("Scene layout calculation failed: {:?}", e);
                 }
             }
 
@@ -124,6 +124,7 @@ impl Scene {
                         Affine::IDENTITY,
                         &mut already_appended,
                         self.stylesheet.as_ref(),
+                        &mut self.text_context,
                     );
                 } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
@@ -134,6 +135,7 @@ impl Scene {
                         Affine::IDENTITY,
                         &mut already_appended,
                         self.stylesheet.as_ref(),
+                        &mut self.text_context,
                     );
                 }
             }
