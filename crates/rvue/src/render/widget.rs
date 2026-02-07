@@ -308,11 +308,6 @@ fn render_text_layout(
                     })
                     .collect();
 
-                let first_glyph_id = vello_glyphs.first().map(|g| g.id).unwrap_or(0);
-                if first_glyph_id == 0 {
-                    log::warn!("render_text_layout: glyph ID 0 detected - font may not have required glyphs");
-                }
-
                 scene
                     .draw_glyphs(run.font())
                     .font_size(run.font_size())
@@ -409,42 +404,25 @@ fn render_text_input(
                 scene.push_clip_layer(vello::peniko::Fill::NonZero, transform, &clip_rect);
             }
 
-            let (text_value, composition_range, is_composing) = if let Some(editor) =
-                component.text_editor()
-            {
-                let editor_ref = editor.editor();
-                let content = editor_ref.content();
-                let composition = editor_ref.composition();
-                if composition.is_empty() {
-                    (content, None, false)
+            let (text_value, composition_range, is_composing) =
+                if let Some(editor) = component.text_editor() {
+                    let editor_ref = editor.editor();
+                    let content = editor_ref.content();
+                    let composition = editor_ref.composition();
+                    if composition.is_empty() {
+                        (content, None, false)
+                    } else {
+                        let cursor_offset = editor_ref.selection().cursor();
+                        let left: String = content.chars().take(cursor_offset).collect();
+                        let right: String = content.chars().skip(cursor_offset).collect();
+                        let full_text = format!("{}{}{}", left, composition.text, right);
+                        let composition_start = left.chars().count();
+                        let composition_end = composition_start + composition.text.chars().count();
+                        (full_text, Some((composition_start, composition_end)), true)
+                    }
                 } else {
-                    let cursor_offset = editor_ref.selection().cursor();
-                    let left: String = content.chars().take(cursor_offset).collect();
-                    let right: String = content.chars().skip(cursor_offset).collect();
-                    let full_text = format!("{}{}{}", left, composition.text, right);
-                    let composition_start = left.chars().count();
-                    let composition_end = composition_start + composition.text.chars().count();
-                    log::debug!(
-                            "Composition: content='{}', cursor_offset={}, preedit='{}', cursor_start={}, composition_start={}, full_text='{}'",
-                            content,
-                            cursor_offset,
-                            composition.text,
-                            composition.cursor_start,
-                            composition_start,
-                            full_text
-                        );
-                    (full_text, Some((composition_start, composition_end)), true)
-                }
-            } else {
-                (component.text_input_value(), None, false)
-            };
-
-            log::debug!(
-                "IME render: text='{}', is_composing={}, composition_range={:?}",
-                text_value,
-                is_composing,
-                composition_range
-            );
+                    (component.text_input_value(), None, false)
+                };
 
             let font_stack = "Noto Sans CJK SC, Noto Sans CJK, Noto Sans, sans-serif";
 
@@ -488,62 +466,21 @@ fn render_text_input(
                     let is_composing = editor_ref.is_composing();
 
                     let cursor_idx = if is_composing {
-                        let cursor_in_content = selection.cursor();
+                        let content_count = editor_ref.content().chars().count();
                         let comp = editor_ref.composition();
                         let preedit_char_offset = comp.text.chars().take(comp.cursor_start).count();
-                        let idx = cursor_in_content + preedit_char_offset;
-                        log::debug!(
-                            "IME cursor: content='{}', cursor_in_content={}, preedit='{}', cursor_start={}, preedit_char_offset={}, cursor_idx={}",
-                            editor_ref.content(),
-                            cursor_in_content,
-                            comp.text,
-                            comp.cursor_start,
-                            preedit_char_offset,
-                            idx
-                        );
-                        idx
+                        let preedit_char_count = comp.text.chars().count();
+                        let cursor_idx_rendered = content_count + preedit_char_count;
+                        let cursor_idx_final = content_count + preedit_char_offset;
+                        (cursor_idx_rendered, cursor_idx_final)
                     } else {
-                        selection.cursor()
+                        (selection.cursor(), selection.cursor())
                     };
 
                     let cursor_pos =
-                        get_text_position(&text_value, cursor_idx, font_size, Some(&text_layout));
-
-                    log::debug!(
-                        "IME cursor pos: cursor_idx={}, cursor_x={}, cursor_y={}",
-                        cursor_idx,
-                        cursor_pos.0,
-                        cursor_pos.1
-                    );
+                        get_text_position(&text_value, cursor_idx.0, font_size, Some(&text_layout));
 
                     component.set_ime_area(cursor_pos.0 - 1.0, 0.0, 2.0, height);
-
-                    if !selection.is_empty() && !is_composing {
-                        let selection_color = Color::from_rgba8(0, 120, 215, 100);
-
-                        let start_pos = get_text_position(
-                            &text_value,
-                            selection.start.min(selection.end),
-                            font_size,
-                            Some(&text_layout),
-                        );
-                        let end_pos = get_text_position(
-                            &text_value,
-                            selection.start.max(selection.end),
-                            font_size,
-                            Some(&text_layout),
-                        );
-
-                        let selection_rect =
-                            Rect::new(start_pos.0 as f64, 0.0, end_pos.0 as f64, height);
-                        scene.fill(
-                            vello::peniko::Fill::NonZero,
-                            transform,
-                            selection_color,
-                            None,
-                            &selection_rect,
-                        );
-                    }
 
                     if let Some(blink) = component.cursor_blink() {
                         if blink.is_visible() {
@@ -706,17 +643,27 @@ fn render_composition_underline(
     comp_end: usize,
     scene: &mut vello::Scene,
     transform: Affine,
-    text_color: Color,
+    _text_color: Color,
 ) {
-    let underline_y = layout.height() as f64 - 2.0;
+    if comp_start >= comp_end || comp_start >= text.len() || comp_end > text.len() + 1 {
+        return;
+    }
 
-    let start_pos = get_text_position(text, comp_start, layout.height() as f64, Some(layout));
-    let end_pos = get_text_position(text, comp_end, layout.height() as f64, Some(layout));
+    let subtext: String = text.chars().skip(comp_start).take(comp_end - comp_start).collect();
+    if subtext.is_empty() {
+        return;
+    }
 
+    let start_pos = get_text_position(&subtext, 0, layout.height() as f64, Some(layout));
+    let end_pos =
+        get_text_position(&subtext, subtext.chars().count(), layout.height() as f64, Some(layout));
+
+    let underline_y = layout.height() as f64 - 4.0;
     let underline_width = (end_pos.0 - start_pos.0).max(2.0);
+    let underline_color = Color::from_rgba8(100, 100, 100, 180);
     let underline_rect = Rect::new(start_pos.0 as f64, underline_y, underline_width, 2.0);
 
-    scene.fill(vello::peniko::Fill::NonZero, transform, text_color, None, &underline_rect);
+    scene.fill(vello::peniko::Fill::NonZero, transform, underline_color, None, &underline_rect);
 }
 
 fn render_checkbox(

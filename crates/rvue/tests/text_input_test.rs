@@ -85,7 +85,9 @@ fn test_text_input_composition() {
     let editor = SharedTextEditor::new();
 
     // Start composition
-    editor.editor().set_composition("你好", Some((2, 2)));
+    // "你好" is 6 bytes in UTF-8 (3 bytes per character)
+    // cursor_range is in bytes per winit API
+    editor.editor().set_composition("你好", Some((6, 6)));
     assert!(editor.editor().is_composing());
     assert_eq!(editor.editor().composition().text, "你好");
     assert_eq!(editor.editor().composition().cursor_start, 2);
@@ -96,7 +98,7 @@ fn test_text_input_composition() {
     assert!(!editor.editor().is_composing());
 
     // Commit composition
-    editor.editor().set_composition("世界", Some((2, 2)));
+    editor.editor().set_composition("世界", Some((6, 6)));
     editor.editor().commit_composition();
     let _ = editor.editor().content(); // Drop the borrow
     assert_eq!(editor.editor().content(), "世界");

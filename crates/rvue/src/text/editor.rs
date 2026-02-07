@@ -204,17 +204,65 @@ impl TextEditor {
         self.composition.borrow().clone()
     }
 
+    fn clean_ime_text(text: &str) -> String {
+        text.chars()
+            .filter(|c| {
+                !matches!(
+                    c,
+                    '\u{FEFF}'  // BOM
+                        | '\u{200B}'  // Zero width space
+                        | '\u{200C}'  // Zero width non-joiner
+                        | '\u{200D}'  // Zero width joiner
+                        | '\u{200E}'  // Left-to-right mark
+                        | '\u{200F}' // Right-to-left mark
+                )
+            })
+            .collect()
+    }
+
+    fn calculate_cleaned_offset(original: &str, byte_offset: usize) -> usize {
+        let mut char_count = 0;
+        let mut byte_count = 0;
+
+        for c in original.chars() {
+            if byte_count >= byte_offset {
+                break;
+            }
+            byte_count += c.len_utf8();
+            if !matches!(
+                c,
+                '\u{FEFF}' | '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{200E}' | '\u{200F}'
+            ) {
+                char_count += 1;
+            }
+        }
+        char_count
+    }
+
     pub fn set_composition(&self, text: &str, cursor_range: Option<(usize, usize)>) {
-        let (start, end) = cursor_range.unwrap_or((text.len(), text.len()));
-        log::debug!(
-            "set_composition: text='{}', cursor_range={:?}, cursor_start={}, cursor_end={}",
-            text,
-            cursor_range,
-            start,
-            end
-        );
+        let cleaned_text = Self::clean_ime_text(text);
+
+        let (start, end) = cursor_range
+            .map(|(s, e)| {
+                (Self::calculate_cleaned_offset(text, s), Self::calculate_cleaned_offset(text, e))
+            })
+            .unwrap_or((cleaned_text.len(), cleaned_text.len()));
+
+        if text != cleaned_text {
+            log::debug!(
+                "IME text cleaned: original='{}' ({} bytes), cleaned='{}' ({} bytes), cursor_range={:?} -> ({}, {})",
+                text.escape_debug().to_string(),
+                text.len(),
+                cleaned_text.escape_debug().to_string(),
+                cleaned_text.len(),
+                cursor_range,
+                start,
+                end
+            );
+        }
+
         *self.composition.borrow_mut_gen_only() =
-            ImeComposition { text: text.to_string(), cursor_start: start, cursor_end: end };
+            ImeComposition { text: cleaned_text, cursor_start: start, cursor_end: end };
     }
 
     pub fn clear_composition(&self) {
