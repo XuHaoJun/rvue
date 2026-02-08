@@ -99,22 +99,23 @@
 
 ---
 
-## Note: Resource API Removed Due to Send+Sync Constraints
+## Resolution: Resource API Re-Enabled via GcRwLock Migration
 
-The `create_resource`, `Resource<T>`, and `ResourceState<T>` APIs have been **temporarily removed** from the async runtime MVP.
+**Problem Solved**: The `create_resource`, `Resource<T>`, and `ResourceState<T>` APIs have been **re-enabled** by migrating from `GcCell<T>` to `GcRwLock<T>` in the reactivity system.
 
-**Reason**: `WriteSignal<T>` is not `Send + Sync` (uses `GcCell<T>` which is thread-local), making it impossible to capture in async callbacks that must be `Send` for Tokio spawning.
+**Solution**: Changed `GcCell<Vec<Weak<Effect>>>` to `GcRwLock<Vec<Weak<Effect>>>` in `signal.rs` and `GcCell<T>` to `GcRwLock<T>` in `rvue-signals/src/lib.rs`. This makes the reactivity system thread-safe (Send + Sync) when contained types are Send + Sync.
 
-**Impact**: Users cannot currently use `create_resource` to drive reactive async data patterns.
+**Key Changes**:
+- `GcRwLock` wraps `parking_lot::RwLock` and implements `Send + Sync` when `T: Trace + Send + Sync`
+- `.borrow()` → `.read()`, `.borrow_mut_gen_only()` → `.write()` for compatibility
+- Resource API now uses `tokio::runtime::Handle::current().block_on()` to execute fetcher on UI thread
 
-**Future Work**: When WriteSignal is made `Send + Sync` (requires rudo-gc changes), `create_resource` can be re-implemented using the pattern:
-```rust
-spawn_task_with_result(async move { fetcher(source()).await }, move |result| {
-    dispatch_to_ui(move || {
-        // Update signal state here
-    });
-});
-```
+**Files Modified**:
+- `crates/rvue/src/signal.rs` - Effect's GcCell → GcRwLock
+- `crates/rvue-signals/src/lib.rs` - SignalData's GcCell → GcRwLock
+- `crates/rvue/src/async_runtime/resource.rs` - create_resource implementation with fix for closure move error
+- `crates/rvue/src/async_runtime/mod.rs` - Module export
+- `crates/rvue/src/prelude.rs` - Public exports
 
 ---
 

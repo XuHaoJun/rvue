@@ -51,6 +51,9 @@ pub mod registry;
 pub mod signal_sender;
 
 #[cfg(feature = "async")]
+pub mod resource;
+
+#[cfg(feature = "async")]
 pub use dispatch::{dispatch_to_ui, UiDispatchQueue};
 
 #[cfg(feature = "async")]
@@ -64,3 +67,6 @@ pub use registry::TaskRegistry;
 
 #[cfg(feature = "async")]
 pub use signal_sender::SignalSender;
+
+#[cfg(feature = "async")]
+pub use resource::{create_resource, Resource, ResourceState};
