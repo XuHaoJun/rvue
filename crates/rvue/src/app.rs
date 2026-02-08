@@ -1137,6 +1137,7 @@ where
             .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
     }
 
+    #[allow(unreachable_code)]
     Ok(())
 }
 
@@ -1234,6 +1235,7 @@ where
             .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
     }
 
+    #[allow(unreachable_code)]
     Ok(())
 }
 

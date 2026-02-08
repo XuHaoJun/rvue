@@ -6,6 +6,7 @@
 mod gc_safety_tests {
     use rudo_gc::Trace;
 
+    #[allow(dead_code)]
     #[derive(Debug, Clone, PartialEq)]
     struct TestData {
         value: i32,
@@ -25,7 +26,7 @@ mod gc_safety_tests {
         }
 
         let gc_data = Gc::new(GcData { value: 42 });
-        let value = gc_data.value.clone();
+        let value = gc_data.value;
 
         assert_eq!(value, 42);
     }
@@ -34,18 +35,16 @@ mod gc_safety_tests {
 #[cfg(feature = "async")]
 #[cfg(test)]
 mod async_gc_safety_tests {
-    use rudo_gc::Trace;
-
     use rvue::signal::create_signal;
 
-    #[test]
-    fn test_signal_sender_works() {
+    #[tokio::test]
+    async fn test_signal_sender_works() {
         use rvue::prelude::WriteSignalExt;
 
         let (signal, setter) = create_signal(42i32);
-        let sender = signal.sender();
+        let sender = setter.sender();
 
-        sender.send(100);
+        sender.set(100).await;
         assert_eq!(signal.get(), 100);
 
         setter.set(50);

@@ -14,7 +14,10 @@ thread_local! {
     static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
-pub(crate) struct SignalDataInner<T: Trace + Clone + 'static> {
+/// Internal signal data structure containing the value, version tracking, and subscribers.
+///
+/// This is exposed for async runtime integration.
+pub struct SignalDataInner<T: Trace + Clone + 'static> {
     pub(crate) inner: SignalData<T>,
     pub(crate) subscribers: GcRwLock<Vec<Weak<Effect>>>,
 }
@@ -121,6 +124,24 @@ impl<T: Trace + Clone + 'static> ReadSignal<T> {
     {
         self.data.get()
     }
+
+    /// Gets the value WITHOUT effect tracking or scope validation.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The signal is still alive (not garbage collected)
+    /// 2. Any necessary effect tracking is handled separately
+    ///
+    /// This method skips the effect subscription check for performance.
+    /// Use in hot paths where you can prove the signal is valid.
+    #[inline]
+    pub unsafe fn get_unchecked(&self) -> T
+    where
+        T: Clone,
+    {
+        self.data.inner.get()
+    }
 }
 
 impl<T: Trace + Clone + 'static> std::fmt::Debug for ReadSignal<T> {
@@ -163,6 +184,22 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
         f(&mut *self.data.inner.value.write());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
+    }
+
+    /// Sets the value WITHOUT effect tracking or scope validation.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The signal is still alive (not garbage collected)
+    /// 2. Any necessary effect notifications are handled separately
+    ///
+    /// This method skips the normal update path for performance.
+    /// Use in hot paths where you can prove the signal is valid.
+    #[inline]
+    pub unsafe fn set_unchecked(&self, value: T) {
+        *self.data.inner.value.write() = value;
+        self.data.inner.version.fetch_add(1, Ordering::SeqCst);
     }
 }
 
