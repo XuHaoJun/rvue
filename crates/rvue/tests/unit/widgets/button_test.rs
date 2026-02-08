@@ -7,7 +7,7 @@ fn test_button_widget_creation() {
     let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
     assert_eq!(button.component_type, ComponentType::Button);
-    match &*button.props.borrow() {
+    match &*button.props.read() {
         ComponentProps::Button { .. } => {
             // Button created successfully
         }
@@ -21,7 +21,7 @@ fn test_button_widget_event_handler() {
     // Event handlers will be tested in integration tests
     let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
-    match &*button.props.borrow() {
+    match &*button.props.read() {
         ComponentProps::Button { .. } => {
             // Button created successfully
         }
@@ -41,7 +41,7 @@ fn test_button_widget_multiple_buttons() {
     assert_eq!(buttons.len(), 3);
     for button in buttons.iter() {
         assert_eq!(button.component_type, ComponentType::Button);
-        match &*button.props.borrow() {
+        match &*button.props.read() {
             ComponentProps::Button { .. } => {
                 // Button created successfully
             }
@@ -54,7 +54,7 @@ fn test_button_widget_multiple_buttons() {
 fn test_button_widget_with_styles() {
     let button = Component::new(1, ComponentType::Button, ComponentProps::Button { styles: None });
 
-    match &*button.props.borrow() {
+    match &*button.props.read() {
         ComponentProps::Button { styles } => {
             assert!(styles.is_none());
         }

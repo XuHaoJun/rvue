@@ -1,6 +1,6 @@
 use rudo_gc::cell::GcCapture;
 use rudo_gc::GcBox;
-use rudo_gc::{collect_full, Gc, GcCell, Trace};
+use rudo_gc::{collect_full, Gc, GcRwLock, Trace};
 use std::ptr::NonNull;
 
 #[derive(Clone)]
@@ -78,32 +78,32 @@ impl GcCapture for ContextEntry {
 
 #[derive(Clone)]
 struct FakeComponent {
-    children: GcCell<Vec<Gc<FakeComponent>>>,
-    parent: GcCell<Option<Gc<FakeComponent>>>,
-    contexts: GcCell<Vec<ContextEntry>>,
+    children: GcRwLock<Vec<Gc<FakeComponent>>>,
+    parent: GcRwLock<Option<Gc<FakeComponent>>>,
+    contexts: GcRwLock<Vec<ContextEntry>>,
 }
 
 impl FakeComponent {
     fn new() -> Gc<Self> {
         Gc::new(Self {
-            children: GcCell::new(Vec::new()),
-            parent: GcCell::new(None),
-            contexts: GcCell::new(Vec::new()),
+            children: GcRwLock::new(Vec::new()),
+            parent: GcRwLock::new(None),
+            contexts: GcRwLock::new(Vec::new()),
         })
     }
 
     fn provide_context(&self, value: ValueEnum) {
         let type_id = std::any::TypeId::of::<i32>();
-        self.contexts.borrow_mut().push(ContextEntry { type_id, value });
+        self.contexts.write().push(ContextEntry { type_id, value });
     }
 
     fn find_context(&self) -> Option<Gc<i32>> {
-        for entry in self.contexts.borrow().iter().rev() {
+        for entry in self.contexts.read().iter().rev() {
             if let Some(gc) = entry.value.to_i32() {
                 return Some(gc);
             }
         }
-        if let Some(parent) = self.parent.borrow().as_ref() {
+        if let Some(parent) = self.parent.read().as_ref() {
             return parent.find_context();
         }
         None
@@ -135,8 +135,8 @@ fn test_many_sequential_contexts() {
 
         let root = FakeComponent::new();
         let child = FakeComponent::new();
-        child.parent.borrow_mut().replace(root.clone());
-        root.children.borrow_mut().push(child.clone());
+        child.parent.write().replace(root.clone());
+        root.children.write().push(child.clone());
         root.provide_context(ValueEnum::from_i32(i));
         let gc = child.find_context();
         assert_eq!(**gc.as_ref().unwrap(), i);
@@ -156,8 +156,8 @@ fn test_single_context() {
     let root = FakeComponent::new();
     let child = FakeComponent::new();
 
-    child.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(child.clone());
+    child.parent.write().replace(root.clone());
+    root.children.write().push(child.clone());
 
     root.provide_context(ValueEnum::from_i32(42));
 
@@ -178,8 +178,8 @@ fn test_two_components_sequential() {
 
     let root1 = FakeComponent::new();
     let child1 = FakeComponent::new();
-    child1.parent.borrow_mut().replace(root1.clone());
-    root1.children.borrow_mut().push(child1.clone());
+    child1.parent.write().replace(root1.clone());
+    root1.children.write().push(child1.clone());
     root1.provide_context(ValueEnum::from_i32(100));
     let _ = child1.find_context();
 
@@ -189,8 +189,8 @@ fn test_two_components_sequential() {
 
     let root2 = FakeComponent::new();
     let child2 = FakeComponent::new();
-    child2.parent.borrow_mut().replace(root2.clone());
-    root2.children.borrow_mut().push(child2.clone());
+    child2.parent.write().replace(root2.clone());
+    root2.children.write().push(child2.clone());
     root2.provide_context(ValueEnum::from_i32(200));
     let gc = child2.find_context();
     assert_eq!(**gc.as_ref().unwrap(), 200);
@@ -210,10 +210,10 @@ fn test_nested_context() {
     let mid = FakeComponent::new();
     let leaf = FakeComponent::new();
 
-    mid.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(mid.clone());
-    leaf.parent.borrow_mut().replace(mid.clone());
-    mid.children.borrow_mut().push(leaf.clone());
+    mid.parent.write().replace(root.clone());
+    root.children.write().push(mid.clone());
+    leaf.parent.write().replace(mid.clone());
+    mid.children.write().push(leaf.clone());
 
     root.provide_context(ValueEnum::from_i32(100));
     mid.provide_context(ValueEnum::from_i32(200));
@@ -235,8 +235,8 @@ fn test_full_component_pattern() {
 
     let root = FakeComponent::new();
     let child = FakeComponent::new();
-    child.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(child.clone());
+    child.parent.write().replace(root.clone());
+    root.children.write().push(child.clone());
 
     root.provide_context(ValueEnum::from_i32(42));
     let gc = child.find_context();
@@ -255,8 +255,8 @@ fn test_two_tests_sequential() {
 
     let root1 = FakeComponent::new();
     let child1 = FakeComponent::new();
-    child1.parent.borrow_mut().replace(root1.clone());
-    root1.children.borrow_mut().push(child1.clone());
+    child1.parent.write().replace(root1.clone());
+    root1.children.write().push(child1.clone());
     root1.provide_context(ValueEnum::from_i32(100));
     let _ = child1.find_context();
 
@@ -266,8 +266,8 @@ fn test_two_tests_sequential() {
 
     let root2 = FakeComponent::new();
     let child2 = FakeComponent::new();
-    child2.parent.borrow_mut().replace(root2.clone());
-    root2.children.borrow_mut().push(child2.clone());
+    child2.parent.write().replace(root2.clone());
+    root2.children.write().push(child2.clone());
     root2.provide_context(ValueEnum::from_i32(200));
     let gc2 = child2.find_context();
     assert_eq!(**gc2.as_ref().unwrap(), 200);

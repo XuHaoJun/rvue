@@ -2,24 +2,23 @@
 //!
 //! These tests verify the GC safety patterns for async operations.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
-
 #[cfg(test)]
 mod gc_safety_tests {
-    use rudo_gc::{Gc, Trace};
-
-    use crate::signal::create_signal;
+    use rudo_gc::Trace;
 
     #[derive(Debug, Clone, PartialEq)]
     struct TestData {
         value: i32,
     }
 
-    impl Trace for TestData {}
+    unsafe impl Trace for TestData {
+        fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+    }
 
     #[test]
     fn test_gc_safety_extraction_pattern() {
+        use rudo_gc::{Gc, Trace};
+
         #[derive(Debug, Clone, Trace)]
         struct GcData {
             value: i32,
@@ -30,10 +29,18 @@ mod gc_safety_tests {
 
         assert_eq!(value, 42);
     }
+}
+
+#[cfg(feature = "async")]
+#[cfg(test)]
+mod async_gc_safety_tests {
+    use rudo_gc::Trace;
+
+    use rvue::signal::create_signal;
 
     #[test]
     fn test_signal_sender_works() {
-        use crate::prelude::WriteSignalExt;
+        use rvue::prelude::WriteSignalExt;
 
         let (signal, setter) = create_signal(42i32);
         let sender = signal.sender();
