@@ -7,55 +7,60 @@
 ## Entity Relationship Overview
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                     UI Thread (main)                         │
-│                                                              │
-│  ┌──────────────┐     ┌──────────────────┐                  │
-│  │  Component    │────▶│  TaskRegistry    │                  │
-│  │ (ComponentId) │     │ (ComponentId →   │                  │
-│  └──────┬───────┘     │  Vec<TaskHandle>)│                  │
-│         │              └────────┬─────────┘                  │
-│         │ unmount()             │ cancel_all()               │
-│         │                      │                             │
-│         ▼                      ▼                             │
-│  ┌──────────────┐     ┌──────────────┐                      │
-│  │ WriteSignal  │     │  TaskHandle  │                      │
-│  │ .sender()    │     │  (TaskId,    │                      │
-│  └──────┬───────┘     │   AbortHandle│                      │
-│         │              │   completed) │                      │
-│         │              └──────────────┘                      │
-│         ▼                      ▲                             │
-│  ┌──────────────┐              │                             │
-│  │SignalSender  │──────────────┘ (dispatch_to_ui)            │
-│  │ (Send+Sync)  │                                           │
-│  └──────┬───────┘                                           │
-│         │                                                    │
-│  ┌──────┴───────┐     ┌──────────────┐                      │
-│  │UiDispatch    │     │  Resource<T> │                      │
-│  │   Queue      │     │ (state,      │                      │
-│  │(VecDeque<Cb>)│     │  refetch)    │                      │
-│  └──────────────┘     └──────┬───────┘                      │
-│         ▲                    │                               │
-│         │                    ▼                               │
-│         │             ┌──────────────┐                      │
-│         │             │ResourceState │                      │
-│         │             │{Pending,     │                      │
-│         │             │ Loading,     │                      │
-│         │             │ Ready(T),    │                      │
-│         │             │ Error(String)│                      │
-│         │             └──────────────┘                      │
-└─────────│──────────────────────────────────────────────────┘
-          │
-          │ dispatch_to_ui()
-          │
-┌─────────┴──────────────────────────────────────────────────┐
-│                   tokio Worker Threads                       │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ spawn_task() │  │ DebouncedTask│  │ spawn_interval() │  │
-│  │ (Future→())  │  │ (mpsc + delay│  │ (tokio::interval)│  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+ ┌─────────────────────────────────────────────────────────────┐
+ │                     UI Thread (main)                         │
+ │                                                              │
+ │  ┌──────────────┐     ┌──────────────────┐                  │
+ │  │  Component    │────▶│  TaskRegistry    │                  │
+ │  │ (ComponentId) │     │ (ComponentId →   │                  │
+ │  └──────┬───────┘     │  Vec<TaskHandle>)│                  │
+ │         │              └────────┬─────────┘                  │
+ │         │ unmount()             │ cancel_all()               │
+ │         │                      │                             │
+ │         ▼                      ▼                             │
+ │  ┌──────────────┐     ┌──────────────┐                      │
+ │  │ WriteSignal  │     │  TaskHandle  │                      │
+ │  │ .sender()    │     │  (TaskId,    │                      │
+ │  └──────┬───────┘     │   AbortHandle│                      │
+ │         │              │   completed) │                      │
+ │         │              └──────────────┘                      │
+ │         ▼                      ▲                             │
+ │  ┌──────────────┐              │                             │
+ │  │SignalSender  │──────────────┘ (dispatch_to_ui)            │
+ │  │ (Send+Sync)  │                                           │
+ │  └──────┬───────┘                                           │
+ │         │                                                    │
+ │  ┌──────┴───────┐     ┌──────────────┐  ┌────────────────┐  │
+ │  │UiDispatch    │     │  Resource<T> │  │ SignalWatcher  │  │
+ │  │   Queue      │     │ (state,      │  │ (period,       │  │
+ │  │(VecDeque<Cb>)│     │  refetch)    │  │  callback,     │  │
+ │  └──────────────┘     └──────┬───────┘  │  sender)       │  │
+ │         ▲                    │          └────────────────┘  │
+ │         │                    ▼                               │
+ │         │             ┌──────────────┐                      │
+ │         │             │ResourceState │                      │
+ │         │             │{Pending,     │                      │
+ │         │             │ Loading,     │                      │
+ │         │             │ Ready(T),    │                      │
+ │         │             │ Error(String)│                      │
+ │         │             └──────────────┘                      │
+ └─────────│──────────────────────────────────────────────────┘
+           │
+           │ dispatch_to_ui()
+           │
+ ┌─────────┴──────────────────────────────────────────────────┐
+ │                   tokio Worker Threads                       │
+ │                                                              │
+ │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+ │  │ spawn_task() │  │ DebouncedTask│  │ spawn_interval() │  │
+ │  │ (Future→())  │  │ (mpsc + delay│  │ (tokio::interval)│  │
+ │  └──────────────┘  └──────────────┘  └──────────────────┘  │
+ │                                                              │
+ │  ┌──────────────────────────────────────────────────────┐  │
+ │  │              spawn_watch_signal()                     │  │
+ │  │    (polls ReadSignal<T>, dispatches to UI thread)    │  │
+ │  └──────────────────────────────────────────────────────┘  │
+ └──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -278,7 +283,43 @@ Pending ──▶ Loading ──▶ Ready(T)
 
 ---
 
-### 9. RvueUserEvent
+### 9. SignalWatcher\<T\>
+
+**Location**: `crates/rvue/src/async_runtime/task.rs`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sender` | `tokio::sync::mpsc::UnboundedSender<()>` | Channel to signal stop |
+
+**Bounds**: `T: Trace + Clone + Send + 'static`
+
+**Derives**: `Clone`
+
+**Methods**:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `stop` | `() → ()` | Stop the watching task |
+
+**Creation**: Via `spawn_watch_signal(signal, period, callback)`
+
+**Purpose**: Safe signal watching with automatic UI dispatch
+
+**Behavior**:
+- Polls `ReadSignal<T>` at the specified interval
+- Callback receives current signal value on each poll
+- If callback returns `Some(v)`, the signal is updated via `dispatch_to_ui()`
+- Calling `stop()` terminates the watching task
+
+**Invariants**:
+- `stop()` is idempotent (safe to call multiple times)
+- Callback executes on tokio worker thread
+- Signal updates are dispatched to UI thread
+- No `Gc<T>` crosses thread boundary (values are cloned)
+
+---
+
+### 10. RvueUserEvent
 
 **Location**: `crates/rvue/src/app.rs`
 
@@ -303,6 +344,8 @@ Pending ──▶ Loading ──▶ Ready(T)
 | Resource | spawns via | spawn_task() | 1:N |
 | spawn_task() | returns | TaskHandle | 1:1 |
 | DebouncedTask | wraps | TaskHandle | 1:1 |
+| SignalWatcher | polls | ReadSignal\<T\> | 1:1 |
+| SignalWatcher | dispatches via | dispatch_to_ui() | N:1 |
 | UiDispatchQueue | wakes via | EventLoopProxy | 1:1 |
 
 ---
@@ -317,3 +360,5 @@ Pending ──▶ Loading ──▶ Ready(T)
 | Resource | Created within component context | Panics if no current_owner() |
 | TaskRegistry | cancel_all idempotent | HashMap::remove returns None on second call |
 | DebouncedTask | Delay must be positive | Checked at creation time |
+| SignalWatcher | stop() is idempotent | mpsc::UnboundedSender handles duplicate closes |
+| SignalWatcher | Callback executes on worker thread | dispatch_to_ui() for UI updates |

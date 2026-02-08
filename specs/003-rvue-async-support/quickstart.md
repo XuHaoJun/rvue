@@ -242,9 +242,112 @@ fn FileProcessor() -> View {
 
 ---
 
-## 8. GC-Safe Async (Advanced)
+## 8. GC Safety (Required Reading)
 
-If you need to access `Gc<T>` objects across `.await` points:
+Rvue uses rudo-gc for automatic memory management. When using async operations, you MUST understand these rules to avoid memory corruption.
+
+### The Problem
+
+```rust
+// DANGEROUS: Closure captures Gc<T>, may be collected between awaits
+let gc_data = Gc::new(MyData { value: 42 });
+spawn_interval(Duration::from_secs(1), move || {
+    // At this await point, GC may collect gc_data
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    println!("{}", gc_data.value);  // Use-after-free!
+});
+```
+
+This happens because:
+1. `Gc<T>` is `!Send + !Sync` and cannot cross thread boundaries without explicit handling
+2. `Gc<T>` is not automatically registered as a GC root in async tasks
+3. GC runs at await points and may collect "unreachable" objects
+
+### The Solution: Clone Before Spawn
+
+```rust
+// SAFE: Clone the value first
+let gc_data = Gc::new(MyData { value: 42 });
+let value_clone = gc_data.value.clone();  // Extract clone
+
+spawn_interval(Duration::from_secs(1), move || {
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    println!("{}", value_clone);  // Safe: value_clone is owned value
+});
+```
+
+---
+
+### Pattern 1: Extract Primitive Values (Simplest)
+
+For simple types like `i32`, `String`, extract the value before spawning:
+
+```rust
+let count = create_signal(0i32);
+let current_count = *count.get();  // Extract i32
+
+spawn_interval(Duration::from_secs(1), move || {
+    println!("Count: {}", current_count);  // Safe: current_count is i32
+});
+```
+
+---
+
+### Pattern 2: Clone Gc<T> Before Spawn
+
+When you need `Gc<T>` features (e.g., cloning):
+
+```rust
+let gc_data = Gc::new(MyData { value: 42 });
+let gc_clone = gc_data.clone();  // Must clone before spawn
+
+spawn_interval(Duration::from_secs(1), move || {
+    let value = gc_clone.value.clone();  // Extract value
+    println!("{}", value);
+});
+```
+
+---
+
+### Pattern 3: spawn_watch_signal (Recommended for Signals)
+
+For watching signal values at intervals, use the built-in helper:
+
+```rust
+use rvue::prelude::*;
+use rvue::async_runtime::spawn_watch_signal;
+use std::time::Duration;
+
+#[component]
+fn LiveCounter() -> View {
+    let (count, set_count) = create_signal(0i32);
+
+    // Watch signal, automatically dispatch to UI
+    let watcher = spawn_watch_signal(
+        count,
+        Duration::from_millis(100),
+        |current| {
+            println!("Count: {}", current);
+            None  // Return Some(value) to update, None to just watch
+        }
+    );
+
+    on_cleanup(move || watcher.stop());
+
+    // Changing count triggers the watcher
+    set_count(42);
+
+    view! {
+        <Text value=format!("Count: {}", count.get()) />
+    }
+}
+```
+
+---
+
+### Pattern 4: Advanced - spawn_with_gc! (Direct Gc<T> Access)
+
+For cases where you MUST access `Gc<T>` after an await, use rudo-gc's `spawn_with_gc!` macro:
 
 ```rust
 use rudo_gc::{Gc, spawn_with_gc};
@@ -259,15 +362,68 @@ fn process_gc_data(data: Gc<MyData>) {
     });
 
     // Option B: Use spawn_with_gc! for GC access across await
+    // Note: data is MOVED into the macro
     spawn_with_gc!(data => |handle| async move {
         tokio::time::sleep(Duration::from_secs(1)).await;
+        // SAFE: handle keeps Gc<T> alive
         let value = unsafe { handle.get().value };
         dispatch_to_ui(move || { /* update UI */ });
     });
 }
 ```
 
-**Prefer Option A** (clone before spawn) in most cases. Option B is only needed when you need to read GC data *after* an `.await` point.
+**Important**: The `Gc<T>` is **MOVED** into `spawn_with_gc!`. The original `data` is no longer usable. Clone first if you need to keep it.
+
+---
+
+### Summary Table
+
+| Pattern | When to Use | Example |
+|---------|-------------|---------|
+| Extract value | Simple types (i32, String) | `let v = *signal.get();` |
+| Clone Gc<T> | Need Gc<T> features | `let gc = gc_data.clone();` |
+| spawn_watch_signal | Watching signals | `spawn_watch_signal(signal, ...)` |
+| spawn_with_gc! | Must access Gc<T> after await | `spawn_with_gc!(gc => \|h\| {...})` |
+
+---
+
+### Common Mistakes
+
+```rust
+// WRONG: Captures Gc<T>
+spawn_interval(Duration::from_secs(1), move || {
+    let value = count.get();  // count is Gc<T>
+});
+
+// RIGHT: Extract before spawn
+let current = *count.get();
+spawn_interval(Duration::from_secs(1), move || {
+    println!("{}", current);
+});
+
+// WRONG: Gc<T> moved without clone
+let gc = Gc::new(Data { value: 1 });
+spawn_with_gc!(gc => |handle| { /* ... */ });
+println!("{}", gc.value);  // ERROR: gc was moved!
+
+// RIGHT: Clone before spawn_with_gc!
+let gc = Gc::new(Data { value: 1 });
+let gc_clone = gc.clone();
+spawn_with_gc!(gc => |handle| { /* ... */ });
+println!("{}", gc_clone.value);  // OK: gc_clone is separate
+```
+
+---
+
+### Why This Matters
+
+GC safety is not optional. Without proper handling:
+- `Gc<T>` objects may be collected while still in use
+- This causes **Use-After-Free** bugs (memory corruption)
+- The bug may appear intermittently, making it hard to debug
+- Data races can occur between GC and your code
+
+**Always clone before spawning if your closure captures any Gc<T>-based type.**
 
 ---
 

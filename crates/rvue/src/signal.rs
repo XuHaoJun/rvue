@@ -101,7 +101,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
 
 #[derive(Clone)]
 pub struct ReadSignal<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
+    pub(crate) data: Gc<SignalDataInner<T>>,
 }
 
 impl<T: Trace + Clone + 'static> ReadSignal<T> {
@@ -146,7 +146,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
 
 #[derive(Clone)]
 pub struct WriteSignal<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
+    pub(crate) data: Gc<SignalDataInner<T>>,
 }
 
 impl<T: Trace + Clone + 'static> WriteSignal<T> {

@@ -19,6 +19,7 @@ pub use async_runtime::{
     spawn_task_with_result,
     spawn_interval,
     spawn_debounced,
+    spawn_watch_signal,
     create_resource,
     TaskHandle,
     TaskId,
@@ -26,6 +27,7 @@ pub use async_runtime::{
     Resource,
     ResourceState,
     DebouncedTask,
+    SignalWatcher,
 };
 ```
 
@@ -156,6 +158,24 @@ where
 ///
 /// The task starts immediately and repeats every `period`.
 ///
+/// # GC Safety
+/// **IMPORTANT**: The closure MUST NOT capture `Gc<T>` objects.
+///
+/// `Gc<T>` is `!Send + !Sync` and cannot be moved across thread boundaries
+/// without explicit handling. The closure is spawned on a tokio worker thread,
+/// so any captured `Gc<T>` will cause memory corruption.
+///
+/// **Correct Usage**:
+/// ```ignore
+/// let count = create_signal(0i32);
+/// let current = *count.get();  // Extract value
+/// spawn_interval(Duration::from_secs(1), move || {
+///     println!("{}", current);  // Safe: current is owned value
+/// });
+/// ```
+///
+/// **For Signal Watching**: Use `spawn_watch_signal()` instead.
+///
 /// # Example
 /// ```rust
 /// use std::time::Duration;
@@ -180,6 +200,7 @@ where
 - MUST execute `f` immediately, then every `period`
 - MUST stop when `TaskHandle::abort()` is called
 - MUST be registered with `TaskRegistry` if in component context
+- **GC Safety**: The closure must not capture `Gc<T>` or any `!Send` types
 
 ---
 
@@ -191,6 +212,28 @@ where
 /// When `call()` is invoked, the operation is delayed by `delay`.
 /// If `call()` is invoked again before the delay expires, the
 /// previous pending execution is cancelled and the timer resets.
+///
+/// # GC Safety
+/// **IMPORTANT**: The handler closure and the value type `T` MUST NOT contain `Gc<T>`.
+///
+/// `Gc<T>` is `!Send + !Sync`. Values are sent through an mpsc channel to the
+/// debounce task, which runs on a tokio worker thread.
+///
+/// **Correct Usage**:
+/// ```ignore
+/// let gc_data = Gc::new(MyData { value: 42 });
+/// let value = gc_data.value.clone();  // Extract value
+///
+/// let search = spawn_debounced(Duration::from_millis(300), move |query: String| {
+///     let data = value.clone();  // Clone from extracted value
+///     async move {
+///         let result = search_api(&query, &data).await;
+///         dispatch_to_ui(move || { /* update UI */ });
+///     }
+/// });
+/// ```
+///
+/// **For Signal Watching**: Use `spawn_watch_signal()` instead.
 ///
 /// # Example
 /// ```rust
@@ -219,6 +262,77 @@ where
 - MUST cancel previous pending execution when `call()` is invoked
 - MUST use the value from the most recent `call()`
 - `DebouncedTask::cancel()` MUST stop all pending and future executions
+- **GC Safety**: `T` must be `Send`; handler closure must not capture `Gc<T>`
+
+---
+
+### `spawn_watch_signal`
+
+```rust
+/// Spawn a task that watches a signal and automatically dispatches updates to UI.
+///
+/// The signal is polled at the given interval. On each poll, the callback
+/// receives the current signal value. The callback can return `Some(v)` to
+/// update the signal, or `None` to just observe.
+///
+/// # GC Safety
+/// **SAFE**: This function is designed for signal watching and handles GC
+/// internally by extracting the signal value before async operations.
+///
+/// # Example
+/// ```rust
+/// use rvue::prelude::*;
+/// use rvue::async_runtime::spawn_watch_signal;
+/// use std::time::Duration;
+///
+/// #[component]
+/// fn LiveStatus() -> View {
+///     let (status, set_status) = create_signal(String::from("Checking..."));
+///
+///     // Watch signal, automatically dispatch to UI
+///     let watcher = spawn_watch_signal(
+///         status,
+///         Duration::from_secs(10),
+///         |current| {
+///             println!("Status changed to: {}", current);
+///             None  // Just watching, not updating
+///         }
+///     );
+///
+///     on_cleanup(move || watcher.stop());
+///
+///     // Changing status triggers the watcher
+///     set_status(String::from("Online"));
+///
+///     view! {
+///         <Text value=status.get() />
+///     }
+/// }
+/// ```
+///
+/// # Arguments
+/// - `signal`: The signal to watch
+/// - `period`: How often to poll the signal
+/// - `callback`: Called with current value; return `Some(v)` to update, `None` to just watch
+///
+/// # Returns
+/// A `SignalWatcher<T>` handle for stopping the watcher.
+pub fn spawn_watch_signal<T, F>(
+    signal: ReadSignal<T>,
+    period: Duration,
+    callback: F,
+) -> SignalWatcher<T>
+where
+    T: Trace + Clone + Send + 'static,
+    F: FnMut(T) -> Option<T> + Send + 'static;
+```
+
+**Contract**:
+- MUST poll the signal at the specified interval
+- MUST execute callback on each poll with current signal value
+- MUST dispatch `Some(v)` to UI thread to update signal
+- MUST return `SignalWatcher<T>` that can stop the watcher
+- **GC Safety**: Signal value is extracted and cloned, no `Gc<T>` crosses thread boundary
 
 ---
 
@@ -387,6 +501,26 @@ impl<T: Send + 'static> DebouncedTask<T> {
 
     /// Cancel the debounce task entirely.
     pub fn cancel(&self);
+}
+```
+
+---
+
+### `SignalWatcher<T>`
+
+```rust
+/// Handle for a signal watching task.
+///
+/// Created by `spawn_watch_signal()`.
+#[derive(Clone)]
+pub struct SignalWatcher<T: Send + 'static> { /* private fields */ }
+
+impl<T: Send + 'static> SignalWatcher<T> {
+    /// Stop watching the signal.
+    ///
+    /// The watcher will stop polling after this is called.
+    /// It is safe to call multiple times.
+    pub fn stop(&self);
 }
 ```
 

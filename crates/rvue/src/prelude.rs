@@ -35,8 +35,8 @@ pub mod ev {
 #[cfg(feature = "async")]
 pub use crate::async_runtime::{
     create_resource, dispatch_to_ui, spawn_debounced, spawn_interval, spawn_task,
-    spawn_task_with_result, DebouncedTask, Resource, ResourceState, SignalSender, TaskHandle,
-    TaskId,
+    spawn_task_with_result, spawn_watch_signal, DebouncedTask, Resource, ResourceState,
+    SignalSender, SignalWatcher, TaskHandle, TaskId,
 };
 
 #[cfg(feature = "async")]
@@ -46,20 +46,37 @@ pub use crate::prelude::write_signal_ext::WriteSignalExt;
 mod write_signal_ext {
     use rudo_gc::Trace;
 
-    use super::{SignalSender, WriteSignal};
+    use super::WriteSignal;
 
     pub trait WriteSignalExt<T: Trace + Clone + 'static> {
-        fn sender(&self) -> SignalSender<T>
-        where
-            T: Send;
+        fn sender(&self) -> Result<(), SignalSenderError>;
     }
 
+    pub struct SignalSenderError {
+        pub message: &'static str,
+    }
+
+    impl std::fmt::Debug for SignalSenderError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "SignalSenderError: {}", self.message)
+        }
+    }
+
+    impl std::fmt::Display for SignalSenderError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "SignalSenderError: {}", self.message)
+        }
+    }
+
+    impl std::error::Error for SignalSenderError {}
+
     impl<T: Trace + Clone + 'static> WriteSignalExt<T> for WriteSignal<T> {
-        fn sender(&self) -> SignalSender<T>
-        where
-            T: Send,
-        {
-            SignalSender::new(|_value: T| {})
+        fn sender(&self) -> Result<(), SignalSenderError> {
+            Err(SignalSenderError {
+                message: "SignalSender is temporarily disabled due to thread-safety limitations. \
+                          Use dispatch_to_ui(move || { set_count(value); }) instead. \
+                          See: https://github.com/anomalyco/rvue/issues/XXX",
+            })
         }
     }
 }

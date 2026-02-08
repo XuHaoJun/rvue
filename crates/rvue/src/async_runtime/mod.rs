@@ -9,6 +9,7 @@
 //! - [`spawn_task_with_result`] - Spawn a task and call a callback with the result on the UI thread
 //! - [`spawn_interval`] - Run a callback at a regular interval
 //! - [`spawn_debounced`] - Debounce a callback
+//! - [`spawn_watch_signal`] - Watch a signal and automatically dispatch to UI
 //! - [`dispatch_to_ui`] - Dispatch a closure to be executed on the UI thread
 //! - [`SignalSender`] - Send signal updates from async contexts
 //! - [`TaskRegistry`] - Registry of tasks associated with components (for cleanup)
@@ -18,6 +19,22 @@
 //! All async functions require their closures to be `Send` because they may run on
 //! any thread in the Tokio runtime pool. Use [`dispatch_to_ui`] to update UI state
 //! from async callbacks.
+//!
+//! # GC Safety
+//!
+//! **IMPORTANT**: Closures passed to async functions MUST NOT capture `Gc<T>` objects.
+//! `Gc<T>` is `!Send + !Sync` and cannot cross thread boundaries without explicit handling.
+//!
+//! **Correct Usage**:
+//! ```ignore
+//! let count = create_signal(0i32);
+//! let current = *count.get();  // Extract value first
+//! spawn_interval(Duration::from_secs(1), move || {
+//!     println!("{}", current);  // Safe
+//! });
+//! ```
+//!
+//! **For Signal Watching**: Use [`spawn_watch_signal`] which handles GC safely.
 //!
 //! # Example
 //!
@@ -58,8 +75,8 @@ pub use dispatch::{dispatch_to_ui, UiDispatchQueue};
 
 #[cfg(feature = "async")]
 pub use task::{
-    spawn_debounced, spawn_interval, spawn_task, spawn_task_with_result, DebouncedTask, TaskHandle,
-    TaskId,
+    spawn_debounced, spawn_interval, spawn_task, spawn_task_with_result, spawn_watch_signal,
+    DebouncedTask, SignalWatcher, TaskHandle, TaskId,
 };
 
 #[cfg(feature = "async")]
