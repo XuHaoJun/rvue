@@ -106,13 +106,13 @@ impl Widget for Button {
             // Split class string by whitespace to support multiple classes (e.g., "primary large")
             for class_part in cls.split_whitespace() {
                 if !class_part.is_empty() {
-                    component.classes.borrow_mut_gen_only().push(class_part.to_string());
+                    component.classes.write().push(class_part.to_string());
                 }
             }
         }
 
         if let Some(ref eid) = element_id {
-            *component.element_id.borrow_mut_gen_only() = Some(eid.clone());
+            *component.element_id.write() = Some(eid.clone());
         }
 
         ButtonState { component }

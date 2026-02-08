@@ -85,7 +85,7 @@ fn test_show_conditional_rendering_with_flex_gap() {
     let mut taffy = TaffyTree::new();
     let mut text_context = TextContext::new();
 
-    let children = root.children.borrow();
+    let children = root.children.read();
     assert_eq!(children.len(), 2);
     assert_eq!(children[0].component_type, ComponentType::Show);
     assert_eq!(children[1].component_type, ComponentType::Show);
@@ -94,15 +94,15 @@ fn test_show_conditional_rendering_with_flex_gap() {
     let mut root_layout = build_layout_tree(&root, &mut taffy, &mut text_context, None);
     root_layout.calculate_layout(&mut taffy).unwrap();
 
-    let children = root.children.borrow();
+    let children = root.children.read();
     let show1_when = children[0].show_when();
     let show2_when = children[1].show_when();
     assert!(show1_when, "Show1 should be visible initially");
     assert!(!show2_when, "Show2 should be hidden initially");
 
     {
-        let show1_children = children[0].children.borrow();
-        let show2_children = children[1].children.borrow();
+        let show1_children = children[0].children.read();
+        let show2_children = children[1].children.read();
         assert_eq!(show1_children.len(), 1, "Show1 should have 1 child");
         assert_eq!(show2_children.len(), 1, "Show2 should have 1 child");
 
@@ -116,7 +116,7 @@ fn test_show_conditional_rendering_with_flex_gap() {
 
     set_visible.set(false);
 
-    let children = root.children.borrow();
+    let children = root.children.read();
     let show1_when_after = children[0].show_when();
     let show2_when_after = children[1].show_when();
     assert!(!show1_when_after, "Show1 should be hidden after toggle");
@@ -127,7 +127,7 @@ fn test_show_conditional_rendering_with_flex_gap() {
     let mut root_layout2 = build_layout_tree(&root, &mut taffy, &mut text_context, None);
     root_layout2.calculate_layout(&mut taffy).unwrap();
 
-    let children = root.children.borrow();
+    let children = root.children.read();
     let show1_when_final = children[0].show_when();
     assert!(!show1_when_final, "Show1 should still be hidden after rebuild");
 }

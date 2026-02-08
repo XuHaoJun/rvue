@@ -69,7 +69,7 @@ fn App() -> impl View {
             let inner_comp = state.component();
             let new_comp = rvue::component::Component::with_global_id(
                 inner_comp.component_type.clone(),
-                inner_comp.properties.borrow().clone(),
+                inner_comp.properties.read().clone(),
             );
             ViewStruct::new(new_comp)
         })
@@ -82,7 +82,7 @@ fn App() -> impl View {
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(
             inner_comp.component_type.clone(),
-            inner_comp.properties.borrow().clone(),
+            inner_comp.properties.read().clone(),
         );
         ViewStruct::new(new_comp)
     })
@@ -93,7 +93,7 @@ fn App() -> impl View {
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(
             inner_comp.component_type.clone(),
-            inner_comp.properties.borrow().clone(),
+            inner_comp.properties.read().clone(),
         );
         ViewStruct::new(new_comp)
     })
@@ -104,7 +104,7 @@ fn App() -> impl View {
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(
             inner_comp.component_type.clone(),
-            inner_comp.properties.borrow().clone(),
+            inner_comp.properties.read().clone(),
         );
         ViewStruct::new(new_comp)
     })
@@ -124,7 +124,7 @@ fn App() -> impl View {
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(
             inner_comp.component_type.clone(),
-            inner_comp.properties.borrow().clone(),
+            inner_comp.properties.read().clone(),
         );
         ViewStruct::new(new_comp)
     })
@@ -138,7 +138,7 @@ fn App() -> impl View {
         let inner_comp = state.component();
         let new_comp = rvue::component::Component::with_global_id(
             inner_comp.component_type.clone(),
-            inner_comp.properties.borrow().clone(),
+            inner_comp.properties.read().clone(),
         );
         ViewStruct::new(new_comp)
     })

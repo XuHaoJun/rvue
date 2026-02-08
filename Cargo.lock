@@ -1090,7 +1090,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1657,7 +1657,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3106,9 +3106,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.7.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa0565d3b363b527fcf79723e5764bd8699ee55bb84221ef0b5e5cc432c807e1"
+checksum = "5725d778f7ed6a9ae475d116d9e64f3ec1f8d7bee431d40b476641286e5710d7"
 dependencies = [
  "crossbeam",
  "crossbeam-queue",
@@ -3121,9 +3121,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc-derive"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8dae9a24a52a01e9e72f6f1e175943f644d54c17be0f7ec7388526bb68c3db"
+checksum = "930bd505392b518348b13ae0e66b6300fd0182ef7fbd6f06414dca6caee72dbb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3174,7 +3174,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3196,6 +3196,7 @@ dependencies = [
  "keyboard-types",
  "log",
  "once_cell",
+ "parking_lot",
  "parley",
  "peniko 0.5.0",
  "pollster",
@@ -3208,6 +3209,7 @@ dependencies = [
  "smallvec",
  "taffy",
  "thiserror 2.0.18",
+ "tokio",
  "ui-events",
  "ui-events-winit",
  "unicode-segmentation",
@@ -3621,9 +3623,9 @@ dependencies = [
 
 [[package]]
 name = "sys_alloc"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6829c243da89d28f10fa3cd88b6e54af9f795993dc245d39602cf9df6b7e0283"
+checksum = "0fa782ac7d541c8eb056bfd1931bf95f05229344459ab1f4d2ddeac28c60a6d5"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
@@ -3657,7 +3659,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.3",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4425,7 +4427,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

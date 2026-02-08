@@ -38,7 +38,7 @@ fn test_block_expansion_reactivity() {
     });
     let root = view.root_component;
 
-    let initial_children = root.children.borrow().len();
+    let initial_children = root.children.read().len();
     assert!(initial_children >= 1);
 
     set_count.set("1".to_string());
@@ -102,7 +102,7 @@ fn test_event_handler_0arg_closure() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_click().is_some());
     });
 }
@@ -118,7 +118,7 @@ fn test_event_handler_1arg_closure() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_input().is_some());
     });
 }
@@ -136,7 +136,7 @@ fn test_event_handler_2arg_closure() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_click().is_some());
     });
 }
@@ -152,7 +152,7 @@ fn test_event_handler_with_signal_capture() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_input().is_some());
     });
 }
@@ -184,7 +184,7 @@ fn test_multiple_event_handlers_in_view() {
             click_handler_found: &mut bool,
             input_handler_found: &mut bool,
         ) {
-            let handlers = component.event_handlers.borrow();
+            let handlers = component.event_handlers.read();
             if handlers.get_click().is_some() {
                 *click_handler_found = true;
             }
@@ -192,7 +192,7 @@ fn test_multiple_event_handlers_in_view() {
                 *input_handler_found = true;
             }
 
-            for child in component.children.borrow().iter() {
+            for child in component.children.read().iter() {
                 find_handlers(child, click_handler_found, input_handler_found);
             }
         }
@@ -215,7 +215,7 @@ fn test_keyboard_event_handler() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_key_down().is_some());
     });
 }
@@ -231,7 +231,7 @@ fn test_focus_event_handler() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_focus().is_some());
     });
 }
@@ -247,7 +247,7 @@ fn test_change_event_handler() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_change().is_some());
     });
 }
@@ -263,7 +263,7 @@ fn test_blur_event_handler() {
         };
         let root = view.root_component;
 
-        let handlers = root.event_handlers.borrow();
+        let handlers = root.event_handlers.read();
         assert!(handlers.get_blur().is_some());
     });
 }

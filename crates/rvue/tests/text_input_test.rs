@@ -351,7 +351,7 @@ fn test_text_input_accepts_focus() {
     );
 
     // Check that the component has ACCEPTS_FOCUS flag
-    let flags = gc_component.flags.borrow();
+    let flags = gc_component.flags.read();
 
     assert!(
         flags.contains(ComponentFlags::ACCEPTS_POINTER),

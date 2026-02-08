@@ -24,10 +24,10 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
         let widget_ptr = Gc::as_ptr(widget);
         let should_have_active =
             next_active_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
-        let has_active = *widget.is_active.borrow();
+        let has_active = *widget.is_active.read();
 
         if should_have_active != has_active {
-            *widget.is_active.borrow_mut_gen_only() = should_have_active;
+            *widget.is_active.write() = should_have_active;
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(should_have_active));
             cloned.mark_dirty();
@@ -39,13 +39,13 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
 
     if prev_active_leaf != next_active_leaf {
         if let Some(prev) = prev_active_path.first() {
-            *prev.is_active.borrow_mut_gen_only() = false;
+            *prev.is_active.write() = false;
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(false));
             cloned.mark_dirty();
         }
         if let Some(next) = next_active_path.first() {
-            *next.is_active.borrow_mut_gen_only() = true;
+            *next.is_active.write() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::ActiveChanged(true));
             cloned.mark_dirty();
@@ -56,10 +56,10 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
         let widget_ptr = Gc::as_ptr(widget);
         let should_have_hovered =
             next_hovered_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
-        let has_hovered = *widget.is_hovered.borrow();
+        let has_hovered = *widget.is_hovered.read();
 
         if should_have_hovered != has_hovered {
-            *widget.is_hovered.borrow_mut_gen_only() = should_have_hovered;
+            *widget.is_hovered.write() = should_have_hovered;
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(should_have_hovered));
             cloned.mark_dirty();
@@ -71,13 +71,13 @@ pub fn run_update_pointer_pass(app_state: &mut impl crate::app::AppStateLike) {
 
     if prev_hovered_leaf != next_hovered_leaf {
         if let Some(prev) = prev_hovered_path.first() {
-            *prev.is_hovered.borrow_mut_gen_only() = false;
+            *prev.is_hovered.write() = false;
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(false));
             cloned.mark_dirty();
         }
         if let Some(next) = next_hovered_path.first() {
-            *next.is_hovered.borrow_mut_gen_only() = true;
+            *next.is_hovered.write() = true;
             let cloned = Gc::clone(next);
             cloned.on_status_update(&StatusUpdate::HoveredChanged(true));
             cloned.mark_dirty();
@@ -96,12 +96,12 @@ pub fn run_update_focus_pass(app_state: &mut impl crate::app::AppStateLike) {
         let prev_focused = app_state.focused().clone();
 
         if let Some(prev) = prev_focused.as_ref() {
-            *prev.is_focused.borrow_mut_gen_only() = false;
+            *prev.is_focused.write() = false;
             let cloned = Gc::clone(prev);
             cloned.on_status_update(&StatusUpdate::FocusChanged(false));
         }
 
-        *pending.is_focused.borrow_mut_gen_only() = true;
+        *pending.is_focused.write() = true;
         pending.on_status_update(&StatusUpdate::FocusChanged(true));
 
         *app_state.focused_mut() = Some(pending);
@@ -116,10 +116,10 @@ pub fn run_update_focus_pass(app_state: &mut impl crate::app::AppStateLike) {
         let widget_ptr = Gc::as_ptr(widget);
         let should_have_focus =
             next_focused_path.iter().any(|w| std::ptr::eq(Gc::as_ptr(w), widget_ptr));
-        let has_focus_target = *widget.has_focus_target.borrow();
+        let has_focus_target = *widget.has_focus_target.read();
 
         if should_have_focus != has_focus_target {
-            *widget.has_focus_target.borrow_mut_gen_only() = should_have_focus;
+            *widget.has_focus_target.write() = should_have_focus;
             let cloned = Gc::clone(widget);
             cloned.on_status_update(&StatusUpdate::ChildFocusChanged(should_have_focus));
         }

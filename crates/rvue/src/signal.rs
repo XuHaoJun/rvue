@@ -6,7 +6,7 @@
 pub use rvue_signals::{create_signal as create_signal_base, SignalData, SignalRead, SignalWrite};
 
 use crate::effect::{current_effect, Effect};
-use rudo_gc::{Gc, GcCell, Trace, Weak};
+use rudo_gc::{Gc, GcRwLock, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 
@@ -14,14 +14,17 @@ thread_local! {
     static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
-pub(crate) struct SignalDataInner<T: Trace + Clone + 'static> {
+/// Internal signal data structure containing the value, version tracking, and subscribers.
+///
+/// This is exposed for async runtime integration.
+pub struct SignalDataInner<T: Trace + Clone + 'static> {
     pub(crate) inner: SignalData<T>,
-    pub(crate) subscribers: GcCell<Vec<Weak<Effect>>>,
+    pub(crate) subscribers: GcRwLock<Vec<Weak<Effect>>>,
 }
 
 impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     pub fn new(value: T) -> Self {
-        Self { inner: SignalData::new(value), subscribers: GcCell::new(Vec::new()) }
+        Self { inner: SignalData::new(value), subscribers: GcRwLock::new(Vec::new()) }
     }
 
     pub fn get(&self) -> T
@@ -41,14 +44,14 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let signal_ptr = self as *const _ as *const ();
 
         let already_subscribed = {
-            let subscribers = self.subscribers.borrow();
+            let subscribers = self.subscribers.read();
             subscribers.iter().any(|sub| {
                 sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
             })
         };
 
         if !already_subscribed {
-            let mut subscribers = self.subscribers.borrow_mut_gen_only();
+            let mut subscribers = self.subscribers.write();
             subscribers.push(weak_effect.clone());
             effect.add_subscription(signal_ptr, &weak_effect);
         }
@@ -56,7 +59,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
     pub(crate) fn notify_subscribers(&self) {
         let effects_to_update: Vec<Gc<Effect>> = {
-            let subscribers = self.subscribers.borrow();
+            let subscribers = self.subscribers.read();
             subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
         };
 
@@ -75,7 +78,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     pub(crate) fn unsubscribe_by_ptr(effect_ptr: *const (), weak_effect: &Weak<Effect>) {
         unsafe {
             let signal = &*effect_ptr.cast::<SignalDataInner<()>>();
-            let mut subscribers = signal.subscribers.borrow_mut_gen_only();
+            let mut subscribers = signal.subscribers.write();
             subscribers.retain(|weak| !Weak::ptr_eq(weak, weak_effect));
         }
     }
@@ -90,7 +93,7 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalDataInner<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
-        let subscribers = self.subscribers.borrow();
+        let subscribers = self.subscribers.read();
         for weak in subscribers.iter() {
             if let Some(effect) = weak.upgrade() {
                 effect.trace(visitor);
@@ -101,7 +104,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
 
 #[derive(Clone)]
 pub struct ReadSignal<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
+    pub(crate) data: Gc<SignalDataInner<T>>,
 }
 
 impl<T: Trace + Clone + 'static> ReadSignal<T> {
@@ -120,6 +123,24 @@ impl<T: Trace + Clone + 'static> ReadSignal<T> {
         T: Clone,
     {
         self.data.get()
+    }
+
+    /// Gets the value WITHOUT effect tracking or scope validation.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The signal is still alive (not garbage collected)
+    /// 2. Any necessary effect tracking is handled separately
+    ///
+    /// This method skips the effect subscription check for performance.
+    /// Use in hot paths where you can prove the signal is valid.
+    #[inline]
+    pub unsafe fn get_unchecked(&self) -> T
+    where
+        T: Clone,
+    {
+        self.data.inner.get()
     }
 }
 
@@ -146,12 +167,12 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ReadSignal<T> {
 
 #[derive(Clone)]
 pub struct WriteSignal<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
+    pub(crate) data: Gc<SignalDataInner<T>>,
 }
 
 impl<T: Trace + Clone + 'static> WriteSignal<T> {
     pub fn set(&self, value: T) {
-        *self.data.inner.value.borrow_mut_gen_only() = value;
+        *self.data.inner.value.write() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -160,9 +181,25 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.inner.value.borrow_mut_gen_only());
+        f(&mut *self.data.inner.value.write());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
+    }
+
+    /// Sets the value WITHOUT effect tracking or scope validation.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure:
+    /// 1. The signal is still alive (not garbage collected)
+    /// 2. Any necessary effect notifications are handled separately
+    ///
+    /// This method skips the normal update path for performance.
+    /// Use in hot paths where you can prove the signal is valid.
+    #[inline]
+    pub unsafe fn set_unchecked(&self, value: T) {
+        *self.data.inner.value.write() = value;
+        self.data.inner.version.fetch_add(1, Ordering::SeqCst);
     }
 }
 
@@ -190,7 +227,7 @@ impl<T: Trace + Clone + 'static> SignalRead<T> for ReadSignal<T> {
 
 impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     fn set(&self, value: T) {
-        *self.data.inner.value.borrow_mut_gen_only() = value;
+        *self.data.inner.value.write() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -199,7 +236,7 @@ impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.inner.value.borrow_mut_gen_only());
+        f(&mut *self.data.inner.value.write());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -246,7 +283,7 @@ where
     let initial_value = crate::effect::untracked(&f);
     let (read, write) = create_signal(initial_value.clone());
 
-    let last_value = GcCell::new(initial_value);
+    let last_value = GcRwLock::new(initial_value);
     let f_shared = std::rc::Rc::new(f);
     let f_clone = f_shared.clone();
 
@@ -254,8 +291,8 @@ where
     let effect = crate::effect::create_effect(move || {
         let new_value = f_clone();
         if is_first.replace(false) {
-        } else if new_value != *last_value.borrow() {
-            *last_value.borrow_mut_gen_only() = new_value.clone();
+        } else if new_value != *last_value.read() {
+            *last_value.write() = new_value.clone();
             write.set(new_value);
         }
     });

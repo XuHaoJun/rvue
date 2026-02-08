@@ -2,7 +2,7 @@
 
 use crate::component::Component;
 use crate::signal::SignalDataInner;
-use rudo_gc::{Gc, GcCell, Trace, Weak};
+use rudo_gc::{Gc, GcRwLock, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -53,9 +53,9 @@ pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
-    owner: GcCell<Option<Gc<Component>>>,
-    cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    subscriptions: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_ref)
+    owner: GcRwLock<Option<Gc<Component>>>,
+    cleanups: GcRwLock<Vec<Box<dyn FnOnce() + 'static>>>,
+    subscriptions: GcRwLock<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_ref)
 }
 
 unsafe impl Trace for Effect {
@@ -64,7 +64,7 @@ unsafe impl Trace for Effect {
         self.owner.trace(visitor);
 
         // Precise tracing: iterate over subscriptions and trace the signal data
-        let subscriptions = self.subscriptions.borrow();
+        let subscriptions = self.subscriptions.read();
         for (signal_ptr, _) in subscriptions.iter() {
             if signal_ptr.is_null() {
                 continue;
@@ -81,7 +81,7 @@ unsafe impl Trace for Effect {
         }
 
         // Trace cleanups for any Gc pointers they might capture
-        let cleanups_borrow = self.cleanups.borrow();
+        let cleanups_borrow = self.cleanups.read();
         for cleanup in cleanups_borrow.iter() {
             // SAFETY: We conservatively scan the FnOnce closure for GC pointers.
             // This matches the pattern from rudo-gc's dummy_effect_test.rs.
@@ -120,15 +120,15 @@ impl Effect {
             closure: boxed,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
-            owner: GcCell::new(owner),
-            cleanups: GcCell::new(Vec::new()),
-            subscriptions: GcCell::new(Vec::new()),
+            owner: GcRwLock::new(owner),
+            cleanups: GcRwLock::new(Vec::new()),
+            subscriptions: GcRwLock::new(Vec::new()),
         })
     }
 
     /// Register a signal that this effect is subscribed to
     pub fn add_subscription(&self, signal_ptr: *const (), weak_effect: &Weak<Effect>) {
-        let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
+        let mut subscriptions = self.subscriptions.write();
         let pair = (signal_ptr, weak_effect.clone());
         if !subscriptions
             .iter()
@@ -149,7 +149,7 @@ impl Effect {
 
         // Run cleanups from previous run
         let cleanups = {
-            let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
+            let mut cleanups = gc_effect.cleanups.write();
             std::mem::take(&mut *cleanups)
         };
         for cleanup in cleanups {
@@ -166,7 +166,7 @@ impl Effect {
 
             // Execute the closure (this may trigger signal.get() calls which will
             // automatically register this effect as a subscriber)
-            let owner = gc_effect.owner.borrow();
+            let owner = gc_effect.owner.read();
             if owner.is_some() {
                 crate::runtime::with_owner(Gc::clone(owner.as_ref().unwrap()), || {
                     (gc_effect.closure)();
@@ -202,7 +202,7 @@ impl Effect {
 
     /// Unsubscribe from all signals this effect is subscribed to
     fn unsubscribe_all(&self) {
-        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut_gen_only());
+        let subscriptions = std::mem::take(&mut *self.subscriptions.write());
         for (signal_ptr, weak_effect) in subscriptions {
             SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
         }
@@ -244,12 +244,12 @@ where
 {
     // Try Effect first
     if let Some(effect) = current_effect() {
-        effect.cleanups.borrow_mut_gen_only().push(Box::new(f));
+        effect.cleanups.write().push(Box::new(f));
         return;
     }
 
     // Try Component
     if let Some(owner) = crate::runtime::current_owner() {
-        owner.cleanups.borrow_mut_gen_only().push(Box::new(f));
+        owner.cleanups.write().push(Box::new(f));
     }
 }

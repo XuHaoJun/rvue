@@ -28,6 +28,9 @@ pub mod view;
 pub mod widget;
 pub mod widgets;
 
+#[cfg(feature = "async")]
+pub mod async_runtime;
+
 pub use app::{run_app, run_app_with_stylesheet, AppError};
 pub use component::{Component, ComponentId, ComponentLifecycle, ComponentType};
 pub use effect::{
