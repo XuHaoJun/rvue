@@ -47,7 +47,7 @@ impl UiDispatchQueue {
             for callback in callbacks_vec {
                 if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(callback))
                 {
-                    log::error!("Panic in dispatch_to_ui callback: {:?}", panic);
+                    log::error!("Panic in drain_local_and_execute callback: {:?}", panic);
                 }
             }
         });
@@ -60,7 +60,7 @@ impl UiDispatchQueue {
 
         for callback in callbacks {
             if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(callback)) {
-                log::error!("Panic in dispatch_to_ui callback: {:?}", panic);
+                log::error!("Panic in drain_global_and_execute callback: {:?}", panic);
             }
         }
     }
@@ -85,7 +85,7 @@ impl UiDispatchQueue {
 
 pub fn dispatch_to_ui<F>(callback: F)
 where
-    F: FnOnce() + 'static,
+    F: FnOnce() + Send + 'static,
 {
     LOCAL_CALLBACKS.with(|cell| {
         cell.borrow_mut().push_back(Box::new(callback));
@@ -96,9 +96,4 @@ where
     }
 }
 
-pub fn dispatch_cross_thread<F>(callback: F)
-where
-    F: FnOnce() + Send + 'static,
-{
-    UiDispatchQueue::dispatch(callback);
 }

@@ -299,11 +299,12 @@ where
 ```rust
 /// Create a reactive async resource.
 ///
-/// The resource fetches data using `fetcher` and exposes the result
-/// as a reactive `ResourceState<T>` signal.
+/// The resource fetches data using `fetcher` and automatically refetches
+/// when the source signal changes. The result is exposed as a reactive
+/// `ResourceState<T>` signal.
 ///
 /// # Type Parameters
-/// - `S`: Source function that provides the input to the fetcher
+/// - `S`: Source signal type (must implement `PartialEq` for change detection)
 /// - `T`: The data type returned by the fetcher
 /// - `Fu`: The future returned by the fetcher
 /// - `Fetcher`: Function that creates a fetch future from the source value
@@ -312,15 +313,23 @@ where
 /// ```rust
 /// use rvue::async_runtime::create_resource;
 ///
-/// let user = create_resource(
-///     move || user_id.get(),     // source (reactive)
+/// let (user_id, _) = create_signal(1i32);
+///
+/// let user_resource = create_resource(
+///     user_id,                    // source signal (reactive)
 ///     |id| async move {          // fetcher
 ///         fetch_user(id).await
 ///     },
 /// );
 ///
+/// // Automatically refetches when user_id changes:
+/// user_id.set(42);
+///
+/// // Manual refetch:
+/// user_resource.refetch();
+///
 /// // In view:
-/// match user.get() {
+/// match user_resource.get() {
 ///     ResourceState::Ready(u) => { /* show user */ }
 ///     ResourceState::Loading => { /* show spinner */ }
 ///     ResourceState::Error(e) => { /* show error */ }
@@ -328,19 +337,21 @@ where
 /// }
 /// ```
 pub fn create_resource<S, T, Fu, Fetcher>(
-    source: S,
+    source: ReadSignal<S>,
     fetcher: Fetcher,
 ) -> Resource<T>
 where
-    S: Fn() -> T + 'static,
-    T: Trace + Clone + Send + 'static,
+    S: PartialEq + Clone + Send + Sync + 'static,
+    T: Trace + Clone + Send + Sync + 'static,
     Fu: std::future::Future<Output = Result<T, String>> + Send + 'static,
-    Fetcher: Fn(T) -> Fu + Send + Sync + 'static;
+    Fetcher: Fn(S) -> Fu + Send + Sync + Clone + 'static;
 ```
 
 **Contract**:
 - MUST trigger initial fetch on creation
 - MUST transition through `Pending → Loading → Ready/Error`
+- MUST automatically refetch when `source` signal value changes
+- MUST use `PartialEq` on source to detect meaningful changes
 - `Resource::get()` MUST be reactive (tracked by effects)
 - `Resource::refetch()` MUST trigger a new fetch cycle (`Loading → Ready/Error`)
 - MUST cancel in-flight fetch on refetch (only latest result applies)

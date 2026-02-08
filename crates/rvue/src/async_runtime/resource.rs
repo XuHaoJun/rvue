@@ -5,11 +5,12 @@ use rudo_gc::Gc;
 use rudo_gc::Trace;
 
 use super::dispatch::dispatch_to_ui;
-use crate::signal::{create_signal, ReadSignal};
+use crate::effect::create_effect;
+use crate::signal::{create_memo, create_signal, ReadSignal};
 
 pub struct Resource<T: Trace + Clone + Send + Sync + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
-    refetch_fn: Arc<dyn Fn()>,
+    source: ReadSignal<()>,
 }
 
 impl<T: Trace + Clone + Send + Sync + 'static> Resource<T> {
@@ -18,7 +19,7 @@ impl<T: Trace + Clone + Send + Sync + 'static> Resource<T> {
     }
 
     pub fn refetch(&self) {
-        (self.refetch_fn)();
+        self.source.set(());
     }
 }
 
@@ -69,24 +70,32 @@ unsafe impl<T: Trace + Clone + Send + Sync + 'static> Trace for ResourceState<T>
     }
 }
 
-pub fn create_resource<S, T, Fu, Fetcher>(source: S, fetcher: Fetcher) -> Resource<T>
+pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T>
 where
-    S: Fn() -> T + Send + Sync + Clone + 'static,
+    S: PartialEq + Clone + Send + Sync + 'static,
     T: Trace + Clone + Send + Sync + 'static,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
-    Fetcher: Fn(T) -> Fu + Send + Sync + Clone + 'static,
+    Fetcher: Fn(S) -> Fu + Send + Sync + Clone + 'static,
 {
     let (state, set_state) = create_signal(Gc::new(ResourceState::<T>::Pending));
 
-    set_state.set(Gc::new(ResourceState::Loading));
+    let (refetch_counter, _) = create_signal(0usize);
+
+    let source_memo = create_memo(move || {
+        let _ = refetch_counter.get();
+        source.get()
+    });
 
     let fetcher_clone = fetcher.clone();
-    let source_clone = source.clone();
     let set_state_clone = set_state.clone();
 
-    let do_fetch = move || {
-        let source_value = source_clone();
+    create_effect(move || {
+        let _source_value = source_memo.get();
+
+        set_state_clone.set(Gc::new(ResourceState::Loading));
+
         let fetcher = fetcher_clone.clone();
+        let source_value = source.get();
         let set_state = set_state_clone.clone();
 
         dispatch_to_ui(move || {
@@ -101,15 +110,7 @@ where
                 }
             }
         });
-    };
-
-    do_fetch();
-
-    let refetch_fn: Arc<dyn Fn()> = Arc::new(do_fetch);
-    let refetch_fn_clone = refetch_fn.clone();
-    let refetch_fn_final = Arc::new(move || {
-        refetch_fn_clone();
     });
 
-    Resource { state: state.clone(), refetch_fn: refetch_fn_final }
+    Resource { state, source: refetch_counter }
 }
