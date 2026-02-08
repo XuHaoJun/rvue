@@ -1,6 +1,7 @@
 # API Contract: Rvue Async Runtime
 
-**Branch**: `003-rvue-async-support` | **Date**: 2026-02-07
+**Branch**: `003-rvue-async-support` | **Date**: 2026-02-08
+**Updated**: Aligned with actual implementation
 
 This document defines the public API surface for the async runtime module. All items listed here are part of the public contract and must have tests.
 
@@ -16,18 +17,20 @@ This document defines the public API surface for the async runtime module. All i
 pub use async_runtime::{
     dispatch_to_ui,
     spawn_task,
-    spawn_task_with_result,
     spawn_interval,
     spawn_debounced,
-    spawn_watch_signal,
+    watch_signal,
     create_resource,
     TaskHandle,
     TaskId,
-    SignalSender,
+    AsyncSignalSender,
     Resource,
     ResourceState,
     DebouncedTask,
+    IntervalHandle,
     SignalWatcher,
+    ComponentScope,
+    WriteSignalExt,
 };
 ```
 
@@ -83,9 +86,6 @@ where
 /// The task runs concurrently on a background thread. To send results
 /// back to the UI, use `dispatch_to_ui()` within the task.
 ///
-/// If called within a component context, the task is automatically
-/// registered and will be cancelled when the component unmounts.
-///
 /// # Returns
 /// A `TaskHandle` that can be used to abort or query the task.
 ///
@@ -105,49 +105,15 @@ where
 /// ```
 pub fn spawn_task<F>(future: F) -> TaskHandle
 where
-    F: Future<Output = ()> + Send + 'static;
+    F: std::future::Future<Output = ()> + Send + 'static;
 ```
 
 **Contract**:
 - MUST spawn the future on the tokio runtime
 - MUST lazily initialize the runtime on first call
 - MUST return a valid `TaskHandle`
-- MUST register the task with `TaskRegistry` if `current_owner()` exists
 - MUST NOT block the calling thread
 - The future MUST be `Send + 'static`
-
----
-
-### `spawn_task_with_result`
-
-```rust
-/// Spawn an async task that delivers its result to the UI thread.
-///
-/// When the future completes, `on_complete` is called on the UI thread
-/// with the result value.
-///
-/// # Example
-/// ```rust
-/// use rvue::async_runtime::spawn_task_with_result;
-///
-/// let handle = spawn_task_with_result(
-///     async { fetch_user(42).await },
-///     |user| {
-///         set_user(user);
-///     },
-/// );
-/// ```
-pub fn spawn_task_with_result<F, T, C>(future: F, on_complete: C) -> TaskHandle
-where
-    F: Future<Output = T> + Send + 'static,
-    T: Send + 'static,
-    C: FnOnce(T) + Send + 'static;
-```
-
-**Contract**:
-- MUST deliver the result via `dispatch_to_ui()`
-- MUST NOT call `on_complete` if the task is aborted before completion
-- MUST mark the task as completed before dispatching `on_complete`
 
 ---
 
@@ -174,8 +140,6 @@ where
 /// });
 /// ```
 ///
-/// **For Signal Watching**: Use `spawn_watch_signal()` instead.
-///
 /// # Example
 /// ```rust
 /// use std::time::Duration;
@@ -188,18 +152,17 @@ where
 ///     });
 /// });
 ///
-/// on_cleanup(move || handle.abort());
+/// on_cleanup(move || handle.stop());
 /// ```
-pub fn spawn_interval<F, Fut>(period: Duration, f: F) -> TaskHandle
+pub fn spawn_interval<F, Fut>(period: Duration, f: F) -> IntervalHandle
 where
     F: FnMut() -> Fut + Send + 'static,
-    Fut: Future<Output = ()> + Send + 'static;
+    Fut: std::future::Future<Output = ()> + Send + 'static;
 ```
 
 **Contract**:
 - MUST execute `f` immediately, then every `period`
-- MUST stop when `TaskHandle::abort()` is called
-- MUST be registered with `TaskRegistry` if in component context
+- MUST stop when `IntervalHandle::stop()` is called
 - **GC Safety**: The closure must not capture `Gc<T>` or any `!Send` types
 
 ---
@@ -233,8 +196,6 @@ where
 /// });
 /// ```
 ///
-/// **For Signal Watching**: Use `spawn_watch_signal()` instead.
-///
 /// # Example
 /// ```rust
 /// use std::time::Duration;
@@ -253,8 +214,8 @@ where
 pub fn spawn_debounced<T, F, Fut>(delay: Duration, handler: F) -> DebouncedTask<T>
 where
     T: Send + 'static,
-    F: Fn(T) -> Fut + Send + 'static,
-    Fut: Future<Output = ()> + Send + 'static;
+    F: Fn(T) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = ()> + Send + 'static;
 ```
 
 **Contract**:
@@ -266,73 +227,70 @@ where
 
 ---
 
-### `spawn_watch_signal`
+### `watch_signal`
 
 ```rust
-/// Spawn a task that watches a signal and automatically dispatches updates to UI.
+/// Watch a signal and invoke callback on changes.
 ///
-/// The signal is polled at the given interval. On each poll, the callback
-/// receives the current signal value. The callback can return `Some(v)` to
-/// update the signal, or `None` to just observe.
+/// Uses AsyncHandle for safe GC-managed access in async context.
+/// The watcher runs on a tokio task and polls the signal at the given period.
+///
+/// # Arguments
+/// - `read_signal`: The signal to watch
+/// - `write_signal`: The signal to update (can be the same as read_signal)
+/// - `period`: How often to poll the signal
+/// - `callback`: Called with current value; return `Some(v)` to update, `None` to just watch
+///
+/// # Returns
+/// A `SignalWatcher` handle for stopping the watcher.
 ///
 /// # GC Safety
-/// **SAFE**: This function is designed for signal watching and handles GC
-/// internally by extracting the signal value before async operations.
+/// **SAFE**: This function uses `AsyncHandleScope` for safe GC-managed
+/// access to signals across async await points.
 ///
 /// # Example
 /// ```rust
 /// use rvue::prelude::*;
-/// use rvue::async_runtime::spawn_watch_signal;
+/// use rvue::async_runtime::watch_signal;
 /// use std::time::Duration;
 ///
 /// #[component]
-/// fn LiveStatus() -> View {
-///     let (status, set_status) = create_signal(String::from("Checking..."));
+/// fn LiveCounter() -> View {
+///     let (count, set_count) = create_signal(0i32);
 ///
-///     // Watch signal, automatically dispatch to UI
-///     let watcher = spawn_watch_signal(
-///         status,
-///         Duration::from_secs(10),
+///     let watcher = watch_signal(
+///         count,
+///         set_count,
+///         Duration::from_millis(100),
 ///         |current| {
-///             println!("Status changed to: {}", current);
-///             None  // Just watching, not updating
+///             println!("Count: {}", current);
+///             None  // Just watch, don't update
 ///         }
 ///     );
 ///
 ///     on_cleanup(move || watcher.stop());
 ///
-///     // Changing status triggers the watcher
-///     set_status(String::from("Online"));
-///
 ///     view! {
-///         <Text value=status.get() />
+///         <Text value=format!("Count: {}", count.get()) />
 ///     }
 /// }
 /// ```
-///
-/// # Arguments
-/// - `signal`: The signal to watch
-/// - `period`: How often to poll the signal
-/// - `callback`: Called with current value; return `Some(v)` to update, `None` to just watch
-///
-/// # Returns
-/// A `SignalWatcher<T>` handle for stopping the watcher.
-pub fn spawn_watch_signal<T, F>(
-    signal: ReadSignal<T>,
+pub async fn watch_signal<T>(
+    read_signal: ReadSignal<T>,
+    write_signal: WriteSignal<T>,
     period: Duration,
-    callback: F,
-) -> SignalWatcher<T>
+    mut callback: impl FnMut(T) -> Option<T> + Send + Sync + 'static,
+) -> SignalWatcher
 where
-    T: Trace + Clone + Send + 'static,
-    F: FnMut(T) -> Option<T> + Send + 'static;
+    T: Trace + Clone + Send + Sync + 'static;
 ```
 
 **Contract**:
 - MUST poll the signal at the specified interval
 - MUST execute callback on each poll with current signal value
-- MUST dispatch `Some(v)` to UI thread to update signal
-- MUST return `SignalWatcher<T>` that can stop the watcher
-- **GC Safety**: Signal value is extracted and cloned, no `Gc<T>` crosses thread boundary
+- MUST dispatch `Some(v)` to update signal
+- MUST return `SignalWatcher` that can stop the watcher
+- **GC Safety**: Uses `AsyncHandleScope` for thread-safe signal access
 
 ---
 
@@ -376,7 +334,7 @@ pub fn create_resource<S, T, Fu, Fetcher>(
 where
     S: Fn() -> T + 'static,
     T: Trace + Clone + Send + 'static,
-    Fu: Future<Output = Result<T, String>> + Send + 'static,
+    Fu: std::future::Future<Output = Result<T, String>> + Send + 'static,
     Fetcher: Fn(T) -> Fu + Send + Sync + 'static;
 ```
 
@@ -386,7 +344,6 @@ where
 - `Resource::get()` MUST be reactive (tracked by effects)
 - `Resource::refetch()` MUST trigger a new fetch cycle (`Loading → Ready/Error`)
 - MUST cancel in-flight fetch on refetch (only latest result applies)
-- If component unmounts, in-flight fetches MUST be cancelled
 
 ---
 
@@ -396,7 +353,11 @@ where
 
 ```rust
 #[derive(Debug, Clone)]
-pub struct TaskHandle { /* private fields */ }
+pub struct TaskHandle {
+    pub id: TaskId,
+    pub abort_handle: tokio::task::AbortHandle,
+    pub completed: Arc<AtomicBool>,
+}
 
 impl TaskHandle {
     /// Cancel the task. Idempotent — safe to call multiple times.
@@ -417,40 +378,95 @@ impl TaskHandle {
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TaskId(u64);
+pub struct TaskId(pub u64);
 ```
 
-### `SignalSender<T>`
+### `AsyncSignalSender<T>`
 
 ```rust
 #[derive(Clone)]
-pub struct SignalSender<T: Clone + Send + 'static> { /* private fields */ }
-
-impl<T: Clone + Send + 'static> SignalSender<T> {
-    /// Queue a value to be set on the signal via dispatch_to_ui.
-    ///
-    /// Safe to call from any thread.
-    pub fn set(&self, value: T);
+pub struct AsyncSignalSender<T: Trace + Clone + 'static> {
+    data: Gc<SignalDataInner<T>>,
 }
 
-// SAFETY: Only holds Arc<dyn Fn + Send + Sync>
-unsafe impl<T: Clone + Send + 'static> Send for SignalSender<T> {}
-unsafe impl<T: Clone + Send + 'static> Sync for SignalSender<T> {}
+impl<T: Trace + Clone + 'static> AsyncSignalSender<T> {
+    /// Create a new AsyncSignalSender.
+    pub fn new(write_signal: WriteSignal<T>) -> Self;
+
+    /// Set the signal value asynchronously.
+    pub async fn set(&self, value: T);
+}
 ```
 
-### `WriteSignal<T>` Extension
+**Contract**:
+- MUST set the signal value on the GC thread
+- MUST notify subscribers after setting
+- **GC Safety**: Uses `Gc<T>` for thread-safe signal access
+
+---
+
+### `WriteSignalExt<T>` Trait
 
 ```rust
-impl<T: Trace + Clone + 'static> WriteSignal<T> {
-    /// Create a thread-safe sender for updating this signal from async tasks.
-    ///
-    /// Must be called on the UI thread.
-    #[cfg(feature = "async")]
-    pub fn sender(&self) -> SignalSender<T>
-    where
-        T: Send;
+/// Extension trait for creating async signal senders.
+pub trait WriteSignalExt<T: Trace + Clone + 'static> {
+    /// Creates an AsyncSignalSender for thread-safe signal updates from async contexts.
+    fn sender(&self) -> AsyncSignalSender<T>;
+}
+
+impl<T: Trace + Clone + 'static> WriteSignalExt<T> for WriteSignal<T> {
+    fn sender(&self) -> AsyncSignalSender<T> {
+        AsyncSignalSender::new(self.clone())
+    }
 }
 ```
+
+**Usage**:
+```rust
+use rvue::prelude::WriteSignalExt;
+
+let (count, set_count) = create_signal(0i32);
+let sender = set_count.sender();
+
+tokio::spawn(async move {
+    sender.set(100).await;
+});
+```
+
+---
+
+### `ComponentScope`
+
+```rust
+#[derive(Default, Clone)]
+pub struct ComponentScope {
+    scope: std::rc::Rc<std::cell::RefCell<rudo_gc::handles::GcScope>>,
+}
+
+impl ComponentScope {
+    /// Create a new empty component scope.
+    pub fn new() -> Self;
+
+    /// Track a single component.
+    pub fn track(&mut self, component: &Gc<Component>);
+
+    /// Track multiple components from a slice.
+    pub fn track_all(&mut self, components: &[Gc<Component>]);
+
+    /// Track components from another scope.
+    pub fn extend(&mut self, other: &ComponentScope);
+
+    /// Get the number of tracked components.
+    pub fn len(&self) -> usize;
+
+    /// Check if the scope is empty.
+    pub fn is_empty(&self) -> bool;
+}
+```
+
+**Purpose**: Dynamic tracking of GC-managed components for async operations.
+
+---
 
 ### `Resource<T>`
 
@@ -493,7 +509,11 @@ impl<T> ResourceState<T> {
 ### `DebouncedTask<T>`
 
 ```rust
-pub struct DebouncedTask<T: Send + 'static> { /* private fields */ }
+#[derive(Clone)]
+pub struct DebouncedTask<T: Send + 'static> {
+    sender: tokio::sync::mpsc::UnboundedSender<T>,
+    stopped: Arc<AtomicBool>,
+}
 
 impl<T: Send + 'static> DebouncedTask<T> {
     /// Submit a value. Resets the debounce timer.
@@ -506,20 +526,38 @@ impl<T: Send + 'static> DebouncedTask<T> {
 
 ---
 
-### `SignalWatcher<T>`
+### `SignalWatcher`
 
 ```rust
-/// Handle for a signal watching task.
-///
-/// Created by `spawn_watch_signal()`.
+/// Handle for stopping a signal watcher.
 #[derive(Clone)]
-pub struct SignalWatcher<T: Send + 'static> { /* private fields */ }
+pub struct SignalWatcher {
+    stopped: Arc<AtomicBool>,
+}
 
-impl<T: Send + 'static> SignalWatcher<T> {
-    /// Stop watching the signal.
-    ///
-    /// The watcher will stop polling after this is called.
-    /// It is safe to call multiple times.
+impl SignalWatcher {
+    /// Create a new stopped signal watcher.
+    pub fn new() -> Self;
+
+    /// Stop watching (drops the scope, stopping the task).
+    pub fn stop(self);
+}
+```
+
+### `IntervalHandle`
+
+```rust
+/// A handle for stopping interval tasks.
+#[derive(Clone)]
+pub struct IntervalHandle {
+    stopped: Arc<AtomicBool>,
+}
+
+impl IntervalHandle {
+    /// Create a new stopped interval handle.
+    pub fn new() -> Self;
+
+    /// Stop the interval task.
     pub fn stop(&self);
 }
 ```
@@ -532,17 +570,16 @@ impl<T: Send + 'static> SignalWatcher<T> {
 # crates/rvue/Cargo.toml
 [features]
 default = []
-async = ["dep:tokio", "dep:parking_lot"]
+async = ["dep:tokio"]
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"], optional = true }
-parking_lot = { version = "0.12", optional = true }
 ```
 
 **Contract**:
 - Without `async` feature: no tokio dependency, no async_runtime module compiled
 - All async types and functions gated behind `#[cfg(feature = "async")]`
-- `WriteSignal::sender()` gated behind `#[cfg(feature = "async")]`
+- `WriteSignalExt::sender()` gated behind `#[cfg(feature = "async")]`
 
 ---
 
@@ -553,7 +590,32 @@ parking_lot = { version = "0.12", optional = true }
 | `dispatch_to_ui` callback panics | Caught by `catch_unwind`, logged, other callbacks continue |
 | Async task panics | tokio catches it; task marked as completed |
 | `spawn_task` called before `run_app` | Runtime initializes; callbacks queue until event loop starts |
-| `set()` on sender after signal dropped | No-op (closure captures signal; if signal GC'd, dispatch is harmless) |
+| `AsyncSignalSender::set()` after signal GC'd | No-op (Gc<T> handles this safely) |
 | `create_resource` fetcher returns `Err` | State transitions to `ResourceState::Error(msg)` |
 | `spawn_debounced` with zero delay | Executes immediately (same as no debounce) |
 | Task completes after component unmount | `dispatch_to_ui` callback is still executed (signal may be gone — no-op) |
+
+---
+
+## Implementation Notes
+
+### GC Safety Strategy
+
+The async runtime uses rudo-gc's `AsyncHandleScope` for thread-safe GC access:
+
+1. **`watch_signal`**: Creates an `AsyncHandleScope` on the GC thread, extracts handles for read/write signals, and polls in a tokio task
+2. **`AsyncSignalSender`**: Holds a `Gc<SignalDataInner<T>>` clone that remains valid across awaits
+3. **`ComponentScope`**: Uses `Rc<RefCell<GcScope>>` for dynamic component tracking
+
+### Threading Model
+
+- **UI Thread**: Main winit event loop thread where all signal/effect operations occur
+- **Background Threads**: tokio worker threads for async computation
+- **GC Thread**: Same as UI thread (rudo-gc is thread-local)
+
+### Removed APIs (from original spec)
+
+- `spawn_task_with_result` - Removed due to `Send` bound issues with `SignalDataInner`
+- `SignalSender` - Renamed to `AsyncSignalSender` for clarity
+- `spawn_watch_signal` - Renamed to `watch_signal` (async function)
+- `TaskRegistry` - Lifecycle binding via `on_cleanup` instead of separate registry

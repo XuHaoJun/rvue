@@ -127,22 +127,22 @@ As a Rvue application developer, I want to register custom cleanup logic that ru
 
 - **FR-001**: The system MUST provide a mechanism to execute closures on the UI thread from any background thread without race conditions.
 - **FR-002**: The system MUST allow spawning async tasks that can run concurrently without blocking the UI thread.
-- **FR-003**: The system MUST automatically cancel all async tasks associated with a component when that component is unmounted.
-- **FR-004**: The system MUST provide a way to track active tasks and query their completion status.
-- **FR-005**: The system MUST provide reactive primitives for async data fetching that expose loading, success, and error states.
-- **FR-006**: The system MUST allow signals to be updated safely from background threads.
-- **FR-007**: The system MUST provide debounced task spawning that cancels pending executions when new triggers arrive.
-- **FR-008**: The system MUST provide throttled task spawning that limits execution rate.
-- **FR-009**: The system MUST provide cleanup hooks that execute when components unmount.
-- **FR-010**: The system MUST maintain GC safety when async tasks access garbage-collected objects.
-- **FR-011**: The system MUST be feature-gated so that async support can be disabled for applications that don't need it.
-- **FR-012**: The system MUST handle errors from async tasks without crashing the UI thread.
+- **FR-003**: The system MUST provide reactive primitives for async data fetching that expose loading, success, and error states.
+- **FR-004**: The system MUST allow signals to be updated safely from async contexts using GC handles.
+- **FR-005**: The system MUST provide debounced task spawning that cancels pending executions when new triggers arrive.
+- **FR-006**: The system MUST provide throttled task spawning that limits execution rate via `spawn_interval`.
+- **FR-007**: The system MUST provide cleanup hooks that execute when components unmount (via existing `on_cleanup`).
+- **FR-008**: The system MUST maintain GC safety when async tasks access garbage-collected objects via `AsyncHandleScope`.
+- **FR-009**: The system MUST be feature-gated so that async support can be disabled for applications that don't need it.
+- **FR-010**: The system MUST handle errors from async tasks without crashing the UI thread.
+- **FR-011**: The system MUST provide `watch_signal` for polling signals in async contexts.
 
 ### Key Entities
 
 - **TaskHandle**: A handle for managing spawned async tasks, providing abort and status query capabilities.
-- **TaskRegistry**: A registry mapping components to their spawned tasks for lifecycle management.
-- **SignalSender**: A thread-safe sender that queues signal updates for execution on the UI thread.
+- **AsyncSignalSender**: A thread-safe sender that updates signals via GC handles from async contexts.
+- **SignalWatcher**: A handle for stopping signal watching tasks.
+- **ComponentScope**: A scope for dynamically tracking GC-managed components for async operations.
 - **Resource**: A reactive primitive for async data fetching that maintains loading, ready, and error states.
 - **ResourceState**: An enumeration representing the current state of an async resource (Pending, Loading, Ready, Error).
 
@@ -180,9 +180,9 @@ As a Rvue application developer, I want to register custom cleanup logic that ru
 
 ## Dependencies
 
-- **rudo-gc**: Must have async handle scope and GC safety primitives available.
+- **rudo-gc**: Must have async handle scope (`AsyncHandleScope`, `GcScope`) and GC safety primitives available.
 - **tokio**: Async runtime dependency with rt-multi-thread, sync, and time features.
-- **parking_lot**: For efficient mutex primitives in thread-safe queues.
+- **winit**: Event loop for UI thread and `EventLoopProxy` for wakeup.
 
 ---
 
@@ -193,3 +193,5 @@ As a Rvue application developer, I want to register custom cleanup logic that ru
 - WebAssembly support (tokio doesn't support WASM well).
 - Hot module replacement.
 - Suspense component patterns (deferred to v2).
+- `spawn_task_with_result` (removed due to Send bound issues with SignalDataInner).
+- `TaskRegistry` (using existing `on_cleanup` for lifecycle binding instead).
