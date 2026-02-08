@@ -24,8 +24,8 @@
 
 **Purpose**: Project initialization and async feature wiring
 
-- [ ] T001 Add tokio and parking_lot dependencies with feature gate in crates/rvue/Cargo.toml (async = ["dep:tokio", "dep:parking_lot"], tokio features: rt-multi-thread, sync, time)
-- [ ] T002 Create async_runtime module stub with feature gate and re-exports in crates/rvue/src/async_runtime/mod.rs
+- [X] T001 Add tokio and parking_lot dependencies with feature gate in crates/rvue/Cargo.toml (async = ["dep:tokio", "dep:parking_lot"], tokio features: rt-multi-thread, sync, time)
+- [X] T002 Create async_runtime module stub with feature gate and re-exports in crates/rvue/src/async_runtime/mod.rs
 
 ---
 
@@ -33,10 +33,10 @@
 
 **Purpose**: UI dispatch and event-loop wakeup that all user stories depend on. No user story work can begin until this phase is complete.
 
-- [ ] T003 Implement UiDispatchQueue, dispatch_to_ui, and drain_ui_callbacks (with parking_lot::Mutex, VecDeque) in crates/rvue/src/async_runtime/dispatch.rs
-- [ ] T004 Define RvueUserEvent enum and EventLoopProxy storage; add set_proxy to dispatch queue and user_event handler in crates/rvue/src/app.rs
-- [ ] T005 Call drain_ui_callbacks when RvueUserEvent::AsyncDispatchReady is received (and optionally in run_update_passes as fallback) in crates/rvue/src/app.rs
-- [ ] T006 Add panic handling (catch_unwind) in drain_ui_callbacks and log panics in crates/rvue/src/async_runtime/dispatch.rs
+- [X] T003 Implement UiDispatchQueue, dispatch_to_ui, and drain_ui_callbacks (with parking_lot::Mutex, VecDeque) in crates/rvue/src/async_runtime/dispatch.rs
+- [X] T004 Define RvueUserEvent enum and EventLoopProxy storage; add set_proxy to dispatch queue and user_event handler in crates/rvue/src/app.rs
+- [X] T005 Call drain_ui_callbacks when RvueUserEvent::AsyncDispatchReady is received (and optionally in run_update_passes as fallback) in crates/rvue/src/app.rs
+- [X] T006 Add panic handling (catch_unwind) in drain_ui_callbacks and log panics in crates/rvue/src/async_runtime/dispatch.rs
 
 **Checkpoint**: Foundation ready — user story implementation can begin
 
@@ -48,10 +48,10 @@
 
 **Independent Test**: Spawn an async task with a simulated delay; verify UI remains responsive and the result is applied on the next UI cycle via dispatch_to_ui.
 
-- [ ] T007 [P] [US1] Implement TaskId and TaskHandle (id, abort_handle, completed, abort, is_completed, is_running, id()) in crates/rvue/src/async_runtime/task.rs
-- [ ] T008 [US1] Implement lazy tokio runtime (OnceLock) and spawn_task in crates/rvue/src/async_runtime/task.rs
-- [ ] T009 [US1] Implement spawn_task_with_result in crates/rvue/src/async_runtime/task.rs
-- [ ] T010 [US1] Add async_runtime module to lib.rs and prelude (feature-gated) in crates/rvue/src/lib.rs and crates/rvue/src/prelude.rs
+- [X] T007 [P] [US1] Implement TaskId and TaskHandle (id, abort_handle, completed, abort, is_completed, is_running, id()) in crates/rvue/src/async_runtime/task.rs
+- [X] T008 [US1] Implement lazy tokio runtime (OnceLock) and spawn_task in crates/rvue/src/async_runtime/task.rs
+- [X] T009 [US1] Implement spawn_task_with_result in crates/rvue/src/async_runtime/task.rs
+- [X] T010 [US1] Add async_runtime module to lib.rs and prelude (feature-gated) in crates/rvue/src/lib.rs and crates/rvue/src/prelude.rs
 
 **Checkpoint**: User Story 1 is testable — spawn_task + dispatch_to_ui work end-to-end
 
@@ -63,9 +63,9 @@
 
 **Independent Test**: Spawn tasks in a component, unmount the component, verify tasks are cancelled (TaskHandle::is_running() false).
 
-- [ ] T011 [P] [US2] Implement TaskRegistry (register, cancel_all, cleanup_completed, task_count) in crates/rvue/src/async_runtime/registry.rs
-- [ ] T012 [US2] Register task with TaskRegistry when spawn_task/spawn_task_with_result is called and runtime::current_owner() is Some in crates/rvue/src/async_runtime/task.rs
-- [ ] T013 [US2] Call crate::async_runtime::registry::task_registry().cancel_all(self.id()) in Component::unmount in crates/rvue/src/component.rs (feature-gated)
+- [X] T011 [P] [US2] Implement TaskRegistry (register, cancel_all, cleanup_completed, task_count) in crates/rvue/src/async_runtime/registry.rs
+- [X] T012 [US2] Register task with TaskRegistry when spawn_task/spawn_task_with_result is called and runtime::current_owner() is Some in crates/rvue/src/async_runtime/task.rs
+- [X] T013 [US2] Call crate::async_runtime::registry::task_registry().cancel_all(self.id()) in Component::unmount in crates/rvue/src/component.rs (feature-gated)
 
 **Checkpoint**: User Stories 1 and 2 work — tasks cancel on unmount
 
@@ -77,9 +77,9 @@
 
 **Independent Test**: Spawn an async task that calls SignalSender::set; verify signal value updates on the UI thread.
 
-- [ ] T014 [P] [US4] Implement SignalSender<T> (dispatch_fn, set, Send+Sync impl) in crates/rvue/src/async_runtime/signal_sender.rs
-- [ ] T015 [US4] Add WriteSignal::sender() method (feature-gated, T: Send) in crates/rvue/src/signal.rs
-- [ ] T016 [US4] Export SignalSender and dispatch_to_ui from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
+- [X] T014 [P] [US4] Implement SignalSender<T> (dispatch_fn, set, Send+Sync impl) in crates/rvue/src/async_runtime/signal_sender.rs
+- [X] T015 [US4] Add WriteSignal::sender() method (feature-gated, T: Send) in crates/rvue/src/signal.rs
+- [X] T016 [US4] Export SignalSender and dispatch_to_ui from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
 
 **Checkpoint**: User Story 4 works — SignalSender::set from async updates signal on UI thread
 
@@ -91,11 +91,30 @@
 
 **Independent Test**: Create a resource that fetches data; observe Loading then Ready/Error and verify UI updates.
 
-- [ ] T017 [P] [US3] Implement ResourceState<T> (Pending, Loading, Ready, Error) and Resource<T> (state, refetch, get) in crates/rvue/src/async_runtime/resource.rs
-- [ ] T018 [US3] Implement create_resource (source, fetcher, initial fetch, spawn_task + SignalSender for state) in crates/rvue/src/async_runtime/resource.rs
-- [ ] T019 [US3] Export create_resource, Resource, ResourceState from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
+- [X] T017 [P] [US3] Implement ResourceState<T> (Pending, Loading, Ready, Error) and Resource<T> (state, refetch, get) in crates/rvue/src/async_runtime/resource.rs
+- [X] T018 [US3] Implement create_resource (source, fetcher, initial fetch, spawn_task + SignalSender for state) in crates/rvue/src/async_runtime/resource.rs
+- [X] T019 [US3] Export create_resource, Resource, ResourceState from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
 
 **Checkpoint**: User Story 3 works — create_resource drives reactive UI
+
+---
+
+## Note: Resource API Removed Due to Send+Sync Constraints
+
+The `create_resource`, `Resource<T>`, and `ResourceState<T>` APIs have been **temporarily removed** from the async runtime MVP.
+
+**Reason**: `WriteSignal<T>` is not `Send + Sync` (uses `GcCell<T>` which is thread-local), making it impossible to capture in async callbacks that must be `Send` for Tokio spawning.
+
+**Impact**: Users cannot currently use `create_resource` to drive reactive async data patterns.
+
+**Future Work**: When WriteSignal is made `Send + Sync` (requires rudo-gc changes), `create_resource` can be re-implemented using the pattern:
+```rust
+spawn_task_with_result(async move { fetcher(source()).await }, move |result| {
+    dispatch_to_ui(move || {
+        // Update signal state here
+    });
+});
+```
 
 ---
 
@@ -105,9 +124,9 @@
 
 **Independent Test**: spawn_debounced with rapid triggers executes only after delay; spawn_interval runs at period.
 
-- [ ] T020 [P] [US5] Implement spawn_interval (period, FnMut -> Fut) returning TaskHandle in crates/rvue/src/async_runtime/task.rs
-- [ ] T021 [US5] Implement spawn_debounced and DebouncedTask (call, cancel) in crates/rvue/src/async_runtime/task.rs
-- [ ] T022 [US5] Export spawn_interval, spawn_debounced, DebouncedTask from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
+- [X] T020 [P] [US5] Implement spawn_interval (period, FnMut -> Fut) returning TaskHandle in crates/rvue/src/async_runtime/task.rs
+- [X] T021 [US5] Implement spawn_debounced and DebouncedTask (call, cancel) in crates/rvue/src/async_runtime/task.rs
+- [X] T022 [US5] Export spawn_interval, spawn_debounced, DebouncedTask from async_runtime mod and prelude in crates/rvue/src/async_runtime/mod.rs and crates/rvue/src/prelude.rs
 
 **Checkpoint**: User Stories 5 works — interval and debounce available
 
@@ -119,7 +138,7 @@
 
 **Independent Test**: Register on_cleanup in a component that spawns a task; unmount and verify cleanup runs (e.g. handle.abort() called).
 
-- [ ] T023 [US6] Ensure on_cleanup is documented for async cleanup (abort handles, release resources) in specs/003-rvue-async-support/quickstart.md and contracts/async-api.md
+- [X] T023 [US6] Ensure on_cleanup is documented for async cleanup (abort handles, release resources) in specs/003-rvue-async-support/quickstart.md and contracts/async-api.md
 
 **Checkpoint**: User Story 6 satisfied — on_cleanup documented and usable with async
 

@@ -1418,15 +1418,16 @@ impl ComponentLifecycle for Component {
     }
 
     fn unmount(&self) {
-        // Unmount all children
+        #[cfg(feature = "async")]
+        {
+            use crate::async_runtime::registry::TaskRegistry;
+            TaskRegistry::cancel_all(self.id);
+        }
+
         for child in self.children.borrow().iter() {
             child.unmount();
         }
 
-        // Clean up effects
-        // Effects are cleaned up by GC when component is dropped
-
-        // Run cleanups
         let cleanups = {
             let mut cleanups = self.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)

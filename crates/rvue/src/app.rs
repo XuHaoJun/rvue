@@ -1,5 +1,15 @@
 //! Application runner with winit event loop
 
+#[derive(Debug, Clone)]
+#[cfg(feature = "async")]
+pub enum RvueUserEvent {
+    AsyncDispatchReady,
+}
+
+#[cfg(not(feature = "async"))]
+#[derive(Debug, Clone)]
+pub enum RvueUserEvent {}
+
 use crate::component::{Component, ComponentLifecycle};
 use crate::event::context::EventContextOps;
 use crate::event::dispatch::{
@@ -366,7 +376,7 @@ impl<'a> AppState<'a> {
 }
 
 /// Application handler for winit event loop
-impl ApplicationHandler for AppState<'_> {
+impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
             let window_attributes = winit::window::Window::default_attributes()
@@ -376,6 +386,23 @@ impl ApplicationHandler for AppState<'_> {
             let window = event_loop.create_window(window_attributes).unwrap();
             self.window = Some(Arc::new(window));
         }
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: RvueUserEvent) {
+        #[cfg(feature = "async")]
+        {
+            use crate::async_runtime::dispatch::UiDispatchQueue;
+            match event {
+                RvueUserEvent::AsyncDispatchReady => {
+                    UiDispatchQueue::drain_all_and_execute();
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "async"))]
+        let _ = event;
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -1076,27 +1103,39 @@ pub fn run_app<F>(view_fn: F) -> Result<(), AppError>
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
-    // Disable automatic GC collection during app lifetime to prevent
-    // race conditions with component drops
-    // The final cleanup in AppState::drop will re-enable and run GC
     rudo_gc::set_collect_condition(|_| false);
 
     let view = view_fn();
 
-    let event_loop = EventLoop::with_user_event()
-        .build()
-        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    #[cfg(feature = "async")]
+    {
+        let mut event_loop_builder = EventLoop::with_user_event();
+        let event_loop = event_loop_builder
+            .build()
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        let proxy = event_loop.create_proxy();
+        let mut app_state = AppState::new();
+        app_state.view = Some(view);
+        app_state.stylesheet = Some(Stylesheet::with_defaults());
+        crate::async_runtime::dispatch::UiDispatchQueue::set_proxy(proxy);
+        event_loop
+            .run_app(&mut app_state)
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        return Ok(());
+    }
 
-    let mut app_state = AppState::new();
-    app_state.view = Some(view);
-
-    // Add default stylesheet for component sizing (buttons, inputs, etc.)
-    app_state.stylesheet = Some(Stylesheet::with_defaults());
-
-    // Run the event loop - AppState::drop will handle cleanup
-    event_loop
-        .run_app(&mut app_state)
-        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    #[cfg(not(feature = "async"))]
+    {
+        let event_loop = EventLoop::with_user_event()
+            .build()
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        let mut app_state = AppState::new();
+        app_state.view = Some(view);
+        app_state.stylesheet = Some(Stylesheet::with_defaults());
+        event_loop
+            .run_app(&mut app_state)
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    }
 
     Ok(())
 }
@@ -1143,26 +1182,57 @@ where
 
     let view = view_fn();
 
-    let event_loop = EventLoop::with_user_event()
-        .build()
-        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    #[cfg(feature = "async")]
+    {
+        let mut event_loop_builder = EventLoop::with_user_event();
+        let event_loop = event_loop_builder
+            .build()
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        let proxy = event_loop.create_proxy();
 
-    let mut app_state = AppState::new();
-    app_state.view = Some(view);
+        let mut app_state = AppState::new();
+        app_state.view = Some(view);
 
-    let merged_stylesheet = match stylesheet {
-        Some(user_sheet) => {
-            let mut defaults = Stylesheet::with_defaults();
-            defaults.merge(&user_sheet);
-            defaults
-        }
-        None => Stylesheet::with_defaults(),
-    };
-    app_state.stylesheet = Some(merged_stylesheet);
+        let merged_stylesheet = match stylesheet {
+            Some(user_sheet) => {
+                let mut defaults = Stylesheet::with_defaults();
+                defaults.merge(&user_sheet);
+                defaults
+            }
+            None => Stylesheet::with_defaults(),
+        };
+        app_state.stylesheet = Some(merged_stylesheet);
 
-    event_loop
-        .run_app(&mut app_state)
-        .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        crate::async_runtime::dispatch::UiDispatchQueue::set_proxy(proxy);
+        event_loop
+            .run_app(&mut app_state)
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+        return Ok(());
+    }
+
+    #[cfg(not(feature = "async"))]
+    {
+        let event_loop = EventLoop::with_user_event()
+            .build()
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+
+        let mut app_state = AppState::new();
+        app_state.view = Some(view);
+
+        let merged_stylesheet = match stylesheet {
+            Some(user_sheet) => {
+                let mut defaults = Stylesheet::with_defaults();
+                defaults.merge(&user_sheet);
+                defaults
+            }
+            None => Stylesheet::with_defaults(),
+        };
+        app_state.stylesheet = Some(merged_stylesheet);
+
+        event_loop
+            .run_app(&mut app_state)
+            .map_err(|e| AppError::WindowCreationFailed(e.to_string()))?;
+    }
 
     Ok(())
 }

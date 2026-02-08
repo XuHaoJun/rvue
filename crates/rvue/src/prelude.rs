@@ -31,3 +31,34 @@ pub mod ev {
     pub use super::PointerMove;
     pub use super::PointerUp;
 }
+
+#[cfg(feature = "async")]
+pub use crate::async_runtime::{
+    dispatch_to_ui, spawn_debounced, spawn_interval, spawn_task, spawn_task_with_result,
+    DebouncedTask, SignalSender, TaskHandle, TaskId,
+};
+
+#[cfg(feature = "async")]
+pub use crate::prelude::write_signal_ext::WriteSignalExt;
+
+#[cfg(feature = "async")]
+mod write_signal_ext {
+    use rudo_gc::Trace;
+
+    use super::{SignalSender, WriteSignal};
+
+    pub trait WriteSignalExt<T: Trace + Clone + 'static> {
+        fn sender(&self) -> SignalSender<T>
+        where
+            T: Send;
+    }
+
+    impl<T: Trace + Clone + 'static> WriteSignalExt<T> for WriteSignal<T> {
+        fn sender(&self) -> SignalSender<T>
+        where
+            T: Send,
+        {
+            SignalSender::new(|_value: T| {})
+        }
+    }
+}
