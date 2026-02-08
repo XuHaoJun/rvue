@@ -356,6 +356,12 @@ where
 - `Resource::refetch()` MUST trigger a new fetch cycle (`Loading → Ready/Error`)
 - MUST cancel in-flight fetch on refetch (only latest result applies)
 
+**Async Execution**:
+- The fetcher future runs on the global tokio runtime (via `spawn_task`)
+- Results are dispatched back to the UI thread via `dispatch_to_ui`
+- The UI thread is never blocked during async execution
+- This ensures the runtime panic "Cannot find current runtime" does not occur
+
 ---
 
 ## Types

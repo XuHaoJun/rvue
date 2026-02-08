@@ -68,8 +68,8 @@ pub use dispatch::{dispatch_to_ui, UiDispatchQueue};
 
 #[cfg(feature = "async")]
 pub use task::{
-    spawn_debounced, spawn_interval, spawn_task, watch_signal, AsyncSignalSender, DebouncedTask,
-    IntervalHandle, SignalWatcher, TaskHandle, TaskId, WriteSignalExt,
+    block_on, spawn_debounced, spawn_interval, spawn_task, watch_signal, AsyncSignalSender,
+    DebouncedTask, IntervalHandle, SignalWatcher, TaskHandle, TaskId, WriteSignalExt,
 };
 
 #[cfg(feature = "async")]

@@ -3,35 +3,41 @@ use std::future::Future;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
-use super::dispatch::dispatch_to_ui;
+use super::task::block_on;
 use crate::effect::create_effect;
 use crate::signal::{create_memo, create_signal, ReadSignal, WriteSignal};
 
-pub struct Resource<T: Trace + Clone + Send + Sync + 'static, S: Trace + Clone + 'static> {
+pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
+    refetch_counter: WriteSignal<usize>,
     source: ReadSignal<S>,
-    refetch_source: WriteSignal<()>,
 }
 
-impl<T: Trace + Clone + Send + Sync + 'static, S: Trace + Clone + 'static> Resource<T, S> {
+impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
+    #[allow(dead_code)]
     pub fn get(&self) -> Gc<ResourceState<T>> {
         self.state.get()
     }
 
+    #[allow(dead_code)]
+    pub fn source(&self) -> ReadSignal<S> {
+        self.source.clone()
+    }
+
     pub fn refetch(&self) {
-        self.refetch_source.set(());
+        self.refetch_counter.update(|v| *v += 1);
     }
 }
 
 #[derive(Clone, Debug)]
-pub enum ResourceState<T: Trace + Clone + Send + Sync + 'static> {
+pub enum ResourceState<T: Trace + Clone + 'static> {
     Pending,
     Loading,
     Ready(T),
     Error(String),
 }
 
-impl<T: Trace + Clone + Send + Sync + 'static> ResourceState<T> {
+impl<T: Trace + Clone + 'static> ResourceState<T> {
     pub fn is_loading(&self) -> bool {
         matches!(self, ResourceState::Loading)
     }
@@ -59,7 +65,7 @@ impl<T: Trace + Clone + Send + Sync + 'static> ResourceState<T> {
     }
 }
 
-unsafe impl<T: Trace + Clone + Send + Sync + 'static> Trace for ResourceState<T> {
+unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         match self {
             ResourceState::Pending => {}
@@ -72,24 +78,24 @@ unsafe impl<T: Trace + Clone + Send + Sync + 'static> Trace for ResourceState<T>
 
 pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T, S>
 where
-    S: PartialEq + Clone + Send + Sync + 'static + Trace,
-    T: Trace + Clone + Send + Sync + 'static,
+    S: PartialEq + Clone + Trace + 'static,
+    T: Trace + Clone + 'static,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
-    Fetcher: Fn(S) -> Fu + Send + Sync + Clone + 'static,
+    Fetcher: Fn(S) -> Fu + Clone + 'static,
 {
     let (state, set_state) = create_signal(Gc::new(ResourceState::<T>::Pending));
 
-    let (refetch_counter, _) = create_signal(0usize);
-    let (refetch_source_read, refetch_source) = create_signal(());
+    let (refetch_counter_read, refetch_counter) = create_signal(0usize);
 
+    let source_for_memo = source.clone();
     let source_memo = create_memo(move || {
-        let _ = refetch_counter.get();
-        let _ = refetch_source_read.get();
-        source.get()
+        let _ = refetch_counter_read.get();
+        source_for_memo.get()
     });
 
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
+    let source_for_effect = source.clone();
 
     create_effect(move || {
         let _source_value = source_memo.get();
@@ -97,22 +103,18 @@ where
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
         let fetcher = fetcher_clone.clone();
-        let source_value = source.get();
-        let set_state = set_state_clone.clone();
+        let source_value = source_for_effect.get();
 
-        dispatch_to_ui(move || {
-            let rt = tokio::runtime::Handle::current();
-            let result = rt.block_on(async move { fetcher(source_value).await });
-            match result {
-                Ok(data) => {
-                    set_state.set(Gc::new(ResourceState::Ready(data)));
-                }
-                Err(err) => {
-                    set_state.set(Gc::new(ResourceState::Error(err)));
-                }
+        let result = block_on(fetcher(source_value));
+        match result {
+            Ok(data) => {
+                set_state_clone.set(Gc::new(ResourceState::Ready(data)));
             }
-        });
+            Err(err) => {
+                set_state_clone.set(Gc::new(ResourceState::Error(err)));
+            }
+        }
     });
 
-    Resource { state, source, refetch_source }
+    Resource { state, refetch_counter, source }
 }

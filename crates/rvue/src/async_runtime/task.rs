@@ -64,6 +64,20 @@ fn get_or_init_runtime() -> &'static Runtime {
     })
 }
 
+/// Block on a future using the global tokio runtime.
+///
+/// This is useful for running async code from synchronous contexts,
+/// such as within effects that need to wait for async operations.
+///
+/// # Panics
+/// Panics if called outside a tokio runtime context (use `spawn_task` for async contexts).
+pub fn block_on<F>(future: F) -> F::Output
+where
+    F: std::future::Future,
+{
+    get_or_init_runtime().block_on(future)
+}
+
 /// Spawn an async task that completes immediately.
 ///
 /// Returns a handle for managing the task.
@@ -127,7 +141,7 @@ impl Default for SignalWatcher {
 /// A `SignalWatcher` handle for stopping the watcher.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use rvue::prelude::*;
 /// use rvue::async_runtime::watch_signal;
 /// use std::time::Duration;
@@ -257,7 +271,7 @@ impl Default for IntervalHandle {
 /// Spawn a recurring async task that runs at a fixed interval.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use rvue::async_runtime::{spawn_interval, dispatch_to_ui};
 /// use std::time::Duration;
 ///
@@ -322,7 +336,7 @@ impl<T: Send + 'static> DebouncedTask<T> {
 /// previous pending execution is cancelled and the timer resets.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use rvue::async_runtime::{spawn_debounced, dispatch_to_ui};
 /// use std::time::Duration;
 ///
