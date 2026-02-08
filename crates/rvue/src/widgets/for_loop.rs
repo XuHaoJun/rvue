@@ -16,7 +16,7 @@ use std::hash::{BuildHasherDefault, Hash};
 
 pub struct For<T, K, KF, VF>
 where
-    T: Clone + Trace + 'static,
+    T: Clone + Trace + Send + Sync + 'static,
     K: Eq + Hash + Clone + 'static,
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
@@ -28,7 +28,7 @@ where
 
 impl<T, K, KF, VF> Clone for For<T, K, KF, VF>
 where
-    T: Clone + Trace + 'static,
+    T: Clone + Trace + Send + Sync + 'static,
     K: Eq + Hash + Clone + 'static,
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
@@ -44,7 +44,7 @@ where
 
 unsafe impl<T, K, KF, VF> Trace for For<T, K, KF, VF>
 where
-    T: Clone + Trace + 'static,
+    T: Clone + Trace + Send + Sync + 'static,
     K: Eq + Hash + Clone + 'static,
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
@@ -56,7 +56,7 @@ where
 
 impl<T, K, KF, VF> For<T, K, KF, VF>
 where
-    T: Clone + Trace + 'static,
+    T: Clone + Trace + Send + Sync + 'static,
     K: Eq + Hash + Clone + 'static,
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
@@ -134,7 +134,7 @@ where
         let diff = diff_keys(&old_keys, &new_keys);
 
         {
-            let mut keyed_state = self.keyed_state.borrow_mut();
+            let mut keyed_state = self.keyed_state.borrow_mut_gen_only();
 
             for op in &diff.removed {
                 if op.at < keyed_state.rendered_items.len() {
@@ -156,7 +156,7 @@ where
         }
 
         {
-            let mut keyed_state = self.keyed_state.borrow_mut();
+            let mut keyed_state = self.keyed_state.borrow_mut_gen_only();
 
             for op in &diff.added {
                 if let Some(item) = new_items.get(op.at) {
@@ -222,7 +222,7 @@ fn reorder_children<K, T>(
     parent: &Gc<Component>,
     rendered_items: &[Option<crate::widgets::keyed_state::ItemEntry<K, T>>],
 ) {
-    let mut children = parent.children.borrow_mut();
+    let mut children = parent.children.write();
     children.clear();
     for item in rendered_items.iter().flatten() {
         children.push(Gc::clone(&item.component));
@@ -250,7 +250,7 @@ where
 
 impl<T, K, KF, VF> Widget for For<T, K, KF, VF>
 where
-    T: Clone + Trace + 'static,
+    T: Clone + Trace + Send + Sync + 'static,
     K: Eq + Hash + Clone + 'static,
     KF: Fn(&T) -> K + Clone + 'static,
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
@@ -331,7 +331,7 @@ where
                         &mut temp_ctx,
                     );
                 }
-                comp_clone.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
+                comp_clone.properties.write().insert(ForItemCount(new_count));
                 comp_clone.mark_dirty();
             });
             component.add_effect(Gc::clone(&effect));
@@ -379,7 +379,7 @@ where
                     let _new_keys =
                         state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
                 }
-                comp.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
+                comp.properties.write().insert(ForItemCount(new_count));
                 comp.mark_dirty();
             });
             state.component.add_effect(Gc::clone(&effect));
@@ -393,7 +393,7 @@ where
             let mut temp_ctx =
                 BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
             let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);
-            state.component.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
+            state.component.properties.write().insert(ForItemCount(new_count));
             state.component.mark_dirty();
         }
     }

@@ -32,12 +32,16 @@ mod gc_safety_tests {
     }
 
     #[test]
-    fn test_signal_sender_error() {
+    fn test_signal_sender_works() {
         use crate::prelude::WriteSignalExt;
 
-        let (signal, _setter) = create_signal(42i32);
-        let result = signal.sender();
+        let (signal, setter) = create_signal(42i32);
+        let sender = signal.sender();
 
-        assert!(result.is_err());
+        sender.send(100);
+        assert_eq!(signal.get(), 100);
+
+        setter.set(50);
+        assert_eq!(signal.get(), 50);
     }
 }

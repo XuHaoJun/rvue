@@ -193,7 +193,7 @@ impl LayoutNode {
 
         // Store layout in user_data for rendering
         {
-            let mut user_data = component.user_data.borrow_mut_gen_only();
+            let mut user_data = component.user_data.write();
             *user_data = Some(Box::new(ParleyLayoutWrapper(layout)));
         }
 

@@ -87,11 +87,11 @@ impl TestHarness {
     }
 
     fn find_widget_by_tag(&self, component: &Gc<Component>, tag: &str) -> Option<Gc<Component>> {
-        let element_id = component.element_id.borrow();
+        let element_id = component.element_id.read();
         if element_id.as_deref() == Some(tag) {
             return Some(Gc::clone(component));
         }
-        for child in component.children.borrow().iter() {
+        for child in component.children.read().iter() {
             if let Some(found) = self.find_widget_by_tag(child, tag) {
                 return Some(found);
             }
@@ -115,7 +115,7 @@ impl TestHarness {
         if component.id == id {
             return Some(Gc::clone(component));
         }
-        for child in component.children.borrow().iter() {
+        for child in component.children.read().iter() {
             if let Some(found) = self.find_widget_by_id(child, id) {
                 return Some(found);
             }
@@ -270,7 +270,7 @@ impl TestHarness {
         }
 
         // Check children
-        for child in component.children.borrow().iter() {
+        for child in component.children.read().iter() {
             if child.id == target.id {
                 // Found the target, check this component as potential scroll container
                 return self.check_and_return_scroll_container(component);
@@ -481,7 +481,7 @@ impl TestHarness {
     }
 
     fn _debug_scroll_state_recursive(&self, component: &Gc<Component>, _depth: usize) {
-        let tag = component.element_id.borrow().clone().unwrap_or_default();
+        let tag = component.element_id.read().clone().unwrap_or_default();
 
         if let Some(styles) = component.widget_styles() {
             let overflow = styles.overflow_y.unwrap_or(Overflow::Visible);
@@ -490,7 +490,7 @@ impl TestHarness {
             }
         }
 
-        for child in component.children.borrow().iter() {
+        for child in component.children.read().iter() {
             self._debug_scroll_state_recursive(child, _depth + 1);
         }
     }
@@ -499,7 +499,7 @@ impl TestHarness {
 
     /// Get layout information for a widget.
     pub fn get_layout_info(&self, widget: &Gc<Component>) -> Option<LayoutInfo> {
-        let layout_node = widget.layout_node.borrow();
+        let layout_node = widget.layout_node.read();
         let layout = layout_node.as_ref()?.layout_result?;
 
         Some(LayoutInfo {
@@ -518,14 +518,14 @@ impl TestHarness {
 
         let tag = component
             .element_id
-            .borrow()
+            .read()
             .clone()
             .unwrap_or_else(|| format!("widget-{}", component.id));
         if let Some(info) = self.get_layout_info(component) {
             result.push((tag.clone(), info));
         }
 
-        for child in component.children.borrow().iter() {
+        for child in component.children.read().iter() {
             result.extend(self._get_layout_info_recursive(child));
         }
 

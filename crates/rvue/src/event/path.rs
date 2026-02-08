@@ -11,7 +11,7 @@ pub fn get_component_path(
             let mut current = Some(target);
             while let Some(component) = current {
                 path.push(Gc::clone(&component));
-                current = component.parent.borrow().clone();
+                current = component.parent.read().clone();
             }
             path
         }
@@ -20,15 +20,15 @@ pub fn get_component_path(
 }
 
 pub fn merge_state_up(component: &Gc<Component>) {
-    if let Some(parent) = component.parent.borrow().clone() {
-        let parent_has_hovered = *parent.has_hovered.borrow() || *component.has_hovered.borrow();
-        let parent_has_active = *parent.has_active.borrow() || *component.has_active.borrow();
+    if let Some(parent) = component.parent.read().clone() {
+        let parent_has_hovered = *parent.has_hovered.read() || *component.has_hovered.read();
+        let parent_has_active = *parent.has_active.read() || *component.has_active.read();
         let parent_has_focus_target =
-            *parent.has_focus_target.borrow() || *component.has_focus_target.borrow();
+            *parent.has_focus_target.read() || *component.has_focus_target.read();
 
-        *parent.has_hovered.borrow_mut_gen_only() = parent_has_hovered;
-        *parent.has_active.borrow_mut_gen_only() = parent_has_active;
-        *parent.has_focus_target.borrow_mut_gen_only() = parent_has_focus_target;
+        *parent.has_hovered.write() = parent_has_hovered;
+        *parent.has_active.write() = parent_has_active;
+        *parent.has_focus_target.write() = parent_has_focus_target;
     }
 }
 

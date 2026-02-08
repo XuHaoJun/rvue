@@ -48,8 +48,7 @@ impl TaskHandle {
 
 fn get_or_init_runtime() -> &'static Runtime {
     TOKIO_RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
+        tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .thread_name("rvue-async")
             .build()
@@ -284,48 +283,95 @@ where
 
 #[derive(Clone)]
 pub struct SignalWatcher<T: Send + 'static> {
-    sender: tokio::sync::mpsc::UnboundedSender<()>,
-    _phantom: std::marker::PhantomData<T>,
+    stopped: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl<T: Send + 'static> SignalWatcher<T> {
     pub fn stop(&self) {
-        let _ = self.sender.send(());
+        self.stopped.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
 /// Spawn a task that watches a signal and optionally dispatches updates.
 ///
-/// **IMPORTANT**: This function is temporarily disabled due to thread-safety limitations
-/// in the current signal implementation. The signal system uses `GcCell` which is not
-/// thread-safe.
+/// Uses a background thread with std::sync primitives for thread-safe signal access.
 ///
-/// **Workaround**: Use `dispatch_to_ui` directly:
+/// # Example
 /// ```ignore
-/// use rudo::prelude::*;
-/// use rudo::async_runtime::{spawn_interval, dispatch_to_ui};
+/// use rvue::prelude::*;
+/// use rvue::async_runtime::spawn_watch_signal;
 ///
-/// let (value, set_value) = create_signal(0i32);
-/// let current_value = *value.get();
+/// #[component]
+/// fn LiveCounter() -> View {
+///     let (count, set_count) = create_signal(0i32);
 ///
-/// spawn_interval(Duration::from_millis(100), move || {
-///     dispatch_to_ui(move || {
-///         set_value(current_value + 1);
-///     });
-/// });
+///     let watcher = spawn_watch_signal(
+///         count,
+///         set_count,
+///         Duration::from_millis(100),
+///         |current| {
+///             println!("Count: {}", current);
+///             None  // Return Some(value) to update, None to just watch
+///         }
+///     );
+///
+///     on_cleanup(move || watcher.stop());
+///
+///     view! {
+///         <Text value=format!("Count: {}", count.get()) />
+///     }
+/// }
 /// ```
 ///
-/// The signal implementation will be updated to be thread-safe in a future version.
+/// # Arguments
+/// - `read_signal`: The signal to watch
+/// - `write_signal`: The signal to update (can be the same as read_signal)
+/// - `period`: How often to poll the signal
+/// - `callback`: Called with current value; return `Some(v)` to update, `None` to just watch
+///
+/// # Returns
+/// A `SignalWatcher<T>` handle for stopping the watcher.
 pub fn spawn_watch_signal<T, F>(
-    _read_signal: crate::signal::ReadSignal<T>,
-    _write_signal: crate::signal::WriteSignal<T>,
-    _period: Duration,
-    _callback: F,
+    read_signal: crate::signal::ReadSignal<T>,
+    write_signal: crate::signal::WriteSignal<T>,
+    period: Duration,
+    callback: F,
 ) -> SignalWatcher<T>
 where
-    T: rudo_gc::Trace + Clone + Send + 'static,
-    F: FnMut(T) -> Option<T> + Send + 'static,
+    T: rudo_gc::Trace + Clone + Send + Sync + 'static,
+    F: FnMut(T) -> Option<T> + Send + Sync + 'static,
 {
-    let (sender, _receiver) = tokio::sync::mpsc::unbounded_channel::<()>();
-    SignalWatcher { sender, _phantom: std::marker::PhantomData }
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::thread;
+
+    let stopped = Arc::new(AtomicBool::new(false));
+    let stopped_clone = stopped.clone();
+
+    let mut callback = callback;
+    let initial_value = read_signal.get();
+
+    thread::spawn(move || {
+        let mut last_value = initial_value;
+
+        loop {
+            if stopped_clone.load(Ordering::SeqCst) {
+                break;
+            }
+
+            thread::sleep(period);
+
+            let current = read_signal.get();
+            let result = callback(current);
+
+            if let Some(new_value) = result {
+                if new_value != last_value {
+                    write_signal.set(new_value.clone());
+                    last_value = new_value;
+                }
+            }
+        }
+    });
+
+    SignalWatcher { stopped }
 }

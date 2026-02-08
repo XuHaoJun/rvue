@@ -4,16 +4,19 @@
 //! It handles the core value storage and versioning without subscriber tracking,
 //! which is handled by the parent crates.
 
-use rudo_gc::{Gc, GcCell, Trace};
+use rudo_gc::{Gc, GcRwLock, Trace};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Internal signal data structure containing the value and version tracking.
 ///
 /// This is the core storage type shared between rvue and rvue-style.
 /// Version tracking allows consumers to detect when values change.
+///
+/// Note: SignalData uses GcRwLock for thread-safe access from async contexts.
+/// The value type T must implement Send + Sync for cross-thread access.
 pub struct SignalData<T: Clone + 'static> {
-    /// The stored value
-    pub value: GcCell<T>,
+    /// The stored value (protected by GcRwLock for thread-safe access)
+    pub value: GcRwLock<T>,
     /// Monotonically increasing version counter
     pub version: AtomicU64,
 }
@@ -21,7 +24,7 @@ pub struct SignalData<T: Clone + 'static> {
 impl<T: Clone + 'static> SignalData<T> {
     /// Create a new signal data structure
     pub fn new(value: T) -> Self {
-        Self { value: GcCell::new(value), version: AtomicU64::new(0) }
+        Self { value: GcRwLock::new(value), version: AtomicU64::new(0) }
     }
 
     /// Get the current value
@@ -29,12 +32,12 @@ impl<T: Clone + 'static> SignalData<T> {
     where
         T: Clone,
     {
-        self.value.borrow().clone()
+        self.value.read().clone()
     }
 
     /// Set a new value and increment version
     pub fn set(&self, value: T) {
-        *self.value.borrow_mut_gen_only() = value;
+        *self.value.write() = value;
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -43,7 +46,7 @@ impl<T: Clone + 'static> SignalData<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.value.borrow_mut_gen_only());
+        f(&mut *self.value.write());
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -63,7 +66,7 @@ impl<T: Clone + 'static> std::fmt::Debug for SignalData<T> {
 
 unsafe impl<T: Clone + Trace + 'static> Trace for SignalData<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Trace the GcCell<T> field to ensure the value is marked as reachable
+        // Trace the GcRwLock<T> field to ensure the value is marked as reachable
         self.value.trace(visitor);
         // AtomicU64 doesn't need tracing (it's a primitive)
     }
@@ -196,7 +199,7 @@ impl<T: Clone + Trace + 'static> SignalRead<T> for ReadSignal<T> {
 
 impl<T: Clone + Trace + 'static> SignalWrite<T> for WriteSignal<T> {
     fn set(&self, value: T) {
-        self.data.set(value);
+        self.data.set(value)
     }
 
     fn update<F>(&self, f: F)

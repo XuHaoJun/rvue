@@ -13,7 +13,7 @@ use crate::render::FlexScrollState;
 use crate::text::cursor::GcCursorBlinkState;
 use crate::text::editor::SharedTextEditor;
 use crate::text::TextContext;
-use rudo_gc::{Gc, GcCell, Trace};
+use rudo_gc::{Gc, GcRwLock, Trace};
 use std::any::{Any, TypeId};
 use std::sync::atomic::AtomicBool;
 use taffy::TaffyTree;
@@ -246,41 +246,41 @@ pub enum ComponentType {
 pub struct Component {
     pub id: ComponentId,
     pub component_type: ComponentType,
-    pub children: GcCell<Vec<Gc<Component>>>,
-    pub parent: GcCell<Option<Gc<Component>>>,
-    pub effects: GcCell<Vec<Gc<Effect>>>,
-    pub properties: GcCell<PropertyMap>,
+    pub children: GcRwLock<Vec<Gc<Component>>>,
+    pub parent: GcRwLock<Option<Gc<Component>>>,
+    pub effects: GcRwLock<Vec<Gc<Effect>>>,
+    pub properties: GcRwLock<PropertyMap>,
     pub is_dirty: AtomicBool,
     pub is_updating: AtomicBool,
-    pub user_data: GcCell<Option<Box<dyn std::any::Any>>>,
-    pub layout_node: GcCell<Option<LayoutNode>>,
-    pub flags: GcCell<ComponentFlags>,
-    pub is_hovered: GcCell<bool>,
-    pub has_hovered: GcCell<bool>,
-    pub is_active: GcCell<bool>,
-    pub has_active: GcCell<bool>,
-    pub is_focused: GcCell<bool>,
-    pub has_focus_target: GcCell<bool>,
-    pub event_handlers: GcCell<EventHandlers>,
-    pub vello_cache: GcCell<Option<SceneWrapper>>,
-    pub contexts: GcCell<Vec<ContextEntry>>,
-    pub cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    pub classes: GcCell<Vec<String>>,
-    pub element_id: GcCell<Option<String>>,
+    pub user_data: GcRwLock<Option<Box<dyn std::any::Any>>>,
+    pub layout_node: GcRwLock<Option<LayoutNode>>,
+    pub flags: GcRwLock<ComponentFlags>,
+    pub is_hovered: GcRwLock<bool>,
+    pub has_hovered: GcRwLock<bool>,
+    pub is_active: GcRwLock<bool>,
+    pub has_active: GcRwLock<bool>,
+    pub is_focused: GcRwLock<bool>,
+    pub has_focus_target: GcRwLock<bool>,
+    pub event_handlers: GcRwLock<EventHandlers>,
+    pub vello_cache: GcRwLock<Option<SceneWrapper>>,
+    pub contexts: GcRwLock<Vec<ContextEntry>>,
+    pub cleanups: GcRwLock<Vec<Box<dyn FnOnce() + 'static>>>,
+    pub classes: GcRwLock<Vec<String>>,
+    pub element_id: GcRwLock<Option<String>>,
     /// Flag to prevent scroll transform accumulation in nested overflow containers.
     /// When a parent overflow container applies scroll_transform, children should
     /// not apply their own scroll_transform to avoid coordinate space issues.
     pub is_in_scrolling_parent: AtomicBool,
     /// Text editor state for TextInput components
-    pub text_editor: GcCell<Option<SharedTextEditor>>,
+    pub text_editor: GcRwLock<Option<SharedTextEditor>>,
     /// Cursor blink state for TextInput components
-    pub cursor_blink: GcCell<Option<GcCursorBlinkState>>,
+    pub cursor_blink: GcRwLock<Option<GcCursorBlinkState>>,
     /// Whether to clip content to the component bounds.
     /// Used by TextInput to hide overflowing text.
-    pub clip: GcCell<bool>,
+    pub clip: GcRwLock<bool>,
     /// IME area for positioning the IME candidate window.
     /// This is updated when the cursor moves during composition.
-    pub ime_area: GcCell<Option<(f64, f64, f64, f64)>>,
+    pub ime_area: GcRwLock<Option<(f64, f64, f64, f64)>>,
 }
 
 unsafe impl Trace for Component {
@@ -297,7 +297,7 @@ unsafe impl Trace for Component {
         self.has_active.trace(visitor);
         self.is_focused.trace(visitor);
         self.has_focus_target.trace(visitor);
-        // Note: vello::Scene is not GC-managed, but GcCell needs tracing if it could contain GC pointers.
+        // Note: vello::Scene is not GC-managed, but GcRwLock needs tracing if it could contain GC pointers.
         // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
@@ -316,32 +316,32 @@ impl Clone for Component {
         Self {
             id: self.id,
             component_type: self.component_type.clone(),
-            children: GcCell::new(self.children.borrow().clone()),
-            parent: GcCell::new(None),
-            effects: GcCell::new(self.effects.borrow().clone()),
-            properties: GcCell::new(self.properties.borrow().clone()),
+            children: GcRwLock::new(self.children.read().clone()),
+            parent: GcRwLock::new(None),
+            effects: GcRwLock::new(self.effects.read().clone()),
+            properties: GcRwLock::new(self.properties.read().clone()),
             is_dirty: AtomicBool::new(self.is_dirty.load(Ordering::SeqCst)),
             is_updating: AtomicBool::new(false),
-            user_data: GcCell::new(None),
-            layout_node: GcCell::new(self.layout_node.borrow().clone()),
-            flags: GcCell::new(*self.flags.borrow()),
-            is_hovered: GcCell::new(*self.is_hovered.borrow()),
-            has_hovered: GcCell::new(*self.has_hovered.borrow()),
-            is_active: GcCell::new(*self.is_active.borrow()),
-            has_active: GcCell::new(*self.has_active.borrow()),
-            is_focused: GcCell::new(*self.is_focused.borrow()),
-            has_focus_target: GcCell::new(*self.has_focus_target.borrow()),
-            event_handlers: GcCell::new(self.event_handlers.borrow().clone()),
-            vello_cache: GcCell::new(self.vello_cache.borrow().clone()),
-            contexts: GcCell::new(Vec::new()),
-            cleanups: GcCell::new(Vec::new()),
-            classes: GcCell::new(self.classes.borrow().clone()),
-            element_id: GcCell::new(self.element_id.borrow().clone()),
+            user_data: GcRwLock::new(None),
+            layout_node: GcRwLock::new(self.layout_node.read().clone()),
+            flags: GcRwLock::new(*self.flags.read()),
+            is_hovered: GcRwLock::new(*self.is_hovered.read()),
+            has_hovered: GcRwLock::new(*self.has_hovered.read()),
+            is_active: GcRwLock::new(*self.is_active.read()),
+            has_active: GcRwLock::new(*self.has_active.read()),
+            is_focused: GcRwLock::new(*self.is_focused.read()),
+            has_focus_target: GcRwLock::new(*self.has_focus_target.read()),
+            event_handlers: GcRwLock::new(self.event_handlers.read().clone()),
+            vello_cache: GcRwLock::new(self.vello_cache.read().clone()),
+            contexts: GcRwLock::new(Vec::new()),
+            cleanups: GcRwLock::new(Vec::new()),
+            classes: GcRwLock::new(self.classes.read().clone()),
+            element_id: GcRwLock::new(self.element_id.read().clone()),
             is_in_scrolling_parent: AtomicBool::new(false),
-            text_editor: GcCell::new(self.text_editor.borrow().clone()),
-            cursor_blink: GcCell::new(self.cursor_blink.borrow().clone()),
-            clip: GcCell::new(*self.clip.borrow()),
-            ime_area: GcCell::new(*self.ime_area.borrow()),
+            text_editor: GcRwLock::new(self.text_editor.read().clone()),
+            cursor_blink: GcRwLock::new(self.cursor_blink.read().clone()),
+            clip: GcRwLock::new(*self.clip.read()),
+            ime_area: GcRwLock::new(*self.ime_area.read()),
         }
     }
 }
@@ -386,32 +386,32 @@ impl Component {
         Gc::new(Self {
             id,
             component_type,
-            children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
-            parent: GcCell::new(None),
-            effects: GcCell::new(Vec::new()),
-            properties: GcCell::new(properties),
+            children: GcRwLock::new(Vec::with_capacity(initial_children_capacity)),
+            parent: GcRwLock::new(None),
+            effects: GcRwLock::new(Vec::new()),
+            properties: GcRwLock::new(properties),
             is_dirty: AtomicBool::new(true),
             is_updating: AtomicBool::new(false),
-            user_data: GcCell::new(None),
-            layout_node: GcCell::new(None),
-            flags: GcCell::new(flags),
-            is_hovered: GcCell::new(false),
-            has_hovered: GcCell::new(false),
-            is_active: GcCell::new(false),
-            has_active: GcCell::new(false),
-            is_focused: GcCell::new(false),
-            has_focus_target: GcCell::new(false),
-            event_handlers: GcCell::new(EventHandlers::default()),
-            vello_cache: GcCell::new(None),
-            contexts: GcCell::new(Vec::new()),
-            cleanups: GcCell::new(Vec::new()),
-            classes: GcCell::new(Vec::new()),
-            element_id: GcCell::new(None),
+            user_data: GcRwLock::new(None),
+            layout_node: GcRwLock::new(None),
+            flags: GcRwLock::new(flags),
+            is_hovered: GcRwLock::new(false),
+            has_hovered: GcRwLock::new(false),
+            is_active: GcRwLock::new(false),
+            has_active: GcRwLock::new(false),
+            is_focused: GcRwLock::new(false),
+            has_focus_target: GcRwLock::new(false),
+            event_handlers: GcRwLock::new(EventHandlers::default()),
+            vello_cache: GcRwLock::new(None),
+            contexts: GcRwLock::new(Vec::new()),
+            cleanups: GcRwLock::new(Vec::new()),
+            classes: GcRwLock::new(Vec::new()),
+            element_id: GcRwLock::new(None),
             is_in_scrolling_parent: AtomicBool::new(false),
-            text_editor: GcCell::new(None),
-            cursor_blink: GcCell::new(None),
-            clip: GcCell::new(false),
-            ime_area: GcCell::new(None),
+            text_editor: GcRwLock::new(None),
+            cursor_blink: GcRwLock::new(None),
+            clip: GcRwLock::new(false),
+            ime_area: GcRwLock::new(None),
         })
     }
 
@@ -438,13 +438,13 @@ impl Component {
         }
         self.is_dirty.store(true, Ordering::SeqCst);
         // Clear vello cache when dirty
-        *self.vello_cache.borrow_mut_gen_only() = None;
+        *self.vello_cache.write() = None;
         // Propagate dirty flag to all children (Leptos-style)
-        for child in self.children.borrow().iter() {
+        for child in self.children.read().iter() {
             child.mark_dirty();
         }
         // Propagate dirty flag upwards so parents know they need to re-render
-        if let Some(parent) = self.parent.borrow().as_ref() {
+        if let Some(parent) = self.parent.read().as_ref() {
             parent.mark_dirty();
         }
     }
@@ -453,7 +453,7 @@ impl Component {
     pub fn clear_dirty(&self) {
         self.is_dirty.store(false, Ordering::SeqCst);
         // Also clear dirty flag for all children
-        for child in self.children.borrow().iter() {
+        for child in self.children.read().iter() {
             child.clear_dirty();
         }
     }
@@ -464,13 +464,13 @@ impl Component {
     }
 
     /// Get user data
-    pub fn user_data(&self) -> &GcCell<Option<Box<dyn std::any::Any>>> {
+    pub fn user_data(&self) -> &GcRwLock<Option<Box<dyn std::any::Any>>> {
         &self.user_data
     }
 
     /// Get layout node (cloned)
     pub fn layout_node(&self) -> Option<LayoutNode> {
-        self.layout_node.borrow().clone()
+        self.layout_node.read().clone()
     }
 
     /// Add a child component
@@ -481,18 +481,18 @@ impl Component {
             // Silently ignore self-addition to prevent infinite recursion
             return;
         }
-        self.children.borrow_mut().push(Gc::clone(&child));
+        self.children.write().push(Gc::clone(&child));
     }
 
     /// Remove a child component
     pub fn remove_child(&self, child: &Gc<Component>) {
-        let mut children = self.children.borrow_mut();
+        let mut children = self.children.write();
         children.retain(|c| !Gc::ptr_eq(c, child));
     }
 
     /// Set layout node
     pub fn set_layout_node(&self, layout_node: LayoutNode) {
-        *self.layout_node.borrow_mut_gen_only() = Some(layout_node);
+        *self.layout_node.write() = Some(layout_node);
     }
 
     /// Clean up layout node from Taffy tree when component is unmounted
@@ -502,35 +502,35 @@ impl Component {
                 let _ = taffy.remove(node_id);
             }
         }
-        for child in self.children.borrow().iter() {
+        for child in self.children.read().iter() {
             child.cleanup_layout(taffy);
         }
     }
 
     /// Set the parent component
     pub fn set_parent(&self, parent: Option<Gc<Component>>) {
-        *self.parent.borrow_mut() = parent;
+        *self.parent.write() = parent;
     }
 
     /// Add an effect to this component
     pub fn add_effect(&self, effect: Gc<Effect>) {
-        self.effects.borrow_mut().push(effect);
+        self.effects.write().push(effect);
     }
 
     /// Remove an effect from this component
     pub fn remove_effect(&self, effect: &Gc<Effect>) {
-        let mut effects = self.effects.borrow_mut();
+        let mut effects = self.effects.write();
         if let Some(pos) = effects.iter().position(|e| Gc::ptr_eq(e, effect)) {
             effects.remove(pos);
         }
     }
 
     pub fn accepts_pointer_interaction(&self) -> bool {
-        self.flags.borrow().contains(ComponentFlags::ACCEPTS_POINTER)
+        self.flags.read().contains(ComponentFlags::ACCEPTS_POINTER)
     }
 
     pub fn accepts_focus(&self) -> bool {
-        self.flags.borrow().contains(ComponentFlags::ACCEPTS_FOCUS)
+        self.flags.read().contains(ComponentFlags::ACCEPTS_FOCUS)
     }
 
     pub fn accepts_text_input(&self) -> bool {
@@ -538,35 +538,35 @@ impl Component {
     }
 
     pub fn is_disabled(&self) -> bool {
-        self.flags.borrow().contains(ComponentFlags::IS_DISABLED)
+        self.flags.read().contains(ComponentFlags::IS_DISABLED)
     }
 
     pub fn is_stashed(&self) -> bool {
-        self.flags.borrow().contains(ComponentFlags::IS_STASHED)
+        self.flags.read().contains(ComponentFlags::IS_STASHED)
     }
 
     pub fn on_status_update(&self, update: &StatusUpdate) {
         match update {
             StatusUpdate::Mounted => {
-                self.mount(self.parent.borrow().clone());
+                self.mount(self.parent.read().clone());
             }
             StatusUpdate::Unmounting => {
                 self.unmount();
             }
             StatusUpdate::HoveredChanged(hovered) => {
-                *self.is_hovered.borrow_mut_gen_only() = *hovered;
+                *self.is_hovered.write() = *hovered;
                 self.mark_dirty();
             }
             StatusUpdate::ActiveChanged(active) => {
-                *self.is_active.borrow_mut_gen_only() = *active;
+                *self.is_active.write() = *active;
                 self.mark_dirty();
             }
             StatusUpdate::FocusChanged(focused) => {
-                *self.is_focused.borrow_mut_gen_only() = *focused;
+                *self.is_focused.write() = *focused;
                 self.mark_dirty();
             }
             StatusUpdate::DisabledChanged(disabled) => {
-                let mut flags = self.flags.borrow_mut_gen_only();
+                let mut flags = self.flags.write();
                 if *disabled {
                     flags.insert(ComponentFlags::IS_DISABLED);
                 } else {
@@ -582,13 +582,13 @@ impl Component {
 
     /// Set text content (for Text components)
     pub fn set_text_content(&self, content: String) {
-        self.properties.borrow_mut_gen_only().insert(TextContent(content));
+        self.properties.write().insert(TextContent(content));
         self.mark_dirty();
     }
 
     /// Get text content
     pub fn text_content(&self) -> String {
-        if let Some(tc) = self.properties.borrow().get::<TextContent>() {
+        if let Some(tc) = self.properties.read().get::<TextContent>() {
             return tc.0.clone();
         }
 
@@ -601,13 +601,13 @@ impl Component {
 
     /// Set flex direction (for Flex components)
     pub fn set_flex_direction(&self, direction: String) {
-        self.properties.borrow_mut_gen_only().insert(FlexDirection(direction));
+        self.properties.write().insert(FlexDirection(direction));
         self.mark_dirty();
     }
 
     /// Get flex direction
     pub fn flex_direction(&self) -> String {
-        if let Some(d) = self.properties.borrow().get::<FlexDirection>() {
+        if let Some(d) = self.properties.read().get::<FlexDirection>() {
             return d.0.clone();
         }
 
@@ -620,13 +620,13 @@ impl Component {
 
     /// Set flex gap (for Flex components)
     pub fn set_flex_gap(&self, gap: f32) {
-        self.properties.borrow_mut_gen_only().insert(FlexGap(gap));
+        self.properties.write().insert(FlexGap(gap));
         self.mark_dirty();
     }
 
     /// Get flex gap
     pub fn flex_gap(&self) -> f32 {
-        if let Some(g) = self.properties.borrow().get::<FlexGap>() {
+        if let Some(g) = self.properties.read().get::<FlexGap>() {
             return g.0;
         }
 
@@ -639,13 +639,13 @@ impl Component {
 
     /// Set flex align_items (for Flex components)
     pub fn set_flex_align_items(&self, align_items: String) {
-        self.properties.borrow_mut_gen_only().insert(FlexAlignItems(align_items));
+        self.properties.write().insert(FlexAlignItems(align_items));
         self.mark_dirty();
     }
 
     /// Get flex align_items
     pub fn flex_align_items(&self) -> String {
-        if let Some(a) = self.properties.borrow().get::<FlexAlignItems>() {
+        if let Some(a) = self.properties.read().get::<FlexAlignItems>() {
             return a.0.clone();
         }
 
@@ -658,13 +658,13 @@ impl Component {
 
     /// Set flex justify_content (for Flex components)
     pub fn set_flex_justify_content(&self, justify_content: String) {
-        self.properties.borrow_mut_gen_only().insert(FlexJustifyContent(justify_content));
+        self.properties.write().insert(FlexJustifyContent(justify_content));
         self.mark_dirty();
     }
 
     /// Get flex justify_content
     pub fn flex_justify_content(&self) -> String {
-        if let Some(j) = self.properties.borrow().get::<FlexJustifyContent>() {
+        if let Some(j) = self.properties.read().get::<FlexJustifyContent>() {
             return j.0.clone();
         }
 
@@ -683,36 +683,36 @@ impl Component {
     ) {
         let mut styles = self
             .properties
-            .borrow()
+            .read()
             .get::<WidgetStyles>()
             .cloned()
             .unwrap_or_else(|| WidgetStyles(rvue_style::ComputedStyles::default()));
         styles.0.overflow_x = Some(overflow_x);
         styles.0.overflow_y = Some(overflow_y);
-        self.properties.borrow_mut_gen_only().insert(styles);
+        self.properties.write().insert(styles);
         self.mark_dirty();
     }
 
     /// Get widget styles
     pub fn widget_styles(&self) -> Option<rvue_style::ComputedStyles> {
-        self.properties.borrow().get::<WidgetStyles>().cloned().map(|w| w.0)
+        self.properties.read().get::<WidgetStyles>().cloned().map(|w| w.0)
     }
 
     /// Set widget styles
     pub fn set_widget_styles(&self, styles: rvue_style::ComputedStyles) {
-        self.properties.borrow_mut_gen_only().insert(WidgetStyles(styles));
+        self.properties.write().insert(WidgetStyles(styles));
         self.mark_dirty();
     }
 
     /// Set scroll state for a Flex component (used internally after layout calculation)
     pub fn set_scroll_state(&self, scroll_state: crate::render::widget::FlexScrollState) {
-        let mut user_data = self.user_data.borrow_mut_gen_only();
+        let mut user_data = self.user_data.write();
         *user_data = Some(Box::new(scroll_state));
     }
 
     /// Get scroll state for a Flex component (returns default if not set)
     pub fn scroll_state(&self) -> crate::render::widget::FlexScrollState {
-        let user_data = self.user_data.borrow();
+        let user_data = self.user_data.read();
         if let Some(data) = user_data
             .as_ref()
             .and_then(|d| d.downcast_ref::<crate::render::widget::FlexScrollState>())
@@ -736,103 +736,103 @@ impl Component {
 
     /// Set checkbox checked state (for Checkbox components)
     pub fn set_checkbox_checked(&self, checked: bool) {
-        self.properties.borrow_mut_gen_only().insert(CheckboxChecked(checked));
+        self.properties.write().insert(CheckboxChecked(checked));
         self.mark_dirty();
     }
 
     /// Get checkbox checked state
     pub fn checkbox_checked(&self) -> bool {
-        self.properties.borrow().get::<CheckboxChecked>().map(|c| c.0).unwrap_or(false)
+        self.properties.read().get::<CheckboxChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio checked state (for Radio components)
     pub fn set_radio_checked(&self, checked: bool) {
-        self.properties.borrow_mut_gen_only().insert(RadioChecked(checked));
+        self.properties.write().insert(RadioChecked(checked));
         self.mark_dirty();
     }
 
     /// Get radio checked state
     pub fn radio_checked(&self) -> bool {
-        self.properties.borrow().get::<RadioChecked>().map(|c| c.0).unwrap_or(false)
+        self.properties.read().get::<RadioChecked>().map(|c| c.0).unwrap_or(false)
     }
 
     /// Set radio value (for Radio components)
     pub fn set_radio_value(&self, value: String) {
-        self.properties.borrow_mut_gen_only().insert(RadioValue(value));
+        self.properties.write().insert(RadioValue(value));
         self.mark_dirty();
     }
 
     /// Get radio value
     pub fn radio_value(&self) -> String {
-        self.properties.borrow().get::<RadioValue>().map(|v| v.0.clone()).unwrap_or_default()
+        self.properties.read().get::<RadioValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set text input value (for TextInput components)
     pub fn set_text_input_value(&self, value: String) {
-        self.properties.borrow_mut_gen_only().insert(TextInputValue(value));
+        self.properties.write().insert(TextInputValue(value));
         self.mark_dirty();
     }
 
     /// Get text input value
     pub fn text_input_value(&self) -> String {
-        self.properties.borrow().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
+        self.properties.read().get::<TextInputValue>().map(|v| v.0.clone()).unwrap_or_default()
     }
 
     /// Set clip mode for this component.
     /// When true, content overflowing the component bounds will be hidden.
     pub fn set_clip(&self, clip: bool) {
-        *self.clip.borrow_mut_gen_only() = clip;
+        *self.clip.write() = clip;
     }
 
     /// Set number input value (for NumberInput components)
     pub fn set_number_input_value(&self, value: f64) {
-        self.properties.borrow_mut_gen_only().insert(NumberInputValue(value));
+        self.properties.write().insert(NumberInputValue(value));
         self.mark_dirty();
     }
 
     /// Get number input value
     pub fn number_input_value(&self) -> f64 {
-        self.properties.borrow().get::<NumberInputValue>().map(|v| v.0).unwrap_or(0.0)
+        self.properties.read().get::<NumberInputValue>().map(|v| v.0).unwrap_or(0.0)
     }
 
     /// Set show condition (for Show components)
     pub fn set_show_when(&self, when: bool) {
-        self.properties.borrow_mut_gen_only().insert(ShowCondition(when));
+        self.properties.write().insert(ShowCondition(when));
         self.mark_dirty();
     }
 
     /// Get show condition
     pub fn show_when(&self) -> bool {
-        self.properties.borrow().get::<ShowCondition>().map(|w| w.0).unwrap_or(true)
+        self.properties.read().get::<ShowCondition>().map(|w| w.0).unwrap_or(true)
     }
 
     /// Set for item count (for For components)
     pub fn set_for_item_count(&self, item_count: usize) {
-        self.properties.borrow_mut_gen_only().insert(ForItemCount(item_count));
+        self.properties.write().insert(ForItemCount(item_count));
         self.mark_dirty();
     }
 
     /// Get for item count
     pub fn for_item_count(&self) -> usize {
-        self.properties.borrow().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
+        self.properties.read().get::<ForItemCount>().map(|c| c.0).unwrap_or(0)
     }
 
     pub fn init_text_editor(&self, text: &str) {
         let editor = SharedTextEditor::with_text(text);
-        *self.text_editor.borrow_mut_gen_only() = Some(editor);
-        *self.cursor_blink.borrow_mut_gen_only() = Some(GcCursorBlinkState::new());
+        *self.text_editor.write() = Some(editor);
+        *self.cursor_blink.write() = Some(GcCursorBlinkState::new());
     }
 
     pub fn text_editor(&self) -> Option<SharedTextEditor> {
-        self.text_editor.borrow().clone()
+        self.text_editor.read().clone()
     }
 
     pub fn cursor_blink(&self) -> Option<GcCursorBlinkState> {
-        self.cursor_blink.borrow().clone()
+        self.cursor_blink.read().clone()
     }
 
     pub fn update_cursor_blink(&self, interval_ms: u64, is_focused: bool) -> bool {
-        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+        if let Some(blink) = self.cursor_blink.read().as_ref() {
             blink.update(interval_ms, is_focused)
         } else {
             false
@@ -840,33 +840,33 @@ impl Component {
     }
 
     pub fn reset_cursor_blink(&self) {
-        if let Some(blink) = self.cursor_blink.borrow().as_ref() {
+        if let Some(blink) = self.cursor_blink.read().as_ref() {
             blink.reset();
         }
     }
 
     pub fn set_ime_area(&self, x: f64, y: f64, width: f64, height: f64) {
-        *self.ime_area.borrow_mut_gen_only() = Some((x, y, width, height));
+        *self.ime_area.write() = Some((x, y, width, height));
     }
 
     pub fn ime_area(&self) -> Option<(f64, f64, f64, f64)> {
-        *self.ime_area.borrow()
+        *self.ime_area.read()
     }
 
     pub fn clear_ime_area(&self) {
-        *self.ime_area.borrow_mut_gen_only() = None;
+        *self.ime_area.write() = None;
     }
 
     pub fn layout_position(&self) -> Option<(f64, f64)> {
         self.layout_node
-            .borrow()
+            .read()
             .as_ref()
             .and_then(|n| n.layout_result)
             .map(|layout| (layout.location.x as f64, layout.location.y as f64))
     }
 
     pub fn is_composing(&self) -> bool {
-        self.text_editor.borrow().as_ref().map(|e| e.editor().is_composing()).unwrap_or(false)
+        self.text_editor.read().as_ref().map(|e| e.editor().is_composing()).unwrap_or(false)
     }
 
     pub fn on_click_0arg<F>(self: &Gc<Self>, handler: F)
@@ -874,8 +874,8 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
-        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.write().on_click = Some(handler);
+        self.flags.write().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_click_1arg<F>(self: &Gc<Self>, handler: F)
@@ -883,8 +883,8 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
-        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.write().on_click = Some(handler);
+        self.flags.write().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_click<F>(self: &Gc<Self>, handler: F)
@@ -896,8 +896,8 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_click = Some(handler);
-        self.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
+        self.event_handlers.write().on_click = Some(handler);
+        self.flags.write().insert(ComponentFlags::ACCEPTS_POINTER);
     }
 
     pub fn on_pointer_down_0arg<F>(self: &Gc<Self>, handler: F)
@@ -905,7 +905,7 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
+        self.event_handlers.write().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_down_1arg<F>(self: &Gc<Self>, handler: F)
@@ -913,7 +913,7 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
+        self.event_handlers.write().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_down<F>(self: &Gc<Self>, handler: F)
@@ -925,7 +925,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_down = Some(handler);
+        self.event_handlers.write().on_pointer_down = Some(handler);
     }
 
     pub fn on_pointer_up_0arg<F>(self: &Gc<Self>, handler: F)
@@ -933,7 +933,7 @@ impl Component {
         F: Fn() + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_0arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
+        self.event_handlers.write().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_up_1arg<F>(self: &Gc<Self>, handler: F)
@@ -941,7 +941,7 @@ impl Component {
         F: Fn(&crate::event::types::PointerButtonEvent) + 'static,
     {
         let handler = crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new_1arg(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
+        self.event_handlers.write().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_up<F>(self: &Gc<Self>, handler: F)
@@ -953,7 +953,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerButtonEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_up = Some(handler);
+        self.event_handlers.write().on_pointer_up = Some(handler);
     }
 
     pub fn on_pointer_enter_0arg<F>(self: &Gc<Self>, handler: F)
@@ -964,7 +964,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
+        self.event_handlers.write().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_enter_1arg<F>(self: &Gc<Self>, handler: F)
@@ -975,7 +975,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
+        self.event_handlers.write().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_enter<F>(self: &Gc<Self>, handler: F)
@@ -985,7 +985,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_enter = Some(handler);
+        self.event_handlers.write().on_pointer_enter = Some(handler);
     }
 
     pub fn on_pointer_leave_0arg<F>(self: &Gc<Self>, handler: F)
@@ -996,7 +996,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
+        self.event_handlers.write().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_leave_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1007,7 +1007,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
+        self.event_handlers.write().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_leave<F>(self: &Gc<Self>, handler: F)
@@ -1017,7 +1017,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::PointerInfo>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_pointer_leave = Some(handler);
+        self.event_handlers.write().on_pointer_leave = Some(handler);
     }
 
     pub fn on_pointer_move_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1028,7 +1028,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
+        self.event_handlers.write().on_pointer_move = Some(handler);
     }
 
     pub fn on_pointer_move_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1039,7 +1039,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
+        self.event_handlers.write().on_pointer_move = Some(handler);
     }
 
     pub fn on_pointer_move<F>(self: &Gc<Self>, handler: F)
@@ -1051,7 +1051,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::PointerMoveEvent>::new(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_pointer_move = Some(handler);
+        self.event_handlers.write().on_pointer_move = Some(handler);
     }
 
     pub fn on_key_down_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1062,7 +1062,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
+        self.event_handlers.write().on_key_down = Some(handler);
     }
 
     pub fn on_key_down_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1073,7 +1073,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
+        self.event_handlers.write().on_key_down = Some(handler);
     }
 
     pub fn on_key_down<F>(self: &Gc<Self>, handler: F)
@@ -1083,7 +1083,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_key_down = Some(handler);
+        self.event_handlers.write().on_key_down = Some(handler);
     }
 
     pub fn on_key_up_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1094,7 +1094,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
+        self.event_handlers.write().on_key_up = Some(handler);
     }
 
     pub fn on_key_up_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1105,7 +1105,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
+        self.event_handlers.write().on_key_up = Some(handler);
     }
 
     pub fn on_key_up<F>(self: &Gc<Self>, handler: F)
@@ -1115,7 +1115,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::types::KeyboardEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_key_up = Some(handler);
+        self.event_handlers.write().on_key_up = Some(handler);
     }
 
     pub fn on_focus_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1126,7 +1126,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
+        self.event_handlers.write().on_focus = Some(handler);
     }
 
     pub fn on_focus_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1137,7 +1137,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
+        self.event_handlers.write().on_focus = Some(handler);
     }
 
     pub fn on_focus<F>(self: &Gc<Self>, handler: F)
@@ -1147,7 +1147,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_focus = Some(handler);
+        self.event_handlers.write().on_focus = Some(handler);
     }
 
     pub fn on_blur_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1158,7 +1158,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
+        self.event_handlers.write().on_blur = Some(handler);
     }
 
     pub fn on_blur_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1169,7 +1169,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
+        self.event_handlers.write().on_blur = Some(handler);
     }
 
     pub fn on_blur<F>(self: &Gc<Self>, handler: F)
@@ -1179,7 +1179,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::FocusEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_blur = Some(handler);
+        self.event_handlers.write().on_blur = Some(handler);
     }
 
     pub fn on_input_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1190,7 +1190,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
+        self.event_handlers.write().on_input = Some(handler);
     }
 
     pub fn on_input_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1201,7 +1201,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
+        self.event_handlers.write().on_input = Some(handler);
     }
 
     pub fn on_input<F>(self: &Gc<Self>, handler: F)
@@ -1211,7 +1211,7 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_input = Some(handler);
+        self.event_handlers.write().on_input = Some(handler);
     }
 
     pub fn on_change_0arg<F>(self: &Gc<Self>, handler: F)
@@ -1222,7 +1222,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_0arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
+        self.event_handlers.write().on_change = Some(handler);
     }
 
     pub fn on_change_1arg<F>(self: &Gc<Self>, handler: F)
@@ -1233,7 +1233,7 @@ impl Component {
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new_1arg(
                 handler,
             );
-        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
+        self.event_handlers.write().on_change = Some(handler);
     }
 
     pub fn on_change<F>(self: &Gc<Self>, handler: F)
@@ -1243,11 +1243,11 @@ impl Component {
     {
         let handler =
             crate::event::handler::EventHandler::<crate::event::status::InputEvent>::new(handler);
-        self.event_handlers.borrow_mut_gen_only().on_change = Some(handler);
+        self.event_handlers.write().on_change = Some(handler);
     }
 
     pub fn add_class(self: &Gc<Self>, class: &str) {
-        let mut classes = self.classes.borrow_mut_gen_only();
+        let mut classes = self.classes.write();
         if !classes.iter().any(|c| c == class) {
             classes.push(class.to_string());
             self.mark_dirty();
@@ -1255,7 +1255,7 @@ impl Component {
     }
 
     pub fn remove_class(self: &Gc<Self>, class: &str) {
-        let mut classes = self.classes.borrow_mut_gen_only();
+        let mut classes = self.classes.write();
         if classes.iter().any(|c| c == class) {
             classes.retain(|c| c != class);
             self.mark_dirty();
@@ -1263,20 +1263,20 @@ impl Component {
     }
 
     pub fn has_class(self: &Gc<Self>, class: &str) -> bool {
-        self.classes.borrow().iter().any(|c| c == class)
+        self.classes.read().iter().any(|c| c == class)
     }
 
     pub fn set_id(self: &Gc<Self>, id: &str) {
-        *self.element_id.borrow_mut_gen_only() = Some(id.to_string());
+        *self.element_id.write() = Some(id.to_string());
         self.mark_dirty();
     }
 
     pub fn get_id(self: &Gc<Self>) -> Option<String> {
-        self.element_id.borrow().clone()
+        self.element_id.read().clone()
     }
 
     pub fn classes(&self) -> Vec<String> {
-        self.classes.borrow().clone()
+        self.classes.read().clone()
     }
 
     /// Provide context to this component and its descendants
@@ -1287,7 +1287,7 @@ impl Component {
     {
         let type_id = TypeId::of::<T>();
         let context_value = ContextValueEnum::from_value(value);
-        self.contexts.borrow_mut_gen_only().push(ContextEntry { type_id, value: context_value });
+        self.contexts.write().push(ContextEntry { type_id, value: context_value });
     }
 
     /// Find context of type T in this component or its ancestors
@@ -1297,7 +1297,7 @@ impl Component {
         T: Trace + Clone,
     {
         let type_id = TypeId::of::<T>();
-        let contexts = self.contexts.borrow();
+        let contexts = self.contexts.read();
         for entry in contexts.iter().rev() {
             if entry.type_id == type_id {
                 if let Some(value) = entry.value.to_gc::<T>() {
@@ -1306,7 +1306,7 @@ impl Component {
             }
         }
 
-        if let Some(parent) = self.parent.borrow().as_ref() {
+        if let Some(parent) = self.parent.read().as_ref() {
             return parent.find_context::<T>();
         }
 
@@ -1321,12 +1321,12 @@ fn collect_child_node_ids(
 ) -> Vec<taffy::NodeId> {
     let mut node_ids = Vec::new();
 
-    for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+    for (child, child_layout) in component.children.read().iter().zip(child_layouts.iter()) {
         if let Some(node_id) = child_layout.taffy_node() {
             node_ids.push(node_id);
         } else if matches!(child.component_type, ComponentType::Show) {
             if child.show_when() {
-                for grandchild in child.children.borrow().iter() {
+                for grandchild in child.children.read().iter() {
                     if let Some(grandchild_layout) = grandchild.layout_node() {
                         if let Some(node_id) = grandchild_layout.taffy_node() {
                             node_ids.push(node_id);
@@ -1335,7 +1335,7 @@ fn collect_child_node_ids(
                 }
             }
         } else if matches!(child.component_type, ComponentType::For) {
-            for grandchild in child.children.borrow().iter() {
+            for grandchild in child.children.read().iter() {
                 if let Some(grandchild_layout) = grandchild.layout_node() {
                     if let Some(node_id) = grandchild_layout.taffy_node() {
                         node_ids.push(node_id);
@@ -1358,7 +1358,7 @@ pub fn build_layout_tree(
     // Build child layout nodes first in the same tree
     let child_layouts: Vec<LayoutNode> = component
         .children
-        .borrow()
+        .read()
         .iter()
         .map(|child| build_layout_tree(child, taffy, text_context, stylesheet))
         .collect();
@@ -1373,11 +1373,11 @@ pub fn build_layout_tree(
 
     // For control-flow components, return a transparent node
     if is_control_flow {
-        for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+        for (child, child_layout) in component.children.read().iter().zip(child_layouts.iter()) {
             child.set_layout_node(child_layout.clone());
             child.set_parent(Some(Gc::clone(component)));
             // Set layout nodes on grandchildren (the actual content inside Show/For)
-            for (i, grandchild) in child.children.borrow().iter().enumerate() {
+            for (i, grandchild) in child.children.read().iter().enumerate() {
                 if i < child_layouts.len() {
                     grandchild.set_layout_node(child_layouts[i].clone());
                 }
@@ -1391,7 +1391,7 @@ pub fn build_layout_tree(
         LayoutNode::build_in_tree(taffy, component, &child_node_ids, text_context, stylesheet);
 
     // Store child layouts in their dedicated field for later retrieval
-    for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
+    for (child, child_layout) in component.children.read().iter().zip(child_layouts.iter()) {
         child.set_layout_node(child_layout.clone());
         child.set_parent(Some(Gc::clone(component)));
     }
@@ -1405,13 +1405,13 @@ impl ComponentLifecycle for Component {
         if let ComponentType::Show = self.component_type {
             if self.show_when() {
                 // Mount children if visible
-                for child in self.children.borrow().iter() {
+                for child in self.children.read().iter() {
                     child.mount(None);
                 }
             }
         } else {
             // For other components, mount all children
-            for child in self.children.borrow().iter() {
+            for child in self.children.read().iter() {
                 child.mount(None);
             }
         }
@@ -1424,12 +1424,12 @@ impl ComponentLifecycle for Component {
             TaskRegistry::cancel_all(self.id);
         }
 
-        for child in self.children.borrow().iter() {
+        for child in self.children.read().iter() {
             child.unmount();
         }
 
         let cleanups = {
-            let mut cleanups = self.cleanups.borrow_mut_gen_only();
+            let mut cleanups = self.cleanups.write();
             std::mem::take(&mut *cleanups)
         };
         for cleanup in cleanups {
@@ -1446,7 +1446,7 @@ impl ComponentLifecycle for Component {
         }
 
         // Run all effects that are dirty
-        for effect in self.effects.borrow().iter() {
+        for effect in self.effects.read().iter() {
             Effect::update_if_dirty(effect);
         }
 
@@ -1454,19 +1454,19 @@ impl ComponentLifecycle for Component {
         if let ComponentType::Show = self.component_type {
             if self.show_when() {
                 // Ensure children are mounted
-                for child in self.children.borrow().iter() {
+                for child in self.children.read().iter() {
                     child.mount(None);
                 }
             } else {
                 // Unmount children if hidden
-                for child in self.children.borrow().iter() {
+                for child in self.children.read().iter() {
                     child.unmount();
                 }
             }
         }
 
         // Update all children
-        for child in self.children.borrow().iter() {
+        for child in self.children.read().iter() {
             child.update();
         }
 
@@ -1513,7 +1513,7 @@ pub fn propagate_layout_results(component: &Gc<Component>, taffy: &TaffyTree<()>
     }
 
     // Recurse to children
-    for child in component.children.borrow().iter() {
+    for child in component.children.read().iter() {
         propagate_layout_results(child, taffy);
     }
 }

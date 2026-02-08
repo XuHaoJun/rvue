@@ -7,12 +7,12 @@ use rudo_gc::Trace;
 use super::dispatch::dispatch_to_ui;
 use crate::signal::{create_signal, ReadSignal};
 
-pub struct Resource<T: Trace + Clone + 'static> {
+pub struct Resource<T: Trace + Clone + Send + Sync + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
     refetch_fn: Arc<dyn Fn()>,
 }
 
-impl<T: Trace + Clone + 'static> Resource<T> {
+impl<T: Trace + Clone + Send + Sync + 'static> Resource<T> {
     pub fn get(&self) -> Gc<ResourceState<T>> {
         self.state.get()
     }
@@ -23,14 +23,14 @@ impl<T: Trace + Clone + 'static> Resource<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum ResourceState<T: Trace + Clone + 'static> {
+pub enum ResourceState<T: Trace + Clone + Send + Sync + 'static> {
     Pending,
     Loading,
     Ready(T),
     Error(String),
 }
 
-impl<T: Trace + Clone + 'static> ResourceState<T> {
+impl<T: Trace + Clone + Send + Sync + 'static> ResourceState<T> {
     pub fn is_loading(&self) -> bool {
         matches!(self, ResourceState::Loading)
     }
@@ -58,7 +58,7 @@ impl<T: Trace + Clone + 'static> ResourceState<T> {
     }
 }
 
-unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
+unsafe impl<T: Trace + Clone + Send + Sync + 'static> Trace for ResourceState<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         match self {
             ResourceState::Pending => {}
@@ -72,7 +72,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
 pub fn create_resource<S, T, Fu, Fetcher>(source: S, fetcher: Fetcher) -> Resource<T>
 where
     S: Fn() -> T + Send + Sync + Clone + 'static,
-    T: Trace + Clone + 'static,
+    T: Trace + Clone + Send + Sync + 'static,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
     Fetcher: Fn(T) -> Fu + Send + Sync + Clone + 'static,
 {
