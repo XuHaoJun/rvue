@@ -95,5 +95,3 @@ where
         let _ = proxy.send_event(RvueUserEvent::AsyncDispatchReady);
     }
 }
-
-}

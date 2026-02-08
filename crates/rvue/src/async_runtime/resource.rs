@@ -1,25 +1,25 @@
 use std::future::Future;
-use std::sync::Arc;
 
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
 use super::dispatch::dispatch_to_ui;
 use crate::effect::create_effect;
-use crate::signal::{create_memo, create_signal, ReadSignal};
+use crate::signal::{create_memo, create_signal, ReadSignal, WriteSignal};
 
-pub struct Resource<T: Trace + Clone + Send + Sync + 'static> {
+pub struct Resource<T: Trace + Clone + Send + Sync + 'static, S: Trace + Clone + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
-    source: ReadSignal<()>,
+    source: ReadSignal<S>,
+    refetch_source: WriteSignal<()>,
 }
 
-impl<T: Trace + Clone + Send + Sync + 'static> Resource<T> {
+impl<T: Trace + Clone + Send + Sync + 'static, S: Trace + Clone + 'static> Resource<T, S> {
     pub fn get(&self) -> Gc<ResourceState<T>> {
         self.state.get()
     }
 
     pub fn refetch(&self) {
-        self.source.set(());
+        self.refetch_source.set(());
     }
 }
 
@@ -70,9 +70,9 @@ unsafe impl<T: Trace + Clone + Send + Sync + 'static> Trace for ResourceState<T>
     }
 }
 
-pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T>
+pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T, S>
 where
-    S: PartialEq + Clone + Send + Sync + 'static,
+    S: PartialEq + Clone + Send + Sync + 'static + Trace,
     T: Trace + Clone + Send + Sync + 'static,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
     Fetcher: Fn(S) -> Fu + Send + Sync + Clone + 'static,
@@ -80,9 +80,11 @@ where
     let (state, set_state) = create_signal(Gc::new(ResourceState::<T>::Pending));
 
     let (refetch_counter, _) = create_signal(0usize);
+    let (refetch_source_read, refetch_source) = create_signal(());
 
     let source_memo = create_memo(move || {
         let _ = refetch_counter.get();
+        let _ = refetch_source_read.get();
         source.get()
     });
 
@@ -112,5 +114,5 @@ where
         });
     });
 
-    Resource { state, source: refetch_counter }
+    Resource { state, source, refetch_source }
 }
