@@ -12,10 +12,9 @@ use tokio::sync::mpsc;
 use tokio::time;
 
 use rudo_gc::handles::AsyncHandleScope;
-use rudo_gc::Gc;
 use rudo_gc::Trace;
 
-use crate::signal::{ReadSignal, SignalDataInner, WriteSignal};
+use crate::signal::{ReadSignal, WriteSignal};
 
 static TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
@@ -197,6 +196,9 @@ where
                     // Safe: handle validates scope is alive
                     let current = read_handle.get().inner.get();
                     if let Some(new_value) = callback(current) {
+                        // Update directly on tokio thread
+                        // Note: This runs effects on the tokio thread
+                        // For UI thread safety, use dispatch_to_ui with a value-based approach
                         write_handle.get().inner.set(new_value);
                     }
                 }
@@ -209,39 +211,6 @@ where
     });
 
     SignalWatcher { stopped }
-}
-
-/// Creates an async-safe sender for cross-thread signal updates.
-#[derive(Clone)]
-pub struct AsyncSignalSender<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
-}
-
-impl<T: Trace + Clone + 'static> AsyncSignalSender<T> {
-    /// Create a new AsyncSignalSender.
-    pub fn new(write_signal: WriteSignal<T>) -> Self {
-        let data = Gc::clone(&write_signal.data);
-        Self { data }
-    }
-
-    /// Set the signal value asynchronously.
-    pub async fn set(&self, value: T) {
-        *self.data.inner.value.write() = value;
-        self.data.inner.version.fetch_add(1, Ordering::SeqCst);
-        self.data.notify_subscribers();
-    }
-}
-
-/// Extension trait for creating async signal senders.
-pub trait WriteSignalExt<T: Trace + Clone + 'static> {
-    /// Creates an AsyncSignalSender for thread-safe signal updates from async contexts.
-    fn sender(&self) -> AsyncSignalSender<T>;
-}
-
-impl<T: Trace + Clone + 'static> WriteSignalExt<T> for WriteSignal<T> {
-    fn sender(&self) -> AsyncSignalSender<T> {
-        AsyncSignalSender::new(self.clone())
-    }
 }
 
 /// A handle for stopping interval tasks.
@@ -284,7 +253,7 @@ impl Default for IntervalHandle {
 /// ```
 pub fn spawn_interval<F, Fut>(period: Duration, mut f: F) -> IntervalHandle
 where
-    F: FnMut() -> Fut + Send + 'static,
+    F: FnMut() -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
     let stopped = Arc::new(AtomicBool::new(false));

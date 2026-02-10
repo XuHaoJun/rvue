@@ -34,7 +34,7 @@ pub mod ev {
 
 #[cfg(feature = "async")]
 pub use crate::async_runtime::{
-    spawn_debounced, spawn_interval, spawn_task, watch_signal, AsyncSignalSender, ComponentScope,
-    DebouncedTask, IntervalHandle, Resource, ResourceState, SignalWatcher, TaskHandle, TaskId,
-    WriteSignalExt,
+    spawn_debounced, spawn_interval, spawn_task, watch_signal, ComponentScope, DebouncedTask,
+    IntervalHandle, Resource, ResourceState, SignalWatcher, TaskHandle, TaskId, UiThreadDispatcher,
+    WriteSignalUiExt,
 };

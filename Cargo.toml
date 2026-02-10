@@ -26,7 +26,7 @@ rust-version = "1.84"
 repository = "https://github.com/anomalyco/rvue"
 
 [workspace.dependencies]
-rudo-gc = { version = "0.8", features = ["test-util", "default"] }
+rudo-gc = { version = "0.8.2", features = ["test-util", "default"] }
 rudo-gc-derive = "0.8"
 sys_alloc = "0.8"
 libc = "0.2"

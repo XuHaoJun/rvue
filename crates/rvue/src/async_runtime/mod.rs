@@ -10,7 +10,7 @@
 //! - [`spawn_debounced`] - Debounce a callback
 //! - [`watch_signal`] - Watch a signal and invoke callback on changes
 //! - [`dispatch_to_ui`] - Dispatch a closure to be executed on the UI thread
-//! - [`AsyncSignalSender`] - Send signal updates from async contexts
+//! - [`UiThreadDispatcher`] - Send signal updates from async contexts
 //! - [`ComponentScope`] - Dynamic component tracking for async operations
 //!
 //! # GC Safety
@@ -68,9 +68,15 @@ pub use dispatch::{dispatch_to_ui, UiDispatchQueue};
 
 #[cfg(feature = "async")]
 pub use task::{
-    block_on, spawn_debounced, spawn_interval, spawn_task, watch_signal, AsyncSignalSender,
-    DebouncedTask, IntervalHandle, SignalWatcher, TaskHandle, TaskId, WriteSignalExt,
+    block_on, spawn_debounced, spawn_interval, spawn_task, watch_signal, DebouncedTask,
+    IntervalHandle, SignalWatcher, TaskHandle, TaskId,
 };
+
+#[cfg(feature = "async")]
+pub mod ui_thread_dispatcher;
+
+#[cfg(feature = "async")]
+pub use ui_thread_dispatcher::{UiThreadDispatcher, WriteSignalUiExt};
 
 #[cfg(feature = "async")]
 pub use registry::TaskRegistry;
