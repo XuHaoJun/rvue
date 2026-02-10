@@ -65,7 +65,7 @@ impl Scene {
     fn clear_all_component_layout_nodes(components: &[Gc<Component>]) {
         for component in components {
             component.set_layout_node(LayoutNode::new());
-            Self::clear_all_component_layout_nodes(&component.children.read());
+            Self::clear_all_component_layout_nodes(&component.children.borrow());
         }
     }
 
@@ -114,10 +114,10 @@ impl Scene {
 
             if let Some(ref mut scene) = self.vello_scene {
                 let comp_dirty = component.is_dirty();
-                let cache_none = component.vello_cache.read().is_none();
+                let cache_none = component.vello_cache.borrow().is_none();
 
                 if comp_dirty || force_rebuild_layout || cache_none {
-                    *component.vello_cache.write() = None;
+                    *component.vello_cache.borrow_mut_gen_only() = None;
                     render_component(
                         component,
                         scene,
@@ -126,7 +126,7 @@ impl Scene {
                         self.stylesheet.as_ref(),
                         &mut self.text_context,
                     );
-                } else if let Some(ref cached) = *component.vello_cache.read() {
+                } else if let Some(ref cached) = *component.vello_cache.borrow() {
                     scene.append(&cached.0, Some(Affine::IDENTITY));
                 } else {
                     render_component(

@@ -11,9 +11,9 @@ fn test_component_creation() {
 
     assert_eq!(component.id, 1);
     assert_eq!(component.component_type, ComponentType::Text);
-    assert!(component.children.read().is_empty());
-    assert!(component.parent.read().is_none());
-    assert!(component.effects.read().is_empty());
+    assert!(component.children.borrow().is_empty());
+    assert!(component.parent.borrow().is_none());
+    assert!(component.effects.borrow().is_empty());
 }
 
 #[test]
@@ -24,10 +24,10 @@ fn test_component_add_child() {
     let child =
         Component::with_properties(2, ComponentType::Text, rvue::properties::PropertyMap::new());
 
-    // Test add_child works with GcRwLock
+    // Test add_child works with GcCell
     parent.add_child(Gc::clone(&child));
-    assert_eq!(parent.children.read().len(), 1);
-    assert_eq!(parent.children.read()[0].id, 2);
+    assert_eq!(parent.children.borrow().len(), 1);
+    assert_eq!(parent.children.borrow()[0].id, 2);
 }
 
 #[test]

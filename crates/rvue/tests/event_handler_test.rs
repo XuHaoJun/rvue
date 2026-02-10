@@ -20,7 +20,7 @@ fn test_on_click_0arg_handler() {
         *clicked_clone.borrow_mut() = true;
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_click().is_some());
 }
 
@@ -36,7 +36,7 @@ fn test_on_click_1arg_handler() {
         *last_clicked_clone.borrow_mut() = Some(event.button.clone());
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_click().is_some());
 }
 
@@ -52,7 +52,7 @@ fn test_on_click_2arg_handler() {
         *call_count_clone.borrow_mut() += 1;
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_click().is_some());
 }
 
@@ -71,7 +71,7 @@ fn test_on_input_0arg_handler() {
         *triggered_clone.borrow_mut() = true;
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_input().is_some());
 }
 
@@ -90,7 +90,7 @@ fn test_on_input_1arg_handler() {
         *last_value_clone.borrow_mut() = event.value.clone();
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_input().is_some());
 }
 
@@ -109,7 +109,7 @@ fn test_on_input_2arg_handler() {
         *input_count_clone.borrow_mut() += 1;
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_input().is_some());
 }
 
@@ -128,7 +128,7 @@ fn test_on_key_down_0arg_handler() {
         *triggered_clone.borrow_mut() = true;
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_key_down().is_some());
 }
 
@@ -147,7 +147,7 @@ fn test_on_key_down_1arg_handler() {
         *last_key_clone.borrow_mut() = Some(event.key.clone());
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_key_down().is_some());
 }
 
@@ -166,7 +166,7 @@ fn test_on_focus_0arg_handler() {
         *focused_clone.borrow_mut() = true;
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_focus().is_some());
 }
 
@@ -185,7 +185,7 @@ fn test_on_focus_1arg_handler() {
         *last_event_clone.borrow_mut() = Some(event.clone());
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_focus().is_some());
 }
 
@@ -201,7 +201,7 @@ fn test_on_pointer_move_0arg_handler() {
         *moved_clone.borrow_mut() = true;
     });
 
-    let handlers = flex.event_handlers.read();
+    let handlers = flex.event_handlers.borrow();
     assert!(handlers.get_pointer_move().is_some());
 }
 
@@ -217,7 +217,7 @@ fn test_on_pointer_move_1arg_handler() {
         *last_position_clone.borrow_mut() = Some(event.position);
     });
 
-    let handlers = flex.event_handlers.read();
+    let handlers = flex.event_handlers.borrow();
     assert!(handlers.get_pointer_move().is_some());
 }
 
@@ -236,8 +236,8 @@ fn test_multiple_event_handlers_same_component() {
 
     text_input.on_input_0arg(|| {});
 
-    let button_handlers = button.event_handlers.read();
-    let input_handlers = text_input.event_handlers.read();
+    let button_handlers = button.event_handlers.borrow();
+    let input_handlers = text_input.event_handlers.borrow();
 
     assert!(button_handlers.get_click().is_some());
     assert!(input_handlers.get_input().is_some());
@@ -257,7 +257,7 @@ fn test_event_handler_with_captured_signals() {
         set_count_clone.update(|x| *x += 1);
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_click().is_some());
 }
 
@@ -276,7 +276,7 @@ fn test_on_change_handler() {
         *last_value_clone.borrow_mut() = format!("checked:{}", event.checked);
     });
 
-    let handlers = checkbox.event_handlers.read();
+    let handlers = checkbox.event_handlers.borrow();
     assert!(handlers.get_change().is_some());
 }
 
@@ -295,7 +295,7 @@ fn test_on_blur_handler() {
         *blurred_clone.borrow_mut() = true;
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_blur().is_some());
 }
 
@@ -311,7 +311,7 @@ fn test_on_pointer_down_handler() {
         *pressed_clone.borrow_mut() = true;
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_pointer_down().is_some());
 }
 
@@ -327,7 +327,7 @@ fn test_on_pointer_up_handler() {
         *released_clone.borrow_mut() = true;
     });
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
     assert!(handlers.get_pointer_up().is_some());
 }
 
@@ -348,7 +348,7 @@ fn test_on_key_up_handler() {
         }
     });
 
-    let handlers = text_input.event_handlers.read();
+    let handlers = text_input.event_handlers.borrow();
     assert!(handlers.get_key_up().is_some());
 }
 
@@ -364,7 +364,7 @@ fn test_all_event_types_have_handlers() {
     button.on_key_down_0arg(|| {});
     button.on_key_up_0arg(|| {});
 
-    let handlers = button.event_handlers.read();
+    let handlers = button.event_handlers.borrow();
 
     assert!(handlers.get_click().is_some());
     assert!(handlers.get_pointer_down().is_some());

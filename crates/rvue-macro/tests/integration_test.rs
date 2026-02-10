@@ -117,7 +117,7 @@ fn test_reactive_text_update() {
     let content = {
         view.root_component
             .properties
-            .read()
+            .borrow()
             .get::<rvue::properties::TextContent>()
             .map(|tc| tc.0.clone())
             .expect("Expected TextContent property")
@@ -139,8 +139,8 @@ fn test_static_vs_dynamic_effects() {
 
     set_count.set("1".to_string());
 
-    assert_eq!(reactive_view.root_component.effects.read().len(), 1);
-    assert_eq!(static_view.root_component.effects.read().len(), 0);
+    assert_eq!(reactive_view.root_component.effects.borrow().len(), 1);
+    assert_eq!(static_view.root_component.effects.borrow().len(), 0);
 }
 
 #[test]
@@ -156,9 +156,9 @@ fn test_nested_reactive_update() {
     set_name.set("Bob".to_string());
 
     let content = {
-        let child = view.root_component.children.read().first().cloned().expect("child");
+        let child = view.root_component.children.borrow().first().cloned().expect("child");
         let text_content =
-            child.properties.read().get::<rvue::properties::TextContent>().map(|tc| tc.0.clone());
+            child.properties.borrow().get::<rvue::properties::TextContent>().map(|tc| tc.0.clone());
         text_content.expect("Expected TextContent property")
     };
     assert_eq!(content, "Bob");

@@ -48,7 +48,7 @@ impl FlexScrollState {
 }
 
 fn get_or_create_scroll_state(component: &Gc<Component>) -> FlexScrollState {
-    let mut user_data = component.user_data.write();
+    let mut user_data = component.user_data.borrow_mut_gen_only();
     if let Some(state) = user_data.as_mut().and_then(|d| d.downcast_mut::<FlexScrollState>()) {
         return *state;
     }
@@ -64,7 +64,7 @@ pub fn render_component(
     text_context: &mut crate::text::TextContext,
 ) -> bool {
     let is_dirty = component.is_dirty();
-    let cache_was_none = component.vello_cache.read().is_none();
+    let cache_was_none = component.vello_cache.borrow().is_none();
 
     if is_dirty || cache_was_none {
         let mut local_scene = vello::Scene::new();
@@ -106,12 +106,12 @@ pub fn render_component(
             _ => {}
         }
 
-        *component.vello_cache.write() = Some(SceneWrapper(local_scene));
+        *component.vello_cache.borrow_mut_gen_only() = Some(SceneWrapper(local_scene));
         component.clear_dirty();
     }
 
     if !already_appended.contains(&component.id) {
-        if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.read() {
+        if let Some(SceneWrapper(ref local_scene)) = *component.vello_cache.borrow() {
             scene.append(local_scene, Some(transform));
             already_appended.insert(component.id);
         }
@@ -121,7 +121,7 @@ pub fn render_component(
         ComponentType::Show => component.show_when(),
         ComponentType::For => true,
         ComponentType::Flex => true,
-        _ => !component.children.read().is_empty(),
+        _ => !component.children.borrow().is_empty(),
     };
 
     let force_render_children = matches!(
@@ -188,7 +188,7 @@ fn render_children(
 
     // Render children
     // Apply scroll offset to content (content moves opposite to scroll)
-    for child in component.children.read().iter() {
+    for child in component.children.borrow().iter() {
         let child_transform = if let Some(layout_node) = child.layout_node() {
             if let Some(layout) = layout_node.layout() {
                 let tx = layout.location.x as f64;
@@ -207,7 +207,7 @@ fn render_children(
         };
 
         let is_dirty = child.is_dirty();
-        let cache_was_none = child.vello_cache.read().is_none();
+        let cache_was_none = child.vello_cache.borrow().is_none();
 
         let final_transform = transform * child_transform;
 
@@ -243,7 +243,7 @@ fn render_text(
     stylesheet: Option<&Stylesheet>,
 ) {
     let styles = get_styles(component, stylesheet);
-    let user_data = component.user_data.read();
+    let user_data = component.user_data.borrow();
     let layout_wrapper = user_data.as_ref().and_then(|d| d.downcast_ref::<ParleyLayoutWrapper>());
 
     if let Some(ParleyLayoutWrapper(layout)) = layout_wrapper {
@@ -397,7 +397,7 @@ fn render_text_input(
 
             render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
 
-            let clip = *component.clip.read();
+            let clip = *component.clip.borrow();
             let clip_rect = Rect::new(0.0, 0.0, width, height);
 
             if clip {
@@ -441,7 +441,7 @@ fn render_text_input(
                 render_text_layout(&text_layout, scene, transform, text_color);
             }
 
-            if *component.is_focused.read() {
+            if *component.is_focused.borrow() {
                 if let Some(editor) = component.text_editor() {
                     let editor_ref = editor.editor();
                     let selection = editor_ref.selection();

@@ -41,7 +41,7 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
         let handle = self.handle.clone();
         super::dispatch::dispatch_to_ui(move || {
             let signal: Gc<SignalDataInner<T>> = handle.resolve();
-            *signal.inner.value.write() = value;
+            *signal.inner.value.borrow_mut_gen_only() = value;
             signal.inner.version.fetch_add(1, Ordering::SeqCst);
             signal.notify_subscribers();
         });

@@ -20,7 +20,7 @@ fn hit_test_recursive(
     point: Point,
     global_offset: Point,
 ) -> Option<Gc<Component>> {
-    let layout_result = component.layout_node.read().as_ref().and_then(|node| node.layout_result);
+    let layout_result = component.layout_node.borrow().as_ref().and_then(|node| node.layout_result);
     let layout = layout_result?;
 
     let local_size = Size::new(layout.size.width as f64, layout.size.height as f64);
@@ -61,7 +61,7 @@ fn hit_test_recursive(
     let new_global_offset =
         Point::new(global_offset.x + local_origin.x, global_offset.y + local_origin.y);
 
-    for child in component.children.read().iter().rev() {
+    for child in component.children.borrow().iter().rev() {
         // Apply this container's scroll offset to direct children only
         let adjusted_offset = if scroll_offset_x != 0.0 || scroll_offset_y != 0.0 {
             Point::new(new_global_offset.x - scroll_offset_x, new_global_offset.y - scroll_offset_y)
@@ -71,7 +71,8 @@ fn hit_test_recursive(
 
         if let Some(hit) = hit_test_recursive(child, point, adjusted_offset) {
             if let Some(bounds) = visible_bounds {
-                let child_layout = child.layout_node.read().as_ref().and_then(|n| n.layout_result);
+                let child_layout =
+                    child.layout_node.borrow().as_ref().and_then(|n| n.layout_result);
                 if let Some(child_layout) = child_layout {
                     let child_origin = Point::new(
                         adjusted_offset.x + child_layout.location.x as f64,

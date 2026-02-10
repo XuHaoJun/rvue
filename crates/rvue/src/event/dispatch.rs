@@ -9,7 +9,7 @@ use rudo_gc::Gc;
 use winit::keyboard::{Key, NamedKey};
 
 pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>> {
-    let mut parent = component.parent.read().clone();
+    let mut parent = component.parent.borrow().clone();
     while let Some(p) = parent {
         if matches!(p.component_type, ComponentType::Flex) {
             let inline_styles = get_inline_styles(&p);
@@ -26,7 +26,7 @@ pub fn find_scroll_container(component: &Gc<Component>) -> Option<Gc<Component>>
                 return Some(Gc::clone(&p));
             }
         }
-        parent = p.parent.read().clone();
+        parent = p.parent.borrow().clone();
     }
     None
 }
@@ -50,7 +50,7 @@ fn find_any_scroll_container(root: &Gc<Component>) -> Option<Gc<Component>> {
             }
         }
 
-        for child in comp.children.read().iter() {
+        for child in comp.children.borrow().iter() {
             if let Some(found) = find_recursive(child) {
                 return Some(found);
             }
@@ -67,7 +67,7 @@ fn find_component_by_id(root: &Gc<Component>, id: u64) -> Option<Gc<Component>> 
     if root.id == id {
         return Some(Gc::clone(root));
     }
-    for child in root.children.read().iter() {
+    for child in root.children.borrow().iter() {
         if let Some(found) = find_component_by_id(child, id) {
             return Some(found);
         }
@@ -171,14 +171,14 @@ fn dispatch_pointer_event(
 
     while let Some(component) = current {
         if component.is_disabled() {
-            current = component.parent.read().clone();
+            current = component.parent.borrow().clone();
             continue;
         }
 
         let capture_clone = app_state.pointer_capture_mut().clone();
         let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 
-        let handlers = component.event_handlers.read();
+        let handlers = component.event_handlers.borrow();
         match event {
             PointerEvent::Down(e) => {
                 if let Some(handler) = handlers.get_pointer_down() {
@@ -202,7 +202,7 @@ fn dispatch_pointer_event(
                 }
 
                 if let Some(handler) = handlers.get_click() {
-                    if *component.is_active.read() {
+                    if *component.is_active.borrow() {
                         handler.call(e, &mut ctx);
                     }
                 }
@@ -249,7 +249,7 @@ fn dispatch_pointer_event(
                     component.set_scroll_state(new_state);
                     component.mark_dirty();
 
-                    if let Some(parent) = component.parent.read().clone() {
+                    if let Some(parent) = component.parent.borrow().clone() {
                         parent.mark_dirty();
                     }
 
@@ -276,7 +276,7 @@ fn dispatch_pointer_event(
                         scroll_container.set_scroll_state(new_state);
                         scroll_container.mark_dirty();
 
-                        if let Some(parent) = scroll_container.parent.read().clone() {
+                        if let Some(parent) = scroll_container.parent.borrow().clone() {
                             parent.mark_dirty();
                         }
 
@@ -299,7 +299,7 @@ fn dispatch_pointer_event(
         }
 
         merge_state_up(&component);
-        current = component.parent.read().clone();
+        current = component.parent.borrow().clone();
     }
 
     handled
@@ -343,14 +343,14 @@ fn dispatch_text_event(
 
     while let Some(component) = current {
         if component.is_disabled() {
-            current = component.parent.read().clone();
+            current = component.parent.borrow().clone();
             continue;
         }
 
         let capture_clone = app_state.pointer_capture_mut().clone();
         let mut ctx = EventContext::new(Gc::clone(&component), app_state, capture_clone);
 
-        let handlers = component.event_handlers.read();
+        let handlers = component.event_handlers.borrow();
         match event {
             TextEvent::Keyboard(e) => {
                 let is_text_input = matches!(component.component_type, ComponentType::TextInput);
@@ -398,7 +398,7 @@ fn dispatch_text_event(
         }
 
         merge_state_up(&component);
-        current = component.parent.read().clone();
+        current = component.parent.borrow().clone();
     }
 
     handled
@@ -534,7 +534,7 @@ fn update_text_input_value(component: &Gc<Component>) {
 }
 
 pub fn update_cursor_blink_states(component: &Gc<Component>, interval_ms: u64) {
-    let is_focused = *component.is_focused.read();
+    let is_focused = *component.is_focused.borrow();
 
     if let Some(blink) = component.cursor_blink() {
         if blink.update(interval_ms, is_focused) {
@@ -542,7 +542,7 @@ pub fn update_cursor_blink_states(component: &Gc<Component>, interval_ms: u64) {
         }
     }
 
-    for child in component.children.read().iter() {
+    for child in component.children.borrow().iter() {
         update_cursor_blink_states(child, interval_ms);
     }
 }

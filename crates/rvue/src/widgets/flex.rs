@@ -234,7 +234,7 @@ impl Widget for Flex {
         }
 
         if overflow_x.should_clip() || overflow_y.should_clip() {
-            component.flags.write().insert(ComponentFlags::ACCEPTS_POINTER);
+            component.flags.borrow_mut_gen_only().insert(ComponentFlags::ACCEPTS_POINTER);
         }
 
         let direction_effect = if is_direction_reactive {

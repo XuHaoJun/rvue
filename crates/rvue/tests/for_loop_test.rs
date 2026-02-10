@@ -58,5 +58,5 @@ fn test_for_component_key_based_diffing() {
 
     // Verify component structure
     assert_eq!(for_component.component_type, ComponentType::For);
-    assert_eq!(for_component.children.read().len(), 0); // Initially no children
+    assert_eq!(for_component.children.borrow().len(), 0); // Initially no children
 }

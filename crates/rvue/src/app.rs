@@ -368,7 +368,7 @@ impl<'a> AppState<'a> {
                 global_x += px;
                 global_y += py;
             }
-            current = comp.parent.read().as_ref().cloned();
+            current = comp.parent.borrow().as_ref().cloned();
         }
 
         Some((global_x, global_y, width, height))

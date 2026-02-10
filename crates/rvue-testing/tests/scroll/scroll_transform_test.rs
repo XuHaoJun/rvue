@@ -207,7 +207,7 @@ fn test_nested_scroll_containers() {
 fn print_layout_tree(harness: &TestHarness, component: &Gc<Component>, depth: usize) {
     let indent = "  ".repeat(depth);
     let tag =
-        component.element_id.read().clone().unwrap_or_else(|| format!("widget-{}", component.id));
+        component.element_id.borrow().clone().unwrap_or_else(|| format!("widget-{}", component.id));
 
     if let Some(info) = harness.get_layout_info(component) {
         let state = component.scroll_state();
@@ -226,7 +226,7 @@ fn print_layout_tree(harness: &TestHarness, component: &Gc<Component>, depth: us
         eprintln!("{}* (no layout)", indent);
     }
 
-    for child in component.children.read().iter() {
+    for child in component.children.borrow().iter() {
         print_layout_tree(harness, child, depth + 1);
     }
 }

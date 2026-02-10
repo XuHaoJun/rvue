@@ -27,7 +27,7 @@ fn collect_focusables(root: &Gc<Component>) -> Vec<Gc<Component>> {
 }
 
 fn collect_focusables_recursive(component: &Gc<Component>, result: &mut Vec<Gc<Component>>) {
-    let flags = component.flags.read();
+    let flags = component.flags.borrow();
     if flags.contains(crate::event::status::ComponentFlags::ACCEPTS_FOCUS)
         && !flags.contains(crate::event::status::ComponentFlags::IS_DISABLED)
         && !flags.contains(crate::event::status::ComponentFlags::IS_STASHED)
@@ -35,7 +35,7 @@ fn collect_focusables_recursive(component: &Gc<Component>, result: &mut Vec<Gc<C
         result.push(Gc::clone(component));
     }
 
-    for child in component.children.read().iter() {
+    for child in component.children.borrow().iter() {
         collect_focusables_recursive(child, result);
     }
 }

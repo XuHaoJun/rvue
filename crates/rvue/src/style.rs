@@ -103,21 +103,21 @@ pub fn component_to_element(component: &Component) -> RvueElement {
 
     let mut element = RvueElement::new(&tag_name);
 
-    for class in component.classes.read().iter() {
+    for class in component.classes.borrow().iter() {
         element = element.with_class(class);
     }
 
-    if let Some(id) = component.element_id.read().as_ref() {
+    if let Some(id) = component.element_id.borrow().as_ref() {
         element = element.with_id(id);
     }
 
-    if *component.is_hovered.read() {
+    if *component.is_hovered.borrow() {
         element.state.insert(ElementState::HOVER);
     }
-    if *component.is_focused.read() {
+    if *component.is_focused.borrow() {
         element.state.insert(ElementState::FOCUS);
     }
-    if *component.is_active.read() {
+    if *component.is_active.borrow() {
         element.state.insert(ElementState::ACTIVE);
     }
     if component.is_disabled() {
@@ -294,8 +294,8 @@ mod tests {
             crate::properties::PropertyMap::new(),
         );
 
-        component.classes.write().push("primary".into());
-        component.classes.write().push("large".into());
+        component.classes.borrow_mut_gen_only().push("primary".into());
+        component.classes.borrow_mut_gen_only().push("large".into());
 
         let element = component_to_element(&component);
 
@@ -312,8 +312,8 @@ mod tests {
             crate::properties::PropertyMap::new(),
         );
 
-        *component.is_hovered.write() = true;
-        *component.is_focused.write() = true;
+        *component.is_hovered.borrow_mut_gen_only() = true;
+        *component.is_focused.borrow_mut_gen_only() = true;
 
         let element = component_to_element(&component);
 

@@ -35,11 +35,11 @@ fn test_nested_child_transform_update() {
     assert!(!root_component.is_dirty());
 
     let text_component = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[0].clone()
     };
 
-    let cache = text_component.vello_cache.read();
+    let cache = text_component.vello_cache.borrow();
     assert!(cache.is_some());
 }
 
@@ -65,16 +65,16 @@ fn test_sibling_cache_preserved() {
     scene.update();
 
     let static_sibling = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[1].clone()
     };
 
-    let static_sibling_cache_before = static_sibling.vello_cache.read().is_some();
+    let static_sibling_cache_before = static_sibling.vello_cache.borrow().is_some();
 
     set_count.set(42);
     scene.update();
 
-    let static_sibling_cache_after = static_sibling.vello_cache.read().is_some();
+    let static_sibling_cache_after = static_sibling.vello_cache.borrow().is_some();
 
     assert_eq!(static_sibling_cache_before, static_sibling_cache_after);
 }
@@ -97,12 +97,12 @@ fn test_cache_not_double_appended() {
     scene.update();
 
     let text_component = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[0].clone()
     };
 
     {
-        let cache = text_component.vello_cache.read();
+        let cache = text_component.vello_cache.borrow();
         assert!(cache.is_some());
     }
 
@@ -110,11 +110,11 @@ fn test_cache_not_double_appended() {
     scene.update();
 
     {
-        let cache2 = text_component.vello_cache.read();
+        let cache2 = text_component.vello_cache.borrow();
         assert!(cache2.is_some());
     }
 
-    let flex_cache = root_component.vello_cache.read();
+    let flex_cache = root_component.vello_cache.borrow();
     assert!(flex_cache.is_some());
 }
 
@@ -144,21 +144,21 @@ fn test_parent_dirty_force_child_regen() {
     scene.update();
 
     let inner_flex = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[1].clone()
     };
 
     let inner_text = {
-        let children = inner_flex.children.read();
+        let children = inner_flex.children.borrow();
         children[0].clone()
     };
 
-    assert!(!inner_text.vello_cache.read().is_none());
+    assert!(!inner_text.vello_cache.borrow().is_none());
 
     set_outer_count.set(99);
     scene.update();
 
-    let inner_text_cache = inner_text.vello_cache.read();
+    let inner_text_cache = inner_text.vello_cache.borrow();
     assert!(inner_text_cache.is_some());
 }
 
@@ -181,7 +181,7 @@ fn test_cache_valid_after_multiple_updates() {
     scene.update();
 
     let static_text = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[1].clone()
     };
 
@@ -189,7 +189,7 @@ fn test_cache_valid_after_multiple_updates() {
         set_count_clone.set(i);
         scene.update();
 
-        let cache = static_text.vello_cache.read();
+        let cache = static_text.vello_cache.borrow();
         assert!(cache.is_some(), "Cache should exist after update {}", i);
     }
 }
@@ -215,17 +215,17 @@ fn test_clean_component_skips_recursion() {
     scene.update();
 
     let nested_flex = {
-        let children = root_component.children.read();
+        let children = root_component.children.borrow();
         children[1].clone()
     };
 
     let nested_children: Vec<Gc<rvue::Component>> = {
-        let children = nested_flex.children.read();
+        let children = nested_flex.children.borrow();
         children.iter().cloned().collect()
     };
 
     for child in &nested_children {
-        assert!(child.vello_cache.read().is_some());
+        assert!(child.vello_cache.borrow().is_some());
     }
 }
 
@@ -262,10 +262,10 @@ fn test_stress_1000_components() {
 
     let mut cache_count = 0;
     fn count_caches(component: &Gc<rvue::Component>, count: &mut usize) {
-        if component.vello_cache.read().is_some() {
+        if component.vello_cache.borrow().is_some() {
             *count += 1;
         }
-        for child in component.children.read().iter() {
+        for child in component.children.borrow().iter() {
             count_caches(child, count);
         }
     }
