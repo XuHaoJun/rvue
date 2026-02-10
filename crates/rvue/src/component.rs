@@ -1374,12 +1374,8 @@ pub fn build_layout_tree(
         for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
             child.set_layout_node(child_layout.clone());
             child.set_parent(Some(Gc::clone(component)));
-            // Set layout nodes on grandchildren (the actual content inside Show/For)
-            for (i, grandchild) in child.children.borrow().iter().enumerate() {
-                if i < child_layouts.len() {
-                    grandchild.set_layout_node(child_layouts[i].clone());
-                }
-            }
+            // Note: Grandchildren's layouts are already set during recursive build_layout_tree
+            // We should NOT overwrite them here - that would assign wrong layouts
         }
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
