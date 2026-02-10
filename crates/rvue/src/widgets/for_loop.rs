@@ -74,7 +74,7 @@ where
     VF: Fn(T) -> crate::ViewStruct + Clone + 'static,
 {
     component: Gc<Component>,
-    keyed_state: GcCell<KeyedState<K, T>>,
+    keyed_state: Gc<GcCell<KeyedState<K, T>>>,
     item_count_effect: Option<Gc<crate::effect::Effect>>,
     _phantom: std::marker::PhantomData<(KF, VF)>,
 }
@@ -140,7 +140,8 @@ where
                 if op.at < keyed_state.rendered_items.len() {
                     if let Some(entry) = keyed_state.rendered_items[op.at].take() {
                         entry.component.unmount();
-                        keyed_state.marker.remove_child(&entry.component);
+                        // NOTE: We intentionally do NOT call keyed_state.marker.remove_child() here.
+                        // Children are managed via reorder_children() from keyed_state.rendered_items.
                     }
                 }
             }
@@ -177,7 +178,8 @@ where
                         });
                     child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                     child_component.mount(None);
-                    keyed_state.marker.add_child(Gc::clone(&child_component));
+                    // NOTE: We intentionally do NOT add child_component to keyed_state.marker's children here.
+                    // For widgets should populate their children via reorder_children() from keyed_state.rendered_items.
                 }
             }
 
@@ -294,16 +296,21 @@ where
 
             child_component.set_parent(Some(Gc::clone(&component)));
             child_component.mount(None);
-            component.add_child(Gc::clone(&child_component));
+            // NOTE: We intentionally do NOT add child_component to component's children here.
+            // For widgets should populate their children via reorder_children() from keyed_state.rendered_items.
+            // Adding components here would cause double-parenting when view_fn produces fragments.
         }
 
+        reorder_children(&component, &keyed_state.rendered_items);
+
         let keyed_state_gc = GcCell::new(keyed_state);
+        let keyed_state_gc_shared = Gc::new(keyed_state_gc);
         let comp_clone = Gc::clone(&component);
         let key_fn_clone = self.key_fn;
         let view_fn_clone = self.view_fn;
         let items_reactive = self.items.clone();
-        let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
         let ctx_id = *ctx.id_counter;
+        let keyed_state_for_effect = Gc::clone(&keyed_state_gc_shared);
 
         let item_count_effect = if self.items.is_reactive() {
             let effect = create_effect(move || {
@@ -312,7 +319,7 @@ where
                 {
                     let state = ForState {
                         component: Gc::clone(&comp_clone),
-                        keyed_state: GcCell::clone(&keyed_state_for_effect),
+                        keyed_state: Gc::clone(&keyed_state_for_effect),
                         item_count_effect: None,
                         _phantom: std::marker::PhantomData,
                     };
@@ -342,7 +349,7 @@ where
 
         ForState {
             component,
-            keyed_state: keyed_state_gc,
+            keyed_state: keyed_state_gc_shared,
             item_count_effect,
             _phantom: std::marker::PhantomData,
         }
@@ -354,8 +361,7 @@ where
             let key_fn = self.key_fn;
             let view_fn = self.view_fn;
             let items = self.items.clone();
-            let keyed_state_gc = GcCell::clone(&state.keyed_state);
-            let keyed_state_for_effect = GcCell::clone(&keyed_state_gc);
+            let keyed_state_gc_shared = Gc::clone(&state.keyed_state);
             let ctx_id = state.component.id;
 
             let effect = create_effect(move || {
@@ -364,7 +370,7 @@ where
                 {
                     let state = ForState {
                         component: Gc::clone(&comp),
-                        keyed_state: GcCell::clone(&keyed_state_for_effect),
+                        keyed_state: Gc::clone(&keyed_state_gc_shared),
                         item_count_effect: None,
                         _phantom: std::marker::PhantomData,
                     };

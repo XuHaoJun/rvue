@@ -479,12 +479,12 @@ impl Component {
             // Silently ignore self-addition to prevent infinite recursion
             return;
         }
-        self.children.borrow_mut_gen_only().push(Gc::clone(&child));
+        self.children.borrow_mut().push(Gc::clone(&child));
     }
 
     /// Remove a child component
     pub fn remove_child(&self, child: &Gc<Component>) {
-        let mut children = self.children.borrow_mut_gen_only();
+        let mut children = self.children.borrow_mut();
         children.retain(|c| !Gc::ptr_eq(c, child));
     }
 
