@@ -7,6 +7,7 @@ use super::task::block_on;
 use crate::effect::create_effect;
 use crate::signal::{create_memo, create_signal, ReadSignal, WriteSignal};
 
+#[derive(Clone)]
 pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
     refetch_counter: WriteSignal<usize>,

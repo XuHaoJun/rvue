@@ -1393,6 +1393,16 @@ pub fn build_layout_tree(
     node
 }
 
+impl Component {
+    /// Debug: Get the Gc pointer address
+    #[doc(hidden)]
+    pub fn gc_ptr_addr(&self) -> usize {
+        // We can't access the internal ptr field, so we use pointer arithmetic
+        // Gc<T> is a thin pointer, so the address is the same as self
+        self as *const Component as usize
+    }
+}
+
 impl ComponentLifecycle for Component {
     fn mount(&self, _parent: Option<Gc<Component>>) {
         // For Show components, mount/unmount children based on when condition

@@ -6,6 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+rudo-gc = { workspace = true }
 rvue = { path = "../../rvue" }
 rvue-macro = { path = "../../rvue-macro" }
 rvue-style = { path = "../../rvue-style" }

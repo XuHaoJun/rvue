@@ -14,6 +14,7 @@ pub mod effect;
 pub mod error;
 pub mod ev;
 pub mod event;
+pub mod gc;
 pub mod layout;
 pub mod prelude;
 pub mod properties;

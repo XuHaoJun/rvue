@@ -90,11 +90,23 @@ fn test_show_widget() {
 
 #[test]
 fn test_for_widget() {
+    use rudo_gc::Trace;
+    use rvue::impl_gc_capture;
     use rvue::prelude::*;
-    let (items, _set_items) = create_signal(vec!["Item 1", "Item 2"]);
+
+    #[derive(Clone)]
+    struct Item(&'static str);
+
+    unsafe impl Trace for Item {
+        fn trace(&self, _visitor: &mut impl rudo_gc::Visitor) {}
+    }
+
+    impl_gc_capture!(Item);
+
+    let (items, _set_items) = create_signal(vec![Item("Item 1"), Item("Item 2")]);
     let _view = view! {
-        <For each=items key=|s| s.to_string() view={|s| view! {
-            <Text content={s.to_string()} />
+        <For each=items key=|s| s.0.to_string() view={|s| view! {
+            <Text content={s.0.to_string()} />
         }}/>
     };
 }
