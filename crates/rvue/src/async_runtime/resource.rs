@@ -5,7 +5,7 @@ use rudo_gc::Trace;
 
 use super::task::block_on;
 use crate::effect::create_effect;
-use crate::signal::{create_memo, create_signal, ReadSignal, WriteSignal};
+use crate::signal::{create_signal, ReadSignal, WriteSignal, LEAKED_EFFECTS};
 
 #[derive(Clone)]
 pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
@@ -88,18 +88,12 @@ where
 
     let (refetch_counter_read, refetch_counter) = create_signal(0usize);
 
-    let source_for_memo = source.clone();
-    let source_memo = create_memo(move || {
-        let _ = refetch_counter_read.get();
-        source_for_memo.get()
-    });
-
+    let source_for_effect = source.clone();
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
-    let source_for_effect = source.clone();
 
-    create_effect(move || {
-        let _source_value = source_memo.get();
+    let effect = create_effect(move || {
+        let _ = refetch_counter_read.get();
 
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
@@ -115,6 +109,11 @@ where
                 set_state_clone.set(Gc::new(ResourceState::Error(err)));
             }
         }
+    });
+
+    LEAKED_EFFECTS.with(|cell| {
+        let mut leaked = cell.borrow_mut();
+        leaked.push(effect);
     });
 
     Resource { state, refetch_counter, source }

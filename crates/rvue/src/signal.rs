@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 
 thread_local! {
-    static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    pub(crate) static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Internal signal data structure containing the value, version tracking, and subscribers.
@@ -196,7 +196,7 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     ///
     /// The caller must ensure:
     /// 1. The signal is still alive (not garbage collected)
-    /// 2. Any necessary effect notifications are handled separately
+    /// 2. Any necessary effect tracking is handled separately
     ///
     /// This method skips the normal update path for performance.
     /// Use in hot paths where you can prove the signal is valid.

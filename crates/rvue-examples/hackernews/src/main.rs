@@ -77,21 +77,17 @@ fn hacker_news_app() -> ViewStruct {
 
     let resource_for_refresh = resource.clone();
     let refresh = move || {
-        println!("Refreshing...");
         resource_for_refresh.refetch();
     };
 
     let stories = create_memo(move || {
         let state = resource.get();
-        if let ResourceState::Ready(s) = state.as_ref() {
-            s.clone()
-        } else {
-            vec![]
-        }
+        state.data().cloned().unwrap_or_default()
     });
 
     view! {
         <Flex
+            gap=12.0
             styles=ReactiveStyles::new()
                 .set_flex_direction(FlexDirection::Column)
                 .set_gap(Gap(12.0))
