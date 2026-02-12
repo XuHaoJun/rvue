@@ -290,7 +290,17 @@ where
 - MUST execute callback on each poll with current signal value
 - MUST dispatch `Some(v)` to update signal
 - MUST return `SignalWatcher` that can stop the watcher
+- MUST catch callback panics and increment `panic_count`
+- MUST continue watching after panic (not abort task)
+- MUST invoke `panic_handler` if set after panic
 - **GC Safety**: Uses `AsyncHandleScope` for thread-safe signal access
+
+**Panic Handling**:
+- Panics in callback are caught via `std::panic::catch_unwind`
+- Panic is logged at error level with message
+- `SignalWatcher::panic_count` is incremented
+- If `set_on_panic()` was called, handler is invoked
+- Watcher continues polling on next interval
 
 ---
 
@@ -617,10 +627,12 @@ impl<T: Send + 'static> DebouncedTask<T> {
 ### `SignalWatcher`
 
 ```rust
-/// Handle for stopping a signal watcher.
+/// Handle for stopping a signal watcher with panic recovery support.
 #[derive(Clone)]
 pub struct SignalWatcher {
     stopped: Arc<AtomicBool>,
+    panic_count: Arc<AtomicU64>,
+    panic_handler: Arc<Mutex<Option<Box<dyn FnMut() + Send + 'static>>>>,
 }
 
 impl SignalWatcher {
@@ -629,8 +641,39 @@ impl SignalWatcher {
 
     /// Stop watching (drops the scope, stopping the task).
     pub fn stop(self);
+
+    /// Returns the number of times the callback has panicked.
+    pub fn panic_count(&self) -> u64;
+
+    /// Set a callback to be invoked when the watch callback panics.
+    ///
+    /// The callback is called synchronously when a panic occurs.
+    /// The watcher continues running after the panic regardless of whether
+    /// a handler is set.
+    ///
+    /// # Example
+    /// ```rust
+    /// let mut watcher = watch_signal(count, set_count, period, |v| {
+    ///     // This callback may panic
+    ///     parse_value(v)?
+    /// }).await;
+    ///
+    /// watcher.set_on_panic(|| {
+    ///     log::error!("Watch callback panicked!");
+    /// });
+    /// ```
+    pub fn set_on_panic<F>(&mut self, handler: F)
+    where
+        F: FnMut() + Send + 'static;
 }
 ```
+
+**Contract**:
+- MUST return `SignalWatcher` that can stop the watcher
+- MUST increment `panic_count` on each callback panic
+- MUST invoke `panic_handler` when set and panic occurs
+- MUST continue watching after panic (not abort task)
+- **GC Safety**: Uses `AsyncHandleScope` for thread-safe signal access
 
 ### `IntervalHandle`
 
@@ -676,6 +719,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"], optiona
 | Scenario | Behavior |
 |----------|----------|
 | `dispatch_to_ui` callback panics | Caught by `catch_unwind`, logged, other callbacks continue |
+| `watch_signal` callback panics | Caught by `catch_unwind`, logged, panic_count incremented, handler invoked, watcher continues |
 | Async task panics | tokio catches it; task marked as completed |
 | `spawn_task` called before `run_app` | Runtime initializes; callbacks queue until event loop starts |
 | `UiThreadDispatcher::set()` after signal GC'd | No-op (GcHandle safely resolves to None) |
@@ -707,3 +751,53 @@ The async runtime uses rudo-gc's `AsyncHandleScope` for thread-safe GC access:
 - `SignalSender` - Renamed to `AsyncSignalSender` for clarity
 - `spawn_watch_signal` - Renamed to `watch_signal` (async function)
 - `TaskRegistry` - Lifecycle binding via `on_cleanup` instead of separate registry
+
+---
+
+## Change Log
+
+### 2026-02-12: watch_signal Panic Handling Fix
+
+**Issue**: Callback panics in `watch_signal` would crash the entire watcher task, making it impossible to recover without manually restarting.
+
+**Fix**: Added panic recovery to `watch_signal`:
+
+1. **`SignalWatcher` enhanced**:
+   ```rust
+   pub struct SignalWatcher {
+       stopped: Arc<AtomicBool>,
+       panic_count: Arc<AtomicU64>,
+       panic_handler: Arc<Mutex<Option<Box<dyn FnMut() + Send + 'static>>>>,
+   }
+
+   impl SignalWatcher {
+       pub fn panic_count(&self) -> u64;
+       pub fn set_on_panic<F>(&mut self, handler: F)
+       where
+           F: FnMut() + Send + 'static;
+   }
+   ```
+
+2. **Panic handling behavior**:
+   - Wrapped callback execution in `std::panic::catch_unwind`
+   - On panic: increments counter, logs error, invokes handler, continues watching
+   - On `Ok(Some(v))`: dispatches value to UI thread
+   - On `Ok(None)`: skips update (user chose not to modify)
+
+3. **Error behavior updated**:
+   | Scenario | Behavior |
+   |----------|----------|
+   | `watch_signal` callback panics | Caught by `catch_unwind`, logged, handler invoked, watcher continues |
+   | `watch_signal` callback returns `Some(v)` | Dispatches to UI via `write_signal.set()` |
+   | `watch_signal` callback returns `None` | No update, continues watching |
+
+4. **API additions**:
+   - `SignalWatcher::panic_count()` - Query panic count
+   - `SignalWatcher::set_on_panic()` - Register panic callback
+
+**Pattern match**: Follows `dispatch_to_ui` panic handling pattern (`crates/rvue/src/async_runtime/dispatch.rs:48-51`)
+
+**Framework alignment**:
+- Leptos: Effects recover from panics rather than aborting
+- Dioxus: Uses `catch_unwind` in hot paths to prevent single-component failures
+- Xilem: Similar panic containment patterns

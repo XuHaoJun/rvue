@@ -4,7 +4,7 @@
 //! via rudo-gc's AsyncHandleScope.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use tokio::runtime::Runtime;
@@ -152,15 +152,32 @@ where
 #[derive(Clone)]
 pub struct SignalWatcher {
     stopped: Arc<AtomicBool>,
+    panic_count: Arc<AtomicU64>,
+    panic_handler: Arc<Mutex<Option<Box<dyn FnMut() + Send + 'static>>>>,
 }
 
 impl SignalWatcher {
     pub fn new() -> Self {
-        Self { stopped: Arc::new(AtomicBool::new(false)) }
+        Self {
+            stopped: Arc::new(AtomicBool::new(false)),
+            panic_count: Arc::new(AtomicU64::new(0)),
+            panic_handler: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub fn stop(self) {
         self.stopped.store(true, Ordering::SeqCst);
+    }
+
+    pub fn panic_count(&self) -> u64 {
+        self.panic_count.load(Ordering::SeqCst)
+    }
+
+    pub fn set_on_panic<F>(&mut self, handler: F)
+    where
+        F: FnMut() + Send + 'static,
+    {
+        *self.panic_handler.lock().unwrap() = Some(Box::new(handler));
     }
 }
 
@@ -222,15 +239,18 @@ where
 {
     let tcb =
         rudo_gc::heap::current_thread_control_block().expect("watch_signal requires GC thread");
-
     let scope = Arc::new(AsyncHandleScope::new(&tcb));
     let read_handle = scope.handle(&read_signal.data);
     let write_dispatcher = write_signal.ui_dispatcher();
 
     let stopped = Arc::new(AtomicBool::new(false));
     let stopped_clone = stopped.clone();
+    let panic_count = Arc::new(AtomicU64::new(0));
+    let panic_count_clone = panic_count.clone();
+    let panic_handler = Arc::new(Mutex::new(None::<Box<dyn FnMut() + Send + 'static>>));
+    let panic_handler_clone = panic_handler.clone();
 
-    let watcher = SignalWatcher { stopped: stopped_clone.clone() };
+    let watcher = SignalWatcher { stopped: stopped_clone.clone(), panic_count, panic_handler };
 
     get_or_init_runtime().spawn(async move {
         let mut interval = time::interval(period);
@@ -241,8 +261,26 @@ where
                 biased;
                 _ = interval.tick() => {
                     let current = read_handle.get().inner.get();
-                    if let Some(new_value) = callback(current) {
-                        write_dispatcher.set(new_value).await;
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(current)));
+                    match result {
+                        Ok(Some(new_value)) => {
+                            write_dispatcher.set(new_value).await;
+                        }
+                        Ok(None) => { }
+                        Err(panic_info) => {
+                            panic_count_clone.fetch_add(1, Ordering::SeqCst);
+                            if let Some(msg) = panic_info.downcast_ref::<&str>() {
+                                log::error!("watch_signal callback panicked: {msg}");
+                            } else if let Some(msg) = panic_info.downcast_ref::<String>() {
+                                log::error!("watch_signal callback panicked: {msg}");
+                            } else {
+                                log::error!("watch_signal callback panicked with unknown payload");
+                            }
+                            if let Some(mut handler) = panic_handler_clone.lock().unwrap().take() {
+                                handler();
+                                *panic_handler_clone.lock().unwrap() = Some(handler);
+                            }
+                        }
                     }
                 }
             }

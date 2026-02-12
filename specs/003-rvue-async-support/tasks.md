@@ -147,48 +147,54 @@
 
 ## Phase X: GC Safety (Priority: P1)
 
-**Goal**: Fix GC safety issues in spawn_interval and spawn_debounced; provide spawn_watch_signal for safe signal watching.
+**Goal**: Fix GC safety issues in spawn_interval and spawn_debounced; provide watch_signal for safe signal watching.
 
 **Background**: Gc<T> is !Send + !Sync and cannot be captured in async closures without explicit handling. spawn_with_gc! moves Gc<T>, requiring users to clone before use.
 
-**Independent Test**: spawn_watch_signal polls signal correctly and dispatches to UI automatically.
+**Independent Test**: watch_signal polls signal correctly and dispatches to UI automatically.
 
 ### GC Safety Tasks
 
-- [ ] TG001 [P] Document GC safety requirements for spawn_interval in crates/rvue/src/async_runtime/task.rs
+- [x] TG001 [P] Document GC safety requirements for spawn_interval in crates/rvue/src/async_runtime/task.rs
       Content: "IMPORTANT: The closure MUST NOT capture Gc<T>. Extract values or clone before spawning."
 
-- [ ] TG002 Document GC safety requirements for spawn_debounced in crates/rvue/src/async_runtime/task.rs
+- [x] TG002 Document GC safety requirements for spawn_debounced in crates/rvue/src/async_runtime/task.rs
       Content: Same restrictions as spawn_interval
 
-- [ ] TG003 [P] Implement spawn_watch_signal() helper in crates/rvue/src/async_runtime/task.rs
+- [x] TG003 [P] Implement watch_signal() helper in crates/rvue/src/async_runtime/task.rs
       Purpose: Automatic signal polling with proper GC handling
-      Signature: spawn_watch_signal(signal, period, callback) -> SignalWatcher<T>
+      Signature: watch_signal(signal, period, callback) -> SignalWatcher<T>
       Behavior: Polls signal at interval, callback returns Some(v) to update, None to just watch
 
-- [ ] TG004 Implement SignalWatcher<T> type in crates/rvue/src/async_runtime/task.rs
+- [x] TG004 Implement SignalWatcher<T> type in crates/rvue/src/async_runtime/task.rs
       Fields: sender (mpsc::UnboundedSender<()>)
       Methods: stop() -> ()
 
-- [ ] TG005 Export SignalWatcher from async_runtime mod in crates/rvue/src/async_runtime/mod.rs
+- [x] TG005 Export SignalWatcher from async_runtime mod in crates/rvue/src/async_runtime/mod.rs
 
-- [ ] TG006 Export SignalWatcher from prelude in crates/rvue/src/prelude.rs
+- [x] TG006 Export SignalWatcher from prelude in crates/rvue/src/prelude.rs
 
-- [ ] TG007 [P] Update quickstart.md with GC safety patterns
-      Content: Before/after examples, common mistakes, spawn_watch_signal usage
+- [x] TG007 [P] Update quickstart.md with GC safety patterns
+      Content: Before/after examples, common mistakes, watch_signal usage
 
-- [ ] TG008 Update async-api.md with GC safety contracts
+- [x] TG008 Update async-api.md with GC safety contracts
       Content: Add GC Safety section to spawn_interval and spawn_debounced contracts
 
-- [ ] TG009 Update data-model.md with SignalWatcher entity documentation
+- [x] TG009 Update data-model.md with SignalWatcher entity documentation
 
-- [ ] TG010 [P] Add GC safety tests in crates/rvue/tests/gc_safety_test.rs
-      Test: spawn_watch_signal polls signal at correct interval
+- [x] TG010 [P] Add GC safety tests in crates/rvue/tests/gc_safety_test.rs
+      Test: watch_signal polls signal at correct interval
       Test: callback receives current signal value
       Test: Some(v) updates signal, None just watches
       Test: stop() cancels the watcher
 
-**Checkpoint**: GC safety patterns documented; spawn_watch_signal provides safe alternative
+- [x] TG011 [P] Fix watch_signal panic handling (2026-02-12)
+      Issue: Callback panics crashed the entire watcher task
+      Fix: Added catch_unwind, panic_count, set_on_panic(), continued watching
+      Files: crates/rvue/src/async_runtime/task.rs, async-api.md, quickstart.md
+      Tests: crates/rvue/tests/watch_signal_dispatch_test.rs
+
+**Checkpoint**: GC safety patterns documented; watch_signal provides safe alternative with panic recovery
 
 ---
 

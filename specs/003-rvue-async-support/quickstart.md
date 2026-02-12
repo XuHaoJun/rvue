@@ -309,13 +309,13 @@ spawn_interval(Duration::from_secs(1), move || {
 
 ---
 
-### Pattern 3: spawn_watch_signal (Recommended for Signals)
+### Pattern 3: watch_signal (Recommended for Signals)
 
 For watching signal values at intervals, use the built-in helper:
 
 ```rust
 use rvue::prelude::*;
-use rvue::async_runtime::spawn_watch_signal;
+use rvue::async_runtime::watch_signal;
 use std::time::Duration;
 
 #[component]
@@ -323,7 +323,7 @@ fn LiveCounter() -> View {
     let (count, set_count) = create_signal(0i32);
 
     // Watch signal, automatically dispatch to UI
-    let watcher = spawn_watch_signal(
+    let watcher = watch_signal(
         count,
         Duration::from_millis(100),
         |current| {
@@ -342,6 +342,38 @@ fn LiveCounter() -> View {
     }
 }
 ```
+
+**Panic Handling**:
+
+```rust
+#[component]
+fn RobustWatcher() -> View {
+    let (count, set_count) = create_signal(0i32);
+
+    let mut watcher = watch_signal(
+        count,
+        Duration::from_millis(100),
+        |current| {
+            // This callback is resilient to panics
+            Some(current * 2)
+        }
+    );
+
+    // Set a panic handler for observability
+    watcher.set_on_panic(|| {
+        log::error!("Watch callback panicked!");
+    });
+
+    on_cleanup(move || watcher.stop());
+
+    view! { ... }
+}
+```
+
+**Behavior**:
+- Callback panics are caught and logged
+- `watcher.panic_count()` returns the number of panics
+- Watcher continues running after panic (doesn't abort)
 
 ---
 
@@ -382,7 +414,8 @@ fn process_gc_data(data: Gc<MyData>) {
 |---------|-------------|---------|
 | Extract value | Simple types (i32, String) | `let v = *signal.get();` |
 | Clone Gc<T> | Need Gc<T> features | `let gc = gc_data.clone();` |
-| spawn_watch_signal | Watching signals | `spawn_watch_signal(signal, ...)` |
+| watch_signal | Watching signals | `watch_signal(signal, period, cb)` |
+| watch_signal + panic_handler | Need panic recovery | `watcher.set_on_panic(cb)` |
 | spawn_with_gc! | Must access Gc<T> after await | `spawn_with_gc!(gc => \|h\| {...})` |
 
 ---
