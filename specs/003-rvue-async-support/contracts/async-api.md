@@ -23,15 +23,15 @@ pub use async_runtime::{
     create_resource,
     TaskHandle,
     TaskId,
-    AsyncSignalSender,
+    UiThreadDispatcher,
     Resource,
     ResourceState,
     DebouncedTask,
     IntervalHandle,
     SignalWatcher,
     ComponentScope,
-    WriteSignalExt,
-};
+    WriteSignalUiExt,
+ };
 ```
 
 ---
@@ -339,12 +339,12 @@ where
 pub fn create_resource<S, T, Fu, Fetcher>(
     source: ReadSignal<S>,
     fetcher: Fetcher,
-) -> Resource<T>
+) -> Resource<T, S>
 where
-    S: PartialEq + Clone + Send + Sync + 'static,
+    S: PartialEq + Clone + Trace + Send + 'static,
     T: Trace + Clone + Send + Sync + 'static,
     Fu: std::future::Future<Output = Result<T, String>> + Send + 'static,
-    Fetcher: Fn(S) -> Fu + Send + Sync + Clone + 'static;
+    Fetcher: Fn(S) -> Fu + Clone + Send + 'static;
 ```
 
 **Contract**:
@@ -398,55 +398,74 @@ impl TaskHandle {
 pub struct TaskId(pub u64);
 ```
 
-### `AsyncSignalSender<T>`
+### `UiThreadDispatcher<T>`
 
 ```rust
+/// A handle for dispatching signal updates from async contexts to the UI thread.
+///
+/// Uses `GcHandle<T>` for thread-safe signal access across async boundaries.
+/// The handle is `Send + Sync` and can be safely sent to any thread.
+/// Resolution happens on the UI thread via `dispatch_to_ui`.
 #[derive(Clone)]
-pub struct AsyncSignalSender<T: Trace + Clone + 'static> {
-    data: Gc<SignalDataInner<T>>,
+pub struct UiThreadDispatcher<T: Trace + Clone + 'static> {
+    handle: GcHandle<SignalDataInner<T>>,
 }
 
-impl<T: Trace + Clone + 'static> AsyncSignalSender<T> {
-    /// Create a new AsyncSignalSender.
-    pub fn new(write_signal: WriteSignal<T>) -> Self;
+impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
+    /// Create a new dispatcher from a WriteSignal.
+    ///
+    /// Must be called on the UI thread where the signal was created.
+    pub fn new(signal: &WriteSignal<T>) -> Self;
 
-    /// Set the signal value asynchronously.
-    pub async fn set(&self, value: T);
+    /// Dispatch a signal update to the UI thread.
+    ///
+    /// The update is executed via `dispatch_to_ui`, ensuring all effects
+    /// run on the UI thread and subscribers are notified.
+    pub async fn set(&self, value: T)
+    where
+        T: Send;
 }
 ```
 
 **Contract**:
-- MUST set the signal value on the GC thread
+- MUST set the signal value on the UI thread via `dispatch_to_ui`
 - MUST notify subscribers after setting
-- **GC Safety**: Uses `Gc<T>` for thread-safe signal access
+- **GC Safety**: Uses `GcHandle<T>` for thread-safe cross-thread signal access
+- `T` MUST be `Send` to pass through the dispatch queue
 
 ---
 
-### `WriteSignalExt<T>` Trait
+### `WriteSignalUiExt<T>` Trait
 
 ```rust
-/// Extension trait for creating async signal senders.
-pub trait WriteSignalExt<T: Trace + Clone + 'static> {
-    /// Creates an AsyncSignalSender for thread-safe signal updates from async contexts.
-    fn sender(&self) -> AsyncSignalSender<T>;
+/// Extension trait for WriteSignal providing UI thread dispatch.
+///
+/// Allows creating `UiThreadDispatcher` handles for thread-safe signal
+/// updates from async contexts.
+pub trait WriteSignalUiExt<T: Trace + Clone + 'static> {
+    /// Create a UI thread dispatcher for this signal.
+    ///
+    /// The returned `UiThreadDispatcher` can be sent to any thread
+    /// and used to update the signal asynchronously.
+    fn ui_dispatcher(&self) -> UiThreadDispatcher<T>;
 }
 
-impl<T: Trace + Clone + 'static> WriteSignalExt<T> for WriteSignal<T> {
-    fn sender(&self) -> AsyncSignalSender<T> {
-        AsyncSignalSender::new(self.clone())
+impl<T: Trace + Clone + 'static> WriteSignalUiExt<T> for WriteSignal<T> {
+    fn ui_dispatcher(&self) -> UiThreadDispatcher<T> {
+        UiThreadDispatcher::new(self)
     }
 }
 ```
 
 **Usage**:
 ```rust
-use rvue::prelude::WriteSignalExt;
+use rvue::prelude::WriteSignalUiExt;
 
 let (count, set_count) = create_signal(0i32);
-let sender = set_count.sender();
+let dispatcher = set_count.ui_dispatcher();
 
 tokio::spawn(async move {
-    sender.set(100).await;
+    dispatcher.set(100).await;
 });
 ```
 
@@ -485,14 +504,66 @@ impl ComponentScope {
 
 ---
 
-### `Resource<T>`
+### `GcHandle<T>`
 
 ```rust
-pub struct Resource<T: Trace + Clone + 'static> { /* private fields */ }
+use rudo_gc::handles::GcHandle;
+```
 
-impl<T: Trace + Clone + 'static> Resource<T> {
+`GcHandle<T>` provides thread-safe access to GC-managed objects from async contexts.
+
+**Purpose**: Enables safe signal updates from background threads by holding a handle to the GC object that can be resolved on the UI thread.
+
+**Characteristics**:
+- `Send + Sync`: Can be moved across thread boundaries
+- `'static`: Handle lifetime is independent of the creating scope
+- `Clone`: Multiple handles can reference the same object
+
+**Usage in UiThreadDispatcher**:
+```rust
+pub struct UiThreadDispatcher<T: Trace + Clone + 'static> {
+    handle: GcHandle<SignalDataInner<T>>,
+}
+
+impl<T> UiThreadDispatcher<T> {
+    pub async fn set(&self, value: T)
+    where
+        T: Send,
+    {
+        let handle = self.handle.clone();
+        dispatch_to_ui(move || {
+            let signal: Gc<SignalDataInner<T>> = handle.resolve();
+            // ...
+        });
+    }
+}
+```
+
+**Resolution**: `GcHandle::resolve()` returns `Option<Gc<T>>` — `None` if the object was already collected.
+
+---
+
+### `Resource<T, S>`
+
+```rust
+/// A reactive async resource that fetches data based on a source signal.
+///
+/// Automatically refetches when:
+/// - The source signal changes
+/// - `refetch()` is called explicitly
+///
+/// # Type Parameters
+/// - `T`: The data type returned by the fetcher
+/// - `S`: The source signal type (must implement `PartialEq` for change detection)
+#[derive(Clone)]
+pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> { /* private fields */ }
+
+impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
     /// Get the current resource state. Reactive — tracked by effects.
-    pub fn get(&self) -> ResourceState<T>;
+    pub fn get(&self) -> Gc<ResourceState<T>>;
+
+    /// Get the source signal this resource is bound to.
+    pub fn source(&self) -> ReadSignal<S>;
 
     /// Manually trigger a refetch.
     pub fn refetch(&self);
@@ -607,7 +678,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"], optiona
 | `dispatch_to_ui` callback panics | Caught by `catch_unwind`, logged, other callbacks continue |
 | Async task panics | tokio catches it; task marked as completed |
 | `spawn_task` called before `run_app` | Runtime initializes; callbacks queue until event loop starts |
-| `AsyncSignalSender::set()` after signal GC'd | No-op (Gc<T> handles this safely) |
+| `UiThreadDispatcher::set()` after signal GC'd | No-op (GcHandle safely resolves to None) |
 | `create_resource` fetcher returns `Err` | State transitions to `ResourceState::Error(msg)` |
 | `spawn_debounced` with zero delay | Executes immediately (same as no debounce) |
 | Task completes after component unmount | `dispatch_to_ui` callback is still executed (signal may be gone — no-op) |
