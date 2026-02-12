@@ -276,9 +276,10 @@ where
                             } else {
                                 log::error!("watch_signal callback panicked with unknown payload");
                             }
-                            if let Some(mut handler) = panic_handler_clone.lock().unwrap().take() {
-                                handler();
-                                *panic_handler_clone.lock().unwrap() = Some(handler);
+                            let handler = panic_handler_clone.lock().unwrap().take();
+                            drop(panic_handler_clone.lock().unwrap());
+                            if let Some(handler) = handler {
+                                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(handler));
                             }
                         }
                     }

@@ -1426,6 +1426,7 @@ impl ComponentLifecycle for Component {
         {
             use crate::async_runtime::registry::TaskRegistry;
             TaskRegistry::cancel_all(self.id);
+            TaskRegistry::cleanup_completed();
         }
 
         for child in self.children.borrow().iter() {

@@ -394,6 +394,11 @@ impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
             use crate::async_runtime::dispatch::UiDispatchQueue;
             match event {
                 RvueUserEvent::AsyncDispatchReady => {
+                    use std::sync::atomic::{AtomicU64, Ordering};
+                    static CLEANUP_FRAME: AtomicU64 = AtomicU64::new(0);
+                    if CLEANUP_FRAME.fetch_add(1, Ordering::SeqCst) % 60 == 0 {
+                        crate::async_runtime::registry::TaskRegistry::cleanup_completed();
+                    }
                     UiDispatchQueue::drain_all_and_execute();
                     if let Some(window) = &self.window {
                         window.request_redraw();

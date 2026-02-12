@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::future::Future;
 
 use rudo_gc::Gc;
@@ -7,6 +8,10 @@ use crate::async_runtime::get_or_init_runtime;
 use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
 use crate::effect::{create_effect, Effect};
 use crate::signal::{create_signal, ReadSignal, WriteSignal};
+
+thread_local! {
+    static CURRENT_TASK_HANDLE: RefCell<Option<tokio::task::JoinHandle<()>>> = RefCell::new(None);
+}
 
 /// A resource that fetches data asynchronously based on a source signal.
 ///
@@ -117,6 +122,13 @@ where
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
 
+        // Abort any previous task before spawning a new one
+        CURRENT_TASK_HANDLE.with(|h| {
+            if let Some(handle) = h.borrow_mut().take() {
+                handle.abort();
+            }
+        });
+
         let source_value = source_for_effect.get();
         let fetcher = fetcher_clone.clone();
         let dispatcher = dispatcher.clone();
@@ -124,7 +136,7 @@ where
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
         let rt = get_or_init_runtime();
-        let _handle = rt.spawn(async move {
+        let handle = rt.spawn(async move {
             let result = fetcher(source_value).await;
 
             let new_state = match result {
@@ -134,6 +146,11 @@ where
 
             dispatcher.set(Gc::new(new_state)).await;
         });
+
+        // Store the handle so it can be aborted on cleanup
+        CURRENT_TASK_HANDLE.with(|h| {
+            *h.borrow_mut() = Some(handle);
+        });
     });
 
     // Register effect with current component for proper lifecycle management
@@ -141,6 +158,15 @@ where
     if let Some(component) = crate::runtime::current_owner() {
         component.add_effect(effect.clone());
     }
+
+    // Register cleanup to abort the spawned task when the effect is cleaned up
+    crate::effect::on_cleanup(move || {
+        CURRENT_TASK_HANDLE.with(|h| {
+            if let Some(handle) = h.borrow_mut().take() {
+                handle.abort();
+            }
+        });
+    });
 
     Resource { state, refetch_counter, source, effect }
 }
