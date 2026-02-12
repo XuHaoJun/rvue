@@ -3527,9 +3527,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31f5e1a854f950fe4ab82ef5ea9d18410998d357213be87256be7de414254c17"
+checksum = "ec4bc5a08c16ff1dcdd53c6ac1f716d5efc921128dcdb56b011ab3ba6a436635"
 dependencies = [
  "crossbeam",
  "crossbeam-queue",
@@ -3542,9 +3542,9 @@ dependencies = [
 
 [[package]]
 name = "rudo-gc-derive"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cb8b4aa8a4611292a4cefa23e5b59dae48b8efdefe7aa374fae13ebf4740199"
+checksum = "110b7dcc0921343996632d6e14c1368b702d2da55eb52efa5ec1527bee6d4a70"
 dependencies = [
  "proc-macro2",
  "quote",

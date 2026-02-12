@@ -41,6 +41,7 @@ pub use error::{
     validate_email, validate_number_input, validate_text_input, ValidationError, ValidationResult,
 };
 pub use event::ScrollDragState;
+pub use gc::impl_gc_capture;
 pub use properties::{
     CheckboxChecked, FlexAlignItems, FlexDirection, FlexGap, FlexJustifyContent, ForItemCount,
     GcPropertyMap, NumberInputValue, PropertyMap, RadioChecked, RadioValue, ShowCondition,
