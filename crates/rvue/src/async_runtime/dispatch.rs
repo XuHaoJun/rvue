@@ -65,6 +65,30 @@ impl UiDispatchQueue {
         }
     }
 
+    #[doc(hidden)]
+    pub fn force_drain_all() {
+        Self::drain_all_and_execute();
+    }
+
+    #[doc(hidden)]
+    pub fn spawn_main_thread<F>(f: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let _ = GLOBAL_CALLBACKS.lock().unwrap().push_back(Box::new(move || {
+            f();
+            let _ = tx.send(());
+        }));
+
+        let proxy = Self::get_proxy();
+        if let Some(p) = proxy {
+            let _ = p.send_event(RvueUserEvent::AsyncDispatchReady);
+        }
+
+        let _ = rx.recv();
+    }
+
     pub fn drain_all_and_execute() {
         Self::drain_local_and_execute();
         Self::drain_global_and_execute();
@@ -87,9 +111,9 @@ pub fn dispatch_to_ui<F>(callback: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    LOCAL_CALLBACKS.with(|cell| {
-        cell.borrow_mut().push_back(Box::new(callback));
-    });
+    let mut queue = GLOBAL_CALLBACKS.lock().unwrap();
+    queue.push_back(Box::new(callback));
+    drop(queue);
 
     if let Some(proxy) = UiDispatchQueue::get_proxy() {
         let _ = proxy.send_event(RvueUserEvent::AsyncDispatchReady);

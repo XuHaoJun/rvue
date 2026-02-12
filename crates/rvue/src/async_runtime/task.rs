@@ -53,14 +53,33 @@ impl TaskHandle {
     }
 }
 
-fn get_or_init_runtime() -> &'static Runtime {
+pub fn get_or_init_runtime() -> &'static Runtime {
     TOKIO_RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_current_thread()
+        tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .thread_name("rvue-async")
             .build()
             .expect("Failed to create tokio runtime")
     })
+}
+
+pub fn spawn_on_runtime<F>(future: F)
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    let rt = get_or_init_runtime();
+    rt.spawn(async move {
+        future.await;
+    });
+}
+
+pub fn spawn_async_blocking<F, T>(f: F) -> tokio::task::JoinHandle<T>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let rt = get_or_init_runtime();
+    rt.spawn_blocking(|| f())
 }
 
 /// Block on a future using the global tokio runtime.

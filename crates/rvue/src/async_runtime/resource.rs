@@ -3,7 +3,7 @@ use std::future::Future;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
-use super::task::block_on;
+use crate::async_runtime::get_or_init_runtime;
 use crate::effect::create_effect;
 use crate::signal::{create_signal, ReadSignal, WriteSignal, LEAKED_EFFECTS};
 
@@ -79,10 +79,10 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
 
 pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T, S>
 where
-    S: PartialEq + Clone + Trace + 'static,
-    T: Trace + Clone + 'static,
+    S: PartialEq + Clone + Trace + 'static + Send,
+    T: Trace + Clone + 'static + Send,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
-    Fetcher: Fn(S) -> Fu + Clone + 'static,
+    Fetcher: Fn(S) -> Fu + Clone + Send + 'static,
 {
     let (state, set_state) = create_signal(Gc::new(ResourceState::<T>::Pending));
 
@@ -95,20 +95,27 @@ where
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
 
+        let source_value = source_for_effect.get();
+        let fetcher = fetcher_clone.clone();
+
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
-        let fetcher = fetcher_clone.clone();
-        let source_value = source_for_effect.get();
+        let rt = get_or_init_runtime();
+        let _handle = rt.spawn(async move {
+            let result = fetcher(source_value).await;
 
-        let result = block_on(fetcher(source_value));
-        match result {
-            Ok(data) => {
-                set_state_clone.set(Gc::new(ResourceState::Ready(data)));
-            }
-            Err(err) => {
-                set_state_clone.set(Gc::new(ResourceState::Error(err)));
-            }
-        }
+            let new_state = match result {
+                Ok(data) => ResourceState::Ready(data),
+                Err(err) => ResourceState::Error(err),
+            };
+
+            let (tx, rx) = std::sync::mpsc::channel();
+            let _ = tx.send(new_state);
+
+            rt.spawn(async move {
+                let _ = rx.recv();
+            });
+        });
     });
 
     LEAKED_EFFECTS.with(|cell| {
