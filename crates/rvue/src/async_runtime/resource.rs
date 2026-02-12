@@ -4,6 +4,7 @@ use rudo_gc::Gc;
 use rudo_gc::Trace;
 
 use crate::async_runtime::get_or_init_runtime;
+use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
 use crate::effect::create_effect;
 use crate::signal::{create_signal, ReadSignal, WriteSignal, LEAKED_EFFECTS};
 
@@ -80,7 +81,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
 pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T, S>
 where
     S: PartialEq + Clone + Trace + 'static + Send,
-    T: Trace + Clone + 'static + Send,
+    T: Trace + Clone + 'static + Send + Sync,
     Fu: Future<Output = Result<T, String>> + Send + 'static,
     Fetcher: Fn(S) -> Fu + Clone + Send + 'static,
 {
@@ -92,11 +93,14 @@ where
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
 
+    let dispatcher = set_state.ui_dispatcher();
+
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
 
         let source_value = source_for_effect.get();
         let fetcher = fetcher_clone.clone();
+        let dispatcher = dispatcher.clone();
 
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
@@ -109,12 +113,7 @@ where
                 Err(err) => ResourceState::Error(err),
             };
 
-            let (tx, rx) = std::sync::mpsc::channel();
-            let _ = tx.send(new_state);
-
-            rt.spawn(async move {
-                let _ = rx.recv();
-            });
+            dispatcher.set(Gc::new(new_state)).await;
         });
     });
 
