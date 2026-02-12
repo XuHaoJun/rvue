@@ -5,14 +5,23 @@ use rudo_gc::Trace;
 
 use crate::async_runtime::get_or_init_runtime;
 use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
-use crate::effect::create_effect;
-use crate::signal::{create_signal, ReadSignal, WriteSignal, LEAKED_EFFECTS};
+use crate::effect::{create_effect, Effect};
+use crate::signal::{create_signal, ReadSignal, WriteSignal};
 
+/// A resource that fetches data asynchronously based on a source signal.
+///
+/// The resource automatically re-fetches when:
+/// - The source signal changes
+/// - `refetch()` is called explicitly
+///
+/// The effect is stored within the Resource to prevent GC collection.
+/// When the Resource is dropped, the effect is automatically cleaned up.
 #[derive(Clone)]
 pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
     refetch_counter: WriteSignal<usize>,
     source: ReadSignal<S>,
+    effect: Gc<Effect>,
 }
 
 impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
@@ -78,6 +87,16 @@ unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
     }
 }
 
+unsafe impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Trace for Resource<T, S> {
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.state.trace(visitor);
+        self.refetch_counter.data.trace(visitor);
+        self.source.trace(visitor);
+        // Trace the effect to keep it alive as long as the Resource is alive
+        self.effect.trace(visitor);
+    }
+}
+
 pub fn create_resource<S, T, Fu, Fetcher>(source: ReadSignal<S>, fetcher: Fetcher) -> Resource<T, S>
 where
     S: PartialEq + Clone + Trace + 'static + Send,
@@ -117,10 +136,11 @@ where
         });
     });
 
-    LEAKED_EFFECTS.with(|cell| {
-        let mut leaked = cell.borrow_mut();
-        leaked.push(effect);
-    });
+    // Register effect with current component for proper lifecycle management
+    // This ensures the effect is cleaned up when the component unmounts
+    if let Some(component) = crate::runtime::current_owner() {
+        component.add_effect(effect.clone());
+    }
 
-    Resource { state, refetch_counter, source }
+    Resource { state, refetch_counter, source, effect }
 }

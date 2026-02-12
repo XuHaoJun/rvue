@@ -76,7 +76,7 @@ impl UiDispatchQueue {
         F: FnOnce() + Send + 'static,
     {
         let (tx, rx) = std::sync::mpsc::channel();
-        let _ = GLOBAL_CALLBACKS.lock().unwrap().push_back(Box::new(move || {
+        GLOBAL_CALLBACKS.lock().unwrap().push_back(Box::new(move || {
             f();
             let _ = tx.send(());
         }));

@@ -14,6 +14,9 @@ use tokio::time;
 use rudo_gc::handles::AsyncHandleScope;
 use rudo_gc::Trace;
 
+use crate::async_runtime::registry::TaskRegistry;
+use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
+use crate::runtime;
 use crate::signal::{ReadSignal, WriteSignal};
 
 static TOKIO_RUNTIME: OnceLock<Runtime> = OnceLock::new();
@@ -53,6 +56,29 @@ impl TaskHandle {
     }
 }
 
+fn register_task_in_component_scope(handle: &TaskHandle) {
+    if let Some(component) = runtime::current_owner() {
+        TaskRegistry::register_task(component.id, handle.clone());
+    }
+}
+
+fn register_watcher_in_component_scope(watcher: &SignalWatcher) {
+    if let Some(component) = runtime::current_owner() {
+        TaskRegistry::register_watcher(component.id, watcher.clone());
+    }
+}
+
+fn register_interval_in_component_scope(handle: &IntervalHandle) {
+    if let Some(component) = runtime::current_owner() {
+        TaskRegistry::register_interval(component.id, handle.clone());
+    }
+}
+
+fn register_debounced_in_component_scope<T: Send + 'static>(_task: &DebouncedTask<T>) {
+    // DebouncedTask cleanup is handled differently - the stopped Arc is shared
+    // so cancelling from one clone cancels all. No registration needed.
+}
+
 pub fn get_or_init_runtime() -> &'static Runtime {
     TOKIO_RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
@@ -79,7 +105,7 @@ where
     T: Send + 'static,
 {
     let rt = get_or_init_runtime();
-    rt.spawn_blocking(|| f())
+    rt.spawn_blocking(f)
 }
 
 /// Block on a future using the global tokio runtime.
@@ -117,6 +143,8 @@ where
         completed.store(true, Ordering::SeqCst);
     });
 
+    register_task_in_component_scope(&handle);
+
     handle
 }
 
@@ -127,12 +155,10 @@ pub struct SignalWatcher {
 }
 
 impl SignalWatcher {
-    /// Create a new stopped signal watcher.
     pub fn new() -> Self {
         Self { stopped: Arc::new(AtomicBool::new(false)) }
     }
 
-    /// Stop watching (drops the scope, stopping the task).
     pub fn stop(self) {
         self.stopped.store(true, Ordering::SeqCst);
     }
@@ -199,10 +225,12 @@ where
 
     let scope = Arc::new(AsyncHandleScope::new(&tcb));
     let read_handle = scope.handle(&read_signal.data);
-    let write_handle = scope.handle(&write_signal.data);
+    let write_dispatcher = write_signal.ui_dispatcher();
 
     let stopped = Arc::new(AtomicBool::new(false));
     let stopped_clone = stopped.clone();
+
+    let watcher = SignalWatcher { stopped: stopped_clone.clone() };
 
     get_or_init_runtime().spawn(async move {
         let mut interval = time::interval(period);
@@ -212,13 +240,9 @@ where
             tokio::select! {
                 biased;
                 _ = interval.tick() => {
-                    // Safe: handle validates scope is alive
                     let current = read_handle.get().inner.get();
                     if let Some(new_value) = callback(current) {
-                        // Update directly on tokio thread
-                        // Note: This runs effects on the tokio thread
-                        // For UI thread safety, use dispatch_to_ui with a value-based approach
-                        write_handle.get().inner.set(new_value);
+                        write_dispatcher.set(new_value).await;
                     }
                 }
             }
@@ -229,7 +253,9 @@ where
         }
     });
 
-    SignalWatcher { stopped }
+    register_watcher_in_component_scope(&watcher);
+
+    watcher
 }
 
 /// A handle for stopping interval tasks.
@@ -239,14 +265,16 @@ pub struct IntervalHandle {
 }
 
 impl IntervalHandle {
-    /// Create a new stopped interval handle.
     pub fn new() -> Self {
         Self { stopped: Arc::new(AtomicBool::new(false)) }
     }
 
-    /// Stop the interval task.
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_running(&self) -> bool {
+        !self.stopped.load(Ordering::SeqCst)
     }
 }
 
@@ -295,6 +323,8 @@ where
         }
     });
 
+    register_interval_in_component_scope(&handle);
+
     handle
 }
 
@@ -306,14 +336,16 @@ pub struct DebouncedTask<T: Send + 'static> {
 }
 
 impl<T: Send + 'static> DebouncedTask<T> {
-    /// Call the debounced task with a value.
     pub fn call(&self, value: T) {
         let _ = self.sender.send(value);
     }
 
-    /// Cancel the debounced task.
     pub fn cancel(&self) {
         self.stopped.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_running(&self) -> bool {
+        !self.stopped.load(Ordering::SeqCst)
     }
 }
 
@@ -378,6 +410,8 @@ where
             }
         }
     });
+
+    register_debounced_in_component_scope(&task);
 
     task
 }
