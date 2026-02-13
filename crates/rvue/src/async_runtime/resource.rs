@@ -6,13 +6,14 @@ use std::sync::Arc;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
+use crate::async_runtime::cancellation::Cancellation;
 use crate::async_runtime::get_or_init_runtime;
 use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
 use crate::effect::{create_effect, Effect};
 use crate::signal::{create_signal, ReadSignal, WriteSignal};
 
 thread_local! {
-    static CURRENT_TASK_HANDLE: RefCell<Option<tokio::task::JoinHandle<()>>> = RefCell::new(None);
+    static CURRENT_CANCELLATION: RefCell<Option<Cancellation>> = RefCell::new(None);
 }
 
 /// A resource that fetches data asynchronously based on a source signal.
@@ -29,7 +30,8 @@ pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     refetch_counter: WriteSignal<usize>,
     source: ReadSignal<S>,
     effect: Gc<Effect>,
-    version: Arc<AtomicU64>, // Track fetch version to prevent stale updates
+    version: Arc<AtomicU64>,
+    cancellation: Cancellation,
 }
 
 impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
@@ -44,6 +46,10 @@ impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
     }
 
     pub fn refetch(&self) {
+        // Cancel the previous task gracefully
+        self.cancellation.cancel();
+
+        // Trigger effect to re-run
         self.refetch_counter.update(|v| *v += 1);
     }
 }
@@ -100,7 +106,6 @@ unsafe impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Trace for Re
         self.state.trace(visitor);
         self.refetch_counter.data.trace(visitor);
         self.source.trace(visitor);
-        // Trace the effect to keep it alive as long as the Resource is alive
         self.effect.trace(visitor);
     }
 }
@@ -119,12 +124,16 @@ where
     // Version tracking to prevent stale updates
     let version = Arc::new(AtomicU64::new(0));
 
+    // Cancellation flag for graceful task termination
+    let cancellation = Cancellation::new();
+
     let source_for_effect = source.clone();
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
 
     let dispatcher = set_state.ui_dispatcher();
     let version_clone = Arc::clone(&version);
+    let cancellation_clone = cancellation.clone();
 
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
@@ -133,30 +142,42 @@ where
         let current_version = version_clone.fetch_add(1, Ordering::SeqCst) + 1;
         log::debug!("[Resource] Effect triggered, version={}", current_version);
 
-        // Abort any previous task before spawning a new one
-        CURRENT_TASK_HANDLE.with(|h| {
-            if let Some(handle) = h.borrow_mut().take() {
-                handle.abort();
-                log::debug!("[Resource] Aborted previous task");
-            }
-        });
+        // Cancel previous task gracefully
+        cancellation_clone.cancel();
+
+        // Create new cancellation for this task
+        let task_cancellation = Cancellation::new();
 
         let source_value = source_for_effect.get();
         let fetcher = fetcher_clone.clone();
         let dispatcher = dispatcher.clone();
         let version_for_task = Arc::clone(&version_clone);
+        let cancellation_for_task = task_cancellation.clone();
 
         log::debug!("[Resource] Setting Loading state, version={}", current_version);
 
-        // Use write_signal's set directly instead of creating new Gc
+        // Set loading state
         set_state_clone.set(Gc::new(ResourceState::Loading));
 
         let rt = get_or_init_runtime();
-        let handle = rt.spawn(async move {
+        rt.spawn(async move {
             log::debug!("[Resource] Async task started, version={}", current_version);
+
+            // Check cancellation before starting
+            if cancellation_for_task.is_cancelled() {
+                log::debug!("[Resource] Task cancelled before start");
+                return;
+            }
+
             let result = fetcher(source_value).await;
 
-            // Check if this task is still current
+            // Check if cancelled after fetch
+            if cancellation_for_task.is_cancelled() {
+                log::debug!("[Resource] Task cancelled after fetch");
+                return;
+            }
+
+            // Check if this task is still current (version check)
             if version_for_task.load(Ordering::SeqCst) != current_version {
                 log::debug!("[Resource] Task stale (version check 1), dropping result");
                 return; // Stale - a newer fetch started
@@ -167,7 +188,12 @@ where
                 Err(err) => ResourceState::Error(err),
             };
 
-            // Double-check version after async work
+            // Double-check version after async work AND cancellation
+            if cancellation_for_task.is_cancelled() {
+                log::debug!("[Resource] Task cancelled after async");
+                return;
+            }
+
             if version_for_task.load(Ordering::SeqCst) != current_version {
                 log::debug!("[Resource] Task stale (version check 2), dropping result");
                 return; // Stale
@@ -179,9 +205,9 @@ where
             log::debug!("[Resource] State updated successfully, version={}", current_version);
         });
 
-        // Store the handle so it can be aborted on cleanup
-        CURRENT_TASK_HANDLE.with(|h| {
-            *h.borrow_mut() = Some(handle);
+        // Store cancellation for cleanup
+        CURRENT_CANCELLATION.with(|c| {
+            *c.borrow_mut() = Some(task_cancellation);
         });
     });
 
@@ -191,14 +217,14 @@ where
         component.add_effect(effect.clone());
     }
 
-    // Register cleanup to abort the spawned task when the effect is cleaned up
+    // Register cleanup to cancel the spawned task when the effect is cleaned up
     crate::effect::on_cleanup(move || {
-        CURRENT_TASK_HANDLE.with(|h| {
-            if let Some(handle) = h.borrow_mut().take() {
-                handle.abort();
+        CURRENT_CANCELLATION.with(|c| {
+            if let Some(cancel) = c.borrow_mut().take() {
+                cancel.cancel();
             }
         });
     });
 
-    Resource { state, refetch_counter, source, effect, version }
+    Resource { state, refetch_counter, source, effect, version, cancellation }
 }

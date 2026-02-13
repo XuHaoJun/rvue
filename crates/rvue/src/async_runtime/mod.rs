@@ -49,6 +49,9 @@
 //! ```
 
 #[cfg(feature = "async")]
+pub mod cancellation;
+
+#[cfg(feature = "async")]
 pub mod dispatch;
 
 #[cfg(feature = "async")]
