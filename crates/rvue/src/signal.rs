@@ -48,11 +48,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().any(|sub| {
-                let upgraded =
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| sub.upgrade()));
-                upgraded
-                    .ok()
-                    .flatten()
+                sub.try_upgrade()
                     .map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr)
                     .unwrap_or(false)
             })
@@ -68,14 +64,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     pub(crate) fn notify_subscribers(&self) {
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
-            subscribers
-                .iter()
-                .filter_map(|weak| {
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| weak.upgrade()))
-                        .ok()
-                        .flatten()
-                })
-                .collect()
+            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
         };
 
         for effect in effects_to_update.iter() {
@@ -121,9 +110,7 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
 
         let mut valid_subscribers = Vec::new();
         for weak in subscribers.iter() {
-            let upgraded =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| weak.upgrade()));
-            if let Ok(Some(effect)) = upgraded {
+            if let Some(effect) = weak.try_upgrade() {
                 valid_subscribers.push(effect);
             }
         }
