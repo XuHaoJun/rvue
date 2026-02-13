@@ -75,10 +75,10 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
             effect.mark_dirty();
         }
 
+        // Run dirty effects immediately
         for effect in effects.iter() {
             if effect.is_dirty() {
-                // Queue instead of running immediately
-                crate::effect::queue_effect(effect.clone());
+                Effect::update_if_dirty(effect);
             }
         }
 

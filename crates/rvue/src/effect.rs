@@ -54,35 +54,12 @@ pub(crate) fn enter_notify() {
     NOTIFY_DEPTH.with(|d| *d.borrow_mut() += 1);
 }
 
-/// Exit a notification scope - run pending effects once if at root level
+/// Exit a notification scope - just decrement depth
 pub(crate) fn exit_notify() {
-    let should_flush = NOTIFY_DEPTH.with(|d| {
+    NOTIFY_DEPTH.with(|d| {
         let new_depth = d.borrow().saturating_sub(1);
         *d.borrow_mut() = new_depth;
-        new_depth == 0
     });
-    
-    if should_flush {
-        // Run pending effects once (they'll trigger their own enter_notify/exit_notify cycles)
-        let effects = DEFERRED_EFFECTS.with(|def| std::mem::take(&mut *def.borrow_mut()));
-        for effect in effects {
-            // Only run if dirty
-            if effect.is_dirty.load(Ordering::SeqCst) && !effect.is_running.load(Ordering::SeqCst) {
-                Effect::run(&effect);
-            }
-        }
-    }
-}
-            for effect in effects {
-                // Only run if dirty
-                if effect.is_dirty.load(Ordering::SeqCst)
-                    && !effect.is_running.load(Ordering::SeqCst)
-                {
-                    Effect::run(&effect);
-                }
-            }
-        }
-    }
 }
 
 /// Run all pending effects (called from event loop)
@@ -103,6 +80,7 @@ pub fn run_pending_effects() {
 }
 
 /// Queue an effect to run after the current notification cycle completes
+#[allow(dead_code)]
 pub(crate) fn queue_effect(effect: Gc<Effect>) {
     // Don't queue if already running
     if effect.is_running.load(Ordering::SeqCst) {
