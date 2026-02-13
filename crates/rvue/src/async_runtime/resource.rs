@@ -169,17 +169,11 @@ where
         set_state_clone.set(Gc::new(ResourceState::Loading));
         println!("[Resource] Set Loading state");
 
-        // Create the Gc for the result BEFORE spawning to ensure it's properly rooted
-        let pending_state: Gc<ResourceState<T>> = Gc::new(ResourceState::Pending);
-
         let rt = get_or_init_runtime();
         rt.spawn(async move {
             // Create async scope to track GC roots during async operation
             let tcb = current_thread_control_block().expect("Async task requires GC thread");
             let scope = AsyncHandleScope::new(&tcb);
-
-            // Track the pending state Gc so it doesn't get collected during await
-            let _pending_handle = scope.handle(&pending_state);
 
             println!("[Resource] Async task started, version={}", current_version);
 
