@@ -124,7 +124,9 @@ impl Effect {
     /// Register a source (signal) that this effect is subscribed to
     pub fn add_source(&self, signal_ptr: *const (), weak_effect: Weak<Effect>) {
         let mut sources = self.sources.borrow_mut_gen_only();
+
         let already_subscribed = sources.iter().any(|(ptr, _)| *ptr == signal_ptr);
+
         if !already_subscribed {
             sources.push((signal_ptr, weak_effect));
         }
@@ -145,7 +147,7 @@ impl Effect {
         for (signal_ptr, weak_effect) in sources {
             if !signal_ptr.is_null() {
                 let addr = signal_ptr as usize;
-                if addr >= 4096 && addr % std::mem::align_of::<SignalDataInner<()>>() == 0 {
+                if addr >= 4096 {
                     SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
                 }
             }
@@ -210,7 +212,7 @@ impl Effect {
         for (signal_ptr, weak_effect) in sources {
             if !signal_ptr.is_null() {
                 let addr = signal_ptr as usize;
-                if addr >= 4096 && addr % std::mem::align_of::<SignalDataInner<()>>() == 0 {
+                if addr >= 4096 {
                     SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
                 }
             }

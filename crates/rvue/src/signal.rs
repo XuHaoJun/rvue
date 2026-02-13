@@ -44,27 +44,19 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let weak_effect = Gc::downgrade(&effect);
         let signal_ptr = self as *const _ as *const ();
 
-        // Check if already subscribed using Weak::ptr_eq for reliable comparison
-        let already_subscribed = {
-            let subscribers = self.subscribers.borrow();
-            subscribers.iter().any(|sub| Weak::ptr_eq(sub, &weak_effect))
-        };
+        let mut subscribers = self.subscribers.borrow_mut_gen_only();
+        subscribers.push(weak_effect.clone());
+        drop(subscribers);
 
-        if !already_subscribed {
-            let mut subscribers = self.subscribers.borrow_mut_gen_only();
-            subscribers.push(weak_effect.clone());
-            effect.add_source(signal_ptr, weak_effect);
-        }
+        effect.add_source(signal_ptr, weak_effect);
     }
 
     pub(crate) fn notify_subscribers(&self) {
-        // Collect upgraded subscribers FIRST, then drop the borrow before running effects
         let effects: Vec<_> = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().filter_map(|sub| sub.try_upgrade()).collect()
         };
 
-        // Now we can safely run effects since the RefCell borrow is released
         for effect in effects.iter() {
             effect.mark_dirty();
         }
@@ -83,7 +75,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         }
 
         let addr = effect_ptr as usize;
-        if addr < 4096 || addr % std::mem::align_of::<SignalDataInner<()>>() != 0 {
+        if addr < 4096 {
             return;
         }
 
