@@ -1,45 +1,53 @@
 use rvue::{create_memo, create_signal};
+use std::cell::Cell;
+use std::rc::Rc;
+
+#[test]
+fn test_memo_basic() {
+    let (read, write) = create_signal(10);
+    let count = Rc::new(Cell::new(0));
+    let count_clone = count.clone();
+
+    let memo = create_memo(move || {
+        count_clone.set(count_clone.get() + 1);
+        read.get() * 2
+    });
+
+    assert_eq!(memo.get(), 20);
+    assert_eq!(count.get(), 2);
+
+    write.set(20);
+    assert_eq!(memo.get(), 40);
+    assert_eq!(count.get(), 3);
+}
 
 #[test]
 fn test_memo_with_loading_state() {
-    // Simulate the hackernews scenario:
-    // - A resource with Loading -> Ready states
-    // - A memo that extracts data
-    // - Multiple state transitions
-
     let (state, set_state) = create_signal(0i32);
 
-    // Memo that simulates extracting stories from resource
     let memo = create_memo(move || {
         let s = state.get();
         if s == 0 {
-            vec![0; 0].len() // Empty array (Loading)
+            vec![0; 0].len()
         } else {
-            vec![1; 10].len() // 10 items (Ready)
+            vec![1; 10].len()
         }
     });
 
-    // Initial state
-    assert_eq!(memo.get(), 0); // Should be empty
+    assert_eq!(memo.get(), 0);
 
-    // Set to Loading state (simulate refetch)
     set_state.set(1);
-    assert_eq!(memo.get(), 10); // Should have 10 items
+    assert_eq!(memo.get(), 10);
 
-    // Set to Loading again
     set_state.set(2);
-    assert_eq!(memo.get(), 10); // Should still have 10
+    assert_eq!(memo.get(), 10);
 
-    // Set back to some value
     set_state.set(3);
     assert_eq!(memo.get(), 10);
 }
 
 #[test]
 fn test_signal_notify_multiple_subscribers() {
-    use std::cell::Cell;
-    use std::rc::Rc;
-
     let (signal, set_signal) = create_signal(0i32);
     let signal_clone = signal.clone();
 
@@ -57,14 +65,11 @@ fn test_signal_notify_multiple_subscribers() {
         effect2_count_clone.set(effect2_count_clone.get() + 1);
     });
 
-    // Both effects should have run once
     assert_eq!(effect1_count.get(), 1);
     assert_eq!(effect2_count.get(), 1);
 
-    // Set signal value - both effects should run
     set_signal.set(10);
 
-    // Both effects should have run again
     assert_eq!(effect1_count.get(), 2);
     assert_eq!(effect2_count.get(), 2);
 }
@@ -84,8 +89,65 @@ fn test_memo_updates_on_dependency_change() {
     assert_eq!(memo.get().len(), 3);
 
     set_source.set(0);
-    assert_eq!(memo.get().len(), 0); // Should be empty!
+    assert_eq!(memo.get().len(), 0);
 
     set_source.set(7);
     assert_eq!(memo.get().len(), 7);
+}
+
+#[test]
+fn test_multiple_refresh_cycles() {
+    // Simulates the hackernews refresh scenario
+    let (counter, increment) = create_signal(0i32);
+
+    // Memo that extracts data (like stories)
+    let memo = create_memo(move || {
+        let c = counter.get();
+        if c == 0 {
+            vec![0; 0].len() // Loading state - empty
+        } else {
+            vec![1; 10].len() // Ready state - 10 items
+        }
+    });
+
+    // Initial state
+    assert_eq!(memo.get(), 0);
+
+    // First refresh cycle
+    increment.set(1);
+    assert_eq!(memo.get(), 10);
+
+    // Second refresh cycle
+    increment.set(2);
+    assert_eq!(memo.get(), 10);
+
+    // Third refresh cycle
+    increment.set(3);
+    assert_eq!(memo.get(), 10);
+
+    // Fourth refresh cycle
+    increment.set(4);
+    assert_eq!(memo.get(), 10);
+
+    // Fifth refresh cycle
+    increment.set(5);
+    assert_eq!(memo.get(), 10);
+}
+
+#[test]
+fn test_rapid_state_changes() {
+    // Test rapid state changes like in the bug
+    let (state, set_state) = create_signal(0i32);
+
+    let memo = create_memo(move || {
+        let s = state.get();
+        vec![0; s as usize]
+    });
+
+    // Rapid changes
+    for i in 1..=20 {
+        set_state.set(i);
+        let len = memo.get().len();
+        assert_eq!(len, i as usize, "Failed at iteration {}", i);
+    }
 }

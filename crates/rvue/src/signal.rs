@@ -58,8 +58,13 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn notify_subscribers(&self) {
-        let subscribers = self.subscribers.borrow();
-        drop(subscribers);
+        crate::effect::enter_notify();
+
+        // Clean up invalid weak refs
+        {
+            let mut subscribers = self.subscribers.borrow_mut_gen_only();
+            subscribers.retain(|sub| sub.try_upgrade().is_some());
+        }
 
         let effects: Vec<_> = {
             let subscribers = self.subscribers.borrow();
@@ -72,9 +77,12 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
         for effect in effects.iter() {
             if effect.is_dirty() {
-                Effect::update_if_dirty(effect);
+                // Queue instead of running immediately
+                crate::effect::queue_effect(effect.clone());
             }
         }
+
+        crate::effect::exit_notify();
     }
 
     #[allow(dead_code)]
