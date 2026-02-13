@@ -12,6 +12,7 @@ use std::sync::atomic::Ordering;
 
 thread_local! {
     static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    static NOTIFYING: RefCell<bool> = const { RefCell::new(false) };
 }
 
 /// Internal signal data structure containing the value, version tracking, and subscribers.
@@ -60,11 +61,18 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn notify_subscribers(&self) {
+        NOTIFYING.with(|n| *n.borrow_mut() = true);
+
+        // First, get valid effects to notify
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
+            log::debug!("notify_subscribers: {} total subscribers", subscribers.len());
             subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
         };
 
+        log::debug!("notify_subscribers: {} effects to update", effects_to_update.len());
+
+        // Run effects
         for effect in effects_to_update.iter() {
             effect.mark_dirty();
         }
@@ -74,6 +82,8 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
                 Effect::update_if_dirty(effect);
             }
         }
+
+        NOTIFYING.with(|n| *n.borrow_mut() = false);
     }
 
     #[allow(dead_code)]
@@ -95,12 +105,10 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalDataInner<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
-        let subscribers = self.subscribers.borrow();
-        for weak in subscribers.iter() {
-            if let Some(effect) = weak.upgrade() {
-                effect.trace(visitor);
-            }
-        }
+
+        // Skip tracing subscribers entirely to avoid RefCell borrow conflicts
+        // and issues with stale weak refs during GC.
+        // The effect system keeps effects alive through its own mechanisms.
     }
 }
 

@@ -141,8 +141,11 @@ impl Effect {
     /// Run the effect closure with automatic dependency tracking
     /// This is an associated function that requires a Gc reference
     pub fn run(gc_effect: &Gc<Self>) {
+        log::debug!("Effect::run: starting effect");
+
         // Prevent recursive execution
         if gc_effect.is_running.swap(true, Ordering::SeqCst) {
+            log::debug!("Effect::run: already running, skipping");
             // Already running, skip to prevent infinite loop
             return;
         }
@@ -181,6 +184,7 @@ impl Effect {
 
         // Mark as not running
         gc_effect.is_running.store(false, Ordering::SeqCst);
+        log::debug!("Effect::run: completed effect");
     }
 
     /// Mark the effect as dirty (needs to run)
@@ -203,8 +207,20 @@ impl Effect {
     /// Unsubscribe from all signals this effect is subscribed to
     fn unsubscribe_all(&self) {
         let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut_gen_only());
-        for (signal_ptr, weak_effect) in subscriptions {
-            SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
+
+        // Clean up each subscription
+        for (signal_ptr, _weak_effect) in subscriptions {
+            // Validate the pointer before using
+            if signal_ptr.is_null() {
+                continue;
+            }
+            let addr = signal_ptr as usize;
+            if addr < 4096 {
+                continue;
+            }
+
+            // Unsubscribe from the signal
+            SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &_weak_effect);
         }
     }
 }

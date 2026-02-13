@@ -9,6 +9,7 @@ use rvue::prelude::*;
 use rvue_macro::view;
 use rvue_style::{BorderWidth, Height, ReactiveStyles, Size, Width};
 use serde::Deserialize;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Clone, Debug, Deserialize)]
 #[allow(dead_code)]
@@ -65,6 +66,11 @@ async fn fetch_top_stories() -> Result<Vec<Story>, String> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env().add_directive("rudo_gc=debug".parse().unwrap()))
+        .init();
+
     let app_view = hacker_news_app();
     rvue::run_app_with_stylesheet(|| app_view, None)?;
     Ok(())
