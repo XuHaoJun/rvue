@@ -44,9 +44,15 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let weak_effect = Gc::downgrade(&effect);
         let signal_ptr = self as *const _ as *const ();
 
-        let mut subscribers = self.subscribers.borrow_mut_gen_only();
-        subscribers.push(weak_effect.clone());
-        drop(subscribers);
+        let already_subscribed = {
+            let subscribers = self.subscribers.borrow();
+            subscribers.iter().any(|sub| Weak::ptr_eq(sub, &weak_effect))
+        };
+
+        if !already_subscribed {
+            let mut subscribers = self.subscribers.borrow_mut_gen_only();
+            subscribers.push(weak_effect.clone());
+        }
 
         effect.add_source(signal_ptr, weak_effect);
     }
