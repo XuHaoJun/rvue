@@ -47,6 +47,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let weak_effect = Gc::downgrade(&effect);
         let effect_ptr = Gc::as_ptr(&effect) as *const ();
         let signal_ptr = self as *const _ as *const ();
+        let signal_ptr_usize = signal_ptr as usize;
 
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
@@ -67,7 +68,7 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
             let len_before = subscribers.len();
             subscribers.push(weak_effect.clone());
             log::debug!("subscribe: Subscribers count: {} -> {}", len_before, subscribers.len());
-            effect.add_subscription(signal_ptr, &weak_effect);
+            effect.add_subscription(signal_ptr_usize, &weak_effect);
         } else {
             log::debug!(
                 "subscribe: Effect {:?} already subscribed to signal {:?}",

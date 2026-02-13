@@ -62,7 +62,7 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    subscriptions: GcCell<Vec<Weak<Effect>>>, // Weak refs to this effect from signals
+    subscriptions: GcCell<Vec<(usize, Weak<Effect>)>>, // (signal_ptr, weak_ref) pairs
 }
 
 unsafe impl Trace for Effect {
@@ -99,15 +99,13 @@ impl Effect {
     }
 
     /// Register a signal that this effect is subscribed to
-    ///
-    /// Note: We just store the weak reference to track subscriptions.
-    /// The actual subscription cleanup is handled by signals when they're notified.
-    pub fn add_subscription(&self, _signal_ptr: *const (), weak_effect: &Weak<Effect>) {
+    pub fn add_subscription(&self, signal_ptr: usize, weak_effect: &Weak<Effect>) {
         let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
 
         // Avoid duplicates
-        if !subscriptions.iter().any(|w| Weak::ptr_eq(w, weak_effect)) {
-            subscriptions.push(weak_effect.clone());
+        if !subscriptions.iter().any(|(ptr, w)| *ptr == signal_ptr && Weak::ptr_eq(w, weak_effect))
+        {
+            subscriptions.push((signal_ptr, weak_effect.clone()));
         }
     }
 
@@ -198,11 +196,17 @@ impl Effect {
 
     /// Unsubscribe from all signals this effect is subscribed to
     ///
-    /// We simply clear the subscriptions. The signals will clean up
-    /// invalid weak refs during their notify_subscribers calls.
+    /// This properly removes the weak ref from each signal's subscriber list.
     fn unsubscribe_all(&self) {
-        let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
-        subscriptions.clear();
+        let subscriptions: Vec<(usize, Weak<Effect>)> = {
+            let mut subs = self.subscriptions.borrow_mut_gen_only();
+            std::mem::take(&mut subs)
+        };
+
+        for (signal_ptr, weak_effect) in subscriptions {
+            let signal_ptr_void = signal_ptr as *const ();
+            crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr_void, &weak_effect);
+        }
     }
 }
 
