@@ -12,6 +12,7 @@ use tokio::sync::mpsc;
 use tokio::time;
 
 use rudo_gc::handles::AsyncHandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::Trace;
 
 use crate::async_runtime::registry::TaskRegistry;
@@ -131,6 +132,10 @@ where
 {
     let id = next_task_id();
     let join_handle = get_or_init_runtime().spawn(async move {
+        // Create async scope to track GC roots during async operation
+        let tcb = current_thread_control_block().expect("spawn_task requires GC thread");
+        let _scope = AsyncHandleScope::new(&tcb);
+
         let _ = future.await;
     });
 
@@ -253,6 +258,9 @@ where
     let watcher = SignalWatcher { stopped: stopped_clone.clone(), panic_count, panic_handler };
 
     get_or_init_runtime().spawn(async move {
+        // Keep scope alive for the duration of the task
+        let _scope = scope;
+
         let mut interval = time::interval(period);
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 
@@ -348,6 +356,10 @@ where
     let handle = IntervalHandle { stopped: stopped_clone.clone() };
 
     get_or_init_runtime().spawn(async move {
+        // Create async scope to track GC roots during async operation
+        let tcb = current_thread_control_block().expect("spawn_interval requires GC thread");
+        let _scope = AsyncHandleScope::new(&tcb);
+
         let mut interval = time::interval(period);
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
 
@@ -422,6 +434,10 @@ where
     let task = DebouncedTask { sender, stopped: stopped_clone.clone() };
 
     get_or_init_runtime().spawn(async move {
+        // Create async scope to track GC roots during async operation
+        let tcb = current_thread_control_block().expect("spawn_debounced requires GC thread");
+        let _scope = AsyncHandleScope::new(&tcb);
+
         let mut pending_value: Option<T> = None;
         let mut timer = Box::pin(time::sleep(delay));
 
