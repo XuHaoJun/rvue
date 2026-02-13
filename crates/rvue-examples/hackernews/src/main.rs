@@ -66,11 +66,20 @@ async fn fetch_top_stories() -> Result<Vec<Story>, String> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Single EnvFilter so LevelFilter::current() is set (needed for tracing-log).
+    // Fallback to "debug" when RUST_LOG is unset so log::debug! from rvue is visible.
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("debug"))
+        .add_directive("rvue=debug".parse().unwrap())
+        .add_directive("rudo_gc=debug".parse().unwrap());
+
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::from_default_env().add_directive("rvue=debug".parse().unwrap()))
-        .with(EnvFilter::from_default_env().add_directive("rudo_gc=debug".parse().unwrap()))
+        .with(env_filter)
         .init();
+
+    // Bridge log crate to tracing so we can see log::debug! output from rvue
+    tracing_log::LogTracer::init().ok();
 
     let app_view = hacker_news_app();
     rvue::run_app_with_stylesheet(|| app_view, None)?;

@@ -1573,6 +1573,7 @@ dependencies = [
  "rvue-macro",
  "rvue-style",
  "serde",
+ "tracing-log",
  "tracing-subscriber",
 ]
 
