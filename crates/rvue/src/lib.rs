@@ -37,7 +37,7 @@ pub mod async_runtime;
 pub mod headless {
     pub use crate::async_runtime::dispatch::{dispatch_to_ui, UiDispatchQueue};
     pub use crate::async_runtime::get_or_init_runtime;
-    pub use crate::effect::run_pending_effects;
+    pub use crate::effect::flush_pending_effects;
 
     /// Initialize the async runtime for testing
     pub fn init_runtime() {
@@ -51,7 +51,7 @@ pub mod headless {
 
     /// Run all pending effects
     pub fn run_effects() {
-        run_pending_effects();
+        flush_pending_effects();
     }
 
     /// Advance the async system by draining all queues

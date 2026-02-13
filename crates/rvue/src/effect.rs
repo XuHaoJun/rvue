@@ -1,6 +1,7 @@
 //! Reactive effect implementation for automatic dependency tracking
 
 use crate::component::Component;
+use crate::signal::SignalDataInner;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,8 +11,6 @@ thread_local! {
     static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = const { RefCell::new(None) };
     static EFFECTS_PENDING_RUN: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
     static DEFER_EFFECT_RUN: RefCell<bool> = const { RefCell::new(false) };
-    static NOTIFY_DEPTH: RefCell<u32> = const { RefCell::new(0) };
-    static DEFERRED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Create a new effect that automatically runs when dependencies change
@@ -49,48 +48,6 @@ pub fn set_defer_effect_run(defer: bool) {
     DEFER_EFFECT_RUN.with(|d| *d.borrow_mut() = defer);
 }
 
-/// Enter a notification scope (increments depth)
-pub(crate) fn enter_notify() {
-    NOTIFY_DEPTH.with(|d| *d.borrow_mut() += 1);
-}
-
-/// Exit a notification scope - just decrement depth
-pub(crate) fn exit_notify() {
-    NOTIFY_DEPTH.with(|d| {
-        let new_depth = d.borrow().saturating_sub(1);
-        *d.borrow_mut() = new_depth;
-    });
-}
-
-/// Run all pending effects (called from event loop)
-pub fn run_pending_effects() {
-    let depth = NOTIFY_DEPTH.with(|d| *d.borrow());
-    if depth > 0 {
-        return;
-    }
-
-    let effects = DEFERRED_EFFECTS.with(|def| std::mem::take(&mut *def.borrow_mut()));
-    for effect in effects {
-        // Only run if dirty
-        if !effect.is_dirty.load(Ordering::SeqCst) {
-            continue;
-        }
-        Effect::run(&effect);
-    }
-}
-
-/// Queue an effect to run after the current notification cycle completes
-#[allow(dead_code)]
-pub(crate) fn queue_effect(effect: Gc<Effect>) {
-    // Don't queue if already running
-    if effect.is_running.load(Ordering::SeqCst) {
-        return;
-    }
-    DEFERRED_EFFECTS.with(|deferred| {
-        deferred.borrow_mut().push(effect);
-    });
-}
-
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
@@ -98,12 +55,47 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    sources: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_effect)
+    subscriptions: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_ref)
 }
 
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        // Trace known Gc fields
         self.owner.trace(visitor);
+
+        // Precise tracing: iterate over subscriptions and trace the signal data
+        let subscriptions = self.subscriptions.borrow();
+        for (signal_ptr, _) in subscriptions.iter() {
+            if signal_ptr.is_null() {
+                continue;
+            }
+
+            // Trace the signal data using conservative scanning
+            // SAFETY: The pointer is a valid SignalDataInner pointer that was stored when
+            // the effect subscribed to the signal.
+            unsafe {
+                let signal_ptr_u8 = *signal_ptr as *const u8;
+                let size = std::mem::size_of::<SignalDataInner<()>>();
+                visitor.visit_region(signal_ptr_u8, size);
+            }
+        }
+
+        // Trace cleanups for any Gc pointers they might capture
+        let cleanups_borrow = self.cleanups.borrow();
+        for cleanup in cleanups_borrow.iter() {
+            // SAFETY: We conservatively scan the FnOnce closure for GC pointers.
+            // This matches the pattern from rudo-gc's dummy_effect_test.rs.
+            // We use the actual type FnOnce (not transmute to Fn) and scan the
+            // closure's memory region for potential GC pointers.
+            let ptr = std::ptr::from_ref::<dyn FnOnce()>(cleanup.as_ref()).cast::<u8>();
+            let layout = std::alloc::Layout::for_value(&**cleanup);
+
+            if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
+                unsafe {
+                    visitor.visit_region(ptr, layout.size());
+                }
+            }
+        }
     }
 }
 
@@ -130,19 +122,19 @@ impl Effect {
             is_running: AtomicBool::new(false),
             owner: GcCell::new(owner),
             cleanups: GcCell::new(Vec::new()),
-            sources: GcCell::new(Vec::new()),
+            subscriptions: GcCell::new(Vec::new()),
         })
     }
 
-    /// Register a source (signal) that this effect is subscribed to
-    pub fn add_source(&self, signal_ptr: *const (), weak_effect: Weak<Effect>) {
-        let mut sources = self.sources.borrow_mut_gen_only();
-
-        let already_subscribed =
-            sources.iter().any(|(ptr, w)| *ptr == signal_ptr && Weak::ptr_eq(w, &weak_effect));
-
-        if !already_subscribed {
-            sources.push((signal_ptr, weak_effect));
+    /// Register a signal that this effect is subscribed to
+    pub fn add_subscription(&self, signal_ptr: *const (), weak_effect: &Weak<Effect>) {
+        let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
+        let pair = (signal_ptr, weak_effect.clone());
+        if !subscriptions
+            .iter()
+            .any(|(ptr, weak)| *ptr == signal_ptr && Weak::ptr_eq(weak, weak_effect))
+        {
+            subscriptions.push(pair);
         }
     }
 
@@ -154,10 +146,6 @@ impl Effect {
             // Already running, skip to prevent infinite loop
             return;
         }
-
-        // Clear sources (they'll be re-added during execution)
-        // Signal cleanup handles invalid weak refs
-        let _sources = std::mem::take(&mut *gc_effect.sources.borrow_mut_gen_only());
 
         // Run cleanups from previous run
         let cleanups = {
@@ -212,12 +200,11 @@ impl Effect {
         }
     }
 
-    /// Unsubscribe from all sources this effect is subscribed to
+    /// Unsubscribe from all signals this effect is subscribed to
     fn unsubscribe_all(&self) {
-        let sources = std::mem::take(&mut *self.sources.borrow_mut_gen_only());
-
-        for (signal_ptr, weak_effect) in sources {
-            crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
+        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut_gen_only());
+        for (signal_ptr, weak_effect) in subscriptions {
+            SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
         }
     }
 }

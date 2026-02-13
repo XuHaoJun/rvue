@@ -400,7 +400,7 @@ impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
                         crate::async_runtime::registry::TaskRegistry::cleanup_completed();
                     }
                     UiDispatchQueue::drain_all_and_execute();
-                    crate::effect::run_pending_effects();
+                    crate::effect::flush_pending_effects();
                     if let Some(window) = &self.window {
                         window.request_redraw();
                     }

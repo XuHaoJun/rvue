@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 
 thread_local! {
-    pub(crate) static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Internal signal data structure containing the value, version tracking, and subscribers.
@@ -42,60 +42,42 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
     pub(crate) fn subscribe(&self, effect: Gc<Effect>) {
         let weak_effect = Gc::downgrade(&effect);
+        let effect_ptr = Gc::as_ptr(&effect) as *const ();
         let signal_ptr = self as *const _ as *const ();
 
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().any(|sub| Weak::ptr_eq(sub, &weak_effect))
+            subscribers.iter().any(|sub| {
+                sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
+            })
         };
 
         if !already_subscribed {
             let mut subscribers = self.subscribers.borrow_mut_gen_only();
             subscribers.push(weak_effect.clone());
+            effect.add_subscription(signal_ptr, &weak_effect);
         }
-
-        effect.add_source(signal_ptr, weak_effect);
     }
 
     pub(crate) fn notify_subscribers(&self) {
-        crate::effect::enter_notify();
-
-        // Clean up invalid weak refs
-        {
-            let mut subscribers = self.subscribers.borrow_mut_gen_only();
-            subscribers.retain(|sub| sub.try_upgrade().is_some());
-        }
-
-        let effects: Vec<_> = {
+        let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().filter_map(|sub| sub.try_upgrade()).collect()
+            subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
         };
 
-        for effect in effects.iter() {
+        for effect in effects_to_update.iter() {
             effect.mark_dirty();
         }
 
-        // Run dirty effects immediately
-        for effect in effects.iter() {
+        for effect in effects_to_update.iter() {
             if effect.is_dirty() {
                 Effect::update_if_dirty(effect);
             }
         }
-
-        crate::effect::exit_notify();
     }
 
     #[allow(dead_code)]
     pub(crate) fn unsubscribe_by_ptr(effect_ptr: *const (), weak_effect: &Weak<Effect>) {
-        if effect_ptr.is_null() {
-            return;
-        }
-
-        let addr = effect_ptr as usize;
-        if addr < 4096 {
-            return;
-        }
-
         unsafe {
             let signal = &*effect_ptr.cast::<SignalDataInner<()>>();
             let mut subscribers = signal.subscribers.borrow_mut_gen_only();
@@ -113,11 +95,10 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalDataInner<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
-
         let subscribers = self.subscribers.borrow();
-        for weak_sub in subscribers.iter() {
-            if let Some(subscriber) = weak_sub.try_upgrade() {
-                subscriber.trace(visitor);
+        for weak in subscribers.iter() {
+            if let Some(effect) = weak.upgrade() {
+                effect.trace(visitor);
             }
         }
     }
@@ -215,7 +196,7 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     ///
     /// The caller must ensure:
     /// 1. The signal is still alive (not garbage collected)
-    /// 2. Any necessary effect tracking is handled separately
+    /// 2. Any necessary effect notifications are handled separately
     ///
     /// This method skips the normal update path for performance.
     /// Use in hot paths where you can prove the signal is valid.
