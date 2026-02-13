@@ -86,13 +86,29 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
         // First, get valid effects to notify
         let effects_to_update: Vec<Gc<Effect>> = {
-            // Clean up stale weak refs first
+            // Clean up stale weak refs safely - avoid Drop on invalid Weaks
+            // Use a scope to release mutable borrow before immutable borrow
+            let subscriber_count: usize;
             {
                 let mut subscribers = self.subscribers.borrow_mut_gen_only();
-                subscribers.retain(|weak| weak.try_upgrade().is_some());
+                let valid_count = subscribers.iter().filter(|w| w.try_upgrade().is_some()).count();
+                let mut new_subscribers = Vec::with_capacity(valid_count);
+                for weak in subscribers.drain(..) {
+                    if weak.try_upgrade().is_some() {
+                        new_subscribers.push(weak);
+                    }
+                }
+                *subscribers = new_subscribers;
+                subscriber_count = subscribers.len();
             }
+            // Mutable borrow released here
+
             let subscribers = self.subscribers.borrow();
-            log::debug!("notify_subscribers: {} total subscribers", subscribers.len());
+            log::debug!(
+                "notify_subscribers: {} total subscribers (had {} before cleanup)",
+                subscribers.len(),
+                subscriber_count
+            );
             subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
         };
 
@@ -121,7 +137,15 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         unsafe {
             let signal = &*effect_ptr.cast::<SignalDataInner<()>>();
             let mut subscribers = signal.subscribers.borrow_mut_gen_only();
-            subscribers.retain(|weak| !Weak::ptr_eq(weak, weak_effect));
+
+            // Manual filter to avoid Drop on invalid Weaks
+            let mut new_subscribers = Vec::with_capacity(subscribers.len());
+            for weak in subscribers.drain(..) {
+                if !Weak::ptr_eq(&weak, weak_effect) {
+                    new_subscribers.push(weak);
+                }
+            }
+            *subscribers = new_subscribers;
         }
     }
 }
