@@ -98,17 +98,12 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    sources: GcCell<Vec<Weak<Effect>>>, // Just track weak refs
+    sources: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_effect)
 }
 
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.owner.trace(visitor);
-
-        let sources = self.sources.borrow();
-        for weak in sources.iter() {
-            weak.trace(visitor);
-        }
     }
 }
 
@@ -140,13 +135,14 @@ impl Effect {
     }
 
     /// Register a source (signal) that this effect is subscribed to
-    pub fn add_source(&self, _signal_ptr: *const (), weak_effect: Weak<Effect>) {
+    pub fn add_source(&self, signal_ptr: *const (), weak_effect: Weak<Effect>) {
         let mut sources = self.sources.borrow_mut_gen_only();
 
-        let already_subscribed = sources.iter().any(|w| Weak::ptr_eq(w, &weak_effect));
+        let already_subscribed =
+            sources.iter().any(|(ptr, w)| *ptr == signal_ptr && Weak::ptr_eq(w, &weak_effect));
 
         if !already_subscribed {
-            sources.push(weak_effect);
+            sources.push((signal_ptr, weak_effect));
         }
     }
 
@@ -218,8 +214,11 @@ impl Effect {
 
     /// Unsubscribe from all sources this effect is subscribed to
     fn unsubscribe_all(&self) {
-        // Just clear the sources - signal cleanup handles invalid refs
-        let _sources = std::mem::take(&mut *self.sources.borrow_mut_gen_only());
+        let sources = std::mem::take(&mut *self.sources.borrow_mut_gen_only());
+
+        for (signal_ptr, weak_effect) in sources {
+            crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &weak_effect);
+        }
     }
 }
 
