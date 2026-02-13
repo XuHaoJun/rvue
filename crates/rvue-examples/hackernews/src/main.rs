@@ -68,6 +68,7 @@ async fn fetch_top_stories() -> Result<Vec<Story>, String> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(fmt::layer())
+        .with(EnvFilter::from_default_env().add_directive("rvue=debug".parse().unwrap()))
         .with(EnvFilter::from_default_env().add_directive("rudo_gc=debug".parse().unwrap()))
         .init();
 

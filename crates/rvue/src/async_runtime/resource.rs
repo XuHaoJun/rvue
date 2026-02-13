@@ -3,8 +3,6 @@ use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use rudo_gc::handles::HandleScope;
-use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
@@ -133,11 +131,13 @@ where
 
         // Increment version - old tasks will see stale version and skip
         let current_version = version_clone.fetch_add(1, Ordering::SeqCst) + 1;
+        log::debug!("[Resource] Effect triggered, version={}", current_version);
 
         // Abort any previous task before spawning a new one
         CURRENT_TASK_HANDLE.with(|h| {
             if let Some(handle) = h.borrow_mut().take() {
                 handle.abort();
+                log::debug!("[Resource] Aborted previous task");
             }
         });
 
@@ -146,18 +146,19 @@ where
         let dispatcher = dispatcher.clone();
         let version_for_task = Arc::clone(&version_clone);
 
-        let tcb = current_thread_control_block().expect("GC not initialized");
-        let scope = HandleScope::new(&tcb);
-        let loading_state = Gc::new(ResourceState::Loading);
-        let loading_handle = scope.handle(&loading_state);
-        set_state_clone.set(loading_handle.to_gc());
+        log::debug!("[Resource] Setting Loading state, version={}", current_version);
+
+        // Use write_signal's set directly instead of creating new Gc
+        set_state_clone.set(Gc::new(ResourceState::Loading));
 
         let rt = get_or_init_runtime();
         let handle = rt.spawn(async move {
+            log::debug!("[Resource] Async task started, version={}", current_version);
             let result = fetcher(source_value).await;
 
             // Check if this task is still current
             if version_for_task.load(Ordering::SeqCst) != current_version {
+                log::debug!("[Resource] Task stale (version check 1), dropping result");
                 return; // Stale - a newer fetch started
             }
 
@@ -168,10 +169,14 @@ where
 
             // Double-check version after async work
             if version_for_task.load(Ordering::SeqCst) != current_version {
+                log::debug!("[Resource] Task stale (version check 2), dropping result");
                 return; // Stale
             }
 
+            log::debug!("[Resource] Setting final state, version={}", current_version);
+            // Use dispatcher to safely update signal from async context
             dispatcher.set(Gc::new(new_state)).await;
+            log::debug!("[Resource] State updated successfully, version={}", current_version);
         });
 
         // Store the handle so it can be aborted on cleanup

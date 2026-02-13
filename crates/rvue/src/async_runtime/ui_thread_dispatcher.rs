@@ -40,10 +40,15 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
     {
         let handle = self.handle.clone();
         super::dispatch::dispatch_to_ui(move || {
+            log::debug!("[Dispatcher] Starting dispatch");
             let signal: Gc<SignalDataInner<T>> = handle.resolve();
+            log::debug!("[Dispatcher] Resolved signal, setting value");
             *signal.inner.value.borrow_mut_gen_only() = value;
+            log::debug!("[Dispatcher] Value set, incrementing version");
             signal.inner.version.fetch_add(1, Ordering::SeqCst);
+            log::debug!("[Dispatcher] Calling notify_subscribers");
             signal.notify_subscribers();
+            log::debug!("[Dispatcher] notify_subscribers completed");
         });
     }
 }

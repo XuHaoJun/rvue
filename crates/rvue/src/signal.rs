@@ -14,7 +14,7 @@ use std::sync::atomic::Ordering;
 
 thread_local! {
     static LEAKED_EFFECTS: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
-    static NOTIFYING: RefCell<bool> = const { RefCell::new(false) };
+    pub static NOTIFYING: RefCell<bool> = const { RefCell::new(false) };
 }
 
 /// Internal signal data structure containing the value, version tracking, and subscribers.
@@ -185,9 +185,11 @@ pub struct WriteSignal<T: Trace + Clone + 'static> {
 impl<T: Trace + Clone + 'static> WriteSignal<T> {
     #[inline(always)]
     pub fn set(&self, value: T) {
+        log::debug!("WriteSignal::set: setting new value");
         *self.data.inner.value.borrow_mut_gen_only() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
+        log::debug!("WriteSignal::set: notified subscribers");
     }
 
     #[inline(always)]
@@ -195,9 +197,11 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
+        log::debug!("WriteSignal::update: starting update");
         f(&mut *self.data.inner.value.borrow_mut_gen_only());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
+        log::debug!("WriteSignal::update: notified subscribers");
     }
 
     /// Sets the value WITHOUT effect tracking or scope validation.
