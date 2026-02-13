@@ -63,47 +63,12 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    subscriptions: GcCell<Vec<(*const (), Weak<Effect>)>>, // (signal_ptr, weak_ref)
+    subscriptions: GcCell<Vec<Weak<Effect>>>, // Weak refs to this effect from signals
 }
 
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Trace known Gc fields
         self.owner.trace(visitor);
-
-        // Precise tracing: iterate over subscriptions and trace the signal data
-        let subscriptions = self.subscriptions.borrow();
-        for (signal_ptr, _) in subscriptions.iter() {
-            if signal_ptr.is_null() {
-                continue;
-            }
-
-            // Trace the signal data using conservative scanning
-            // SAFETY: The pointer is a valid SignalDataInner pointer that was stored when
-            // the effect subscribed to the signal.
-            unsafe {
-                let signal_ptr_u8 = *signal_ptr as *const u8;
-                let size = std::mem::size_of::<SignalDataInner<()>>();
-                visitor.visit_region(signal_ptr_u8, size);
-            }
-        }
-
-        // Trace cleanups for any Gc pointers they might capture
-        let cleanups_borrow = self.cleanups.borrow();
-        for cleanup in cleanups_borrow.iter() {
-            // SAFETY: We conservatively scan the FnOnce closure for GC pointers.
-            // This matches the pattern from rudo-gc's dummy_effect_test.rs.
-            // We use the actual type FnOnce (not transmute to Fn) and scan the
-            // closure's memory region for potential GC pointers.
-            let ptr = std::ptr::from_ref::<dyn FnOnce()>(cleanup.as_ref()).cast::<u8>();
-            let layout = std::alloc::Layout::for_value(&**cleanup);
-
-            if layout.size() > 0 && layout.align() >= std::mem::align_of::<usize>() {
-                unsafe {
-                    visitor.visit_region(ptr, layout.size());
-                }
-            }
-        }
     }
 }
 
@@ -135,14 +100,15 @@ impl Effect {
     }
 
     /// Register a signal that this effect is subscribed to
-    pub fn add_subscription(&self, signal_ptr: *const (), weak_effect: &Weak<Effect>) {
+    ///
+    /// Note: We just store the weak reference to track subscriptions.
+    /// The actual subscription cleanup is handled by signals when they're notified.
+    pub fn add_subscription(&self, _signal_ptr: *const (), weak_effect: &Weak<Effect>) {
         let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
-        let pair = (signal_ptr, weak_effect.clone());
-        if !subscriptions
-            .iter()
-            .any(|(ptr, weak)| *ptr == signal_ptr && Weak::ptr_eq(weak, weak_effect))
-        {
-            subscriptions.push(pair);
+
+        // Avoid duplicates
+        if !subscriptions.iter().any(|w| Weak::ptr_eq(w, weak_effect)) {
+            subscriptions.push(weak_effect.clone());
         }
     }
 
@@ -156,6 +122,13 @@ impl Effect {
             log::debug!("Effect::run: already running, skipping");
             // Already running, skip to prevent infinite loop
             return;
+        }
+
+        // Clear old subscriptions - we'll rebuild them during execution
+        // This prevents subscription accumulation
+        {
+            let mut subscriptions = gc_effect.subscriptions.borrow_mut_gen_only();
+            subscriptions.clear();
         }
 
         // Run cleanups from previous run
@@ -213,23 +186,12 @@ impl Effect {
     }
 
     /// Unsubscribe from all signals this effect is subscribed to
+    ///
+    /// We simply clear the subscriptions. The signals will clean up
+    /// invalid weak refs during their notify_subscribers calls.
     fn unsubscribe_all(&self) {
-        let subscriptions = std::mem::take(&mut *self.subscriptions.borrow_mut_gen_only());
-
-        // Clean up each subscription
-        for (signal_ptr, _weak_effect) in subscriptions {
-            // Validate the pointer before using
-            if signal_ptr.is_null() {
-                continue;
-            }
-            let addr = signal_ptr as usize;
-            if addr < 4096 {
-                continue;
-            }
-
-            // Unsubscribe from the signal
-            SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr, &_weak_effect);
-        }
+        let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
+        subscriptions.clear();
     }
 }
 

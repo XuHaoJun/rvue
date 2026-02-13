@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 use std::future::Future;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use rudo_gc::handles::HandleScope;
 use rudo_gc::heap::current_thread_control_block;
@@ -29,6 +31,7 @@ pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     refetch_counter: WriteSignal<usize>,
     source: ReadSignal<S>,
     effect: Gc<Effect>,
+    version: Arc<AtomicU64>, // Track fetch version to prevent stale updates
 }
 
 impl<T: Trace + Clone + 'static, S: Trace + Clone + 'static> Resource<T, S> {
@@ -115,14 +118,21 @@ where
 
     let (refetch_counter_read, refetch_counter) = create_signal(0usize);
 
+    // Version tracking to prevent stale updates
+    let version = Arc::new(AtomicU64::new(0));
+
     let source_for_effect = source.clone();
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
 
     let dispatcher = set_state.ui_dispatcher();
+    let version_clone = Arc::clone(&version);
 
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
+
+        // Increment version - old tasks will see stale version and skip
+        let current_version = version_clone.fetch_add(1, Ordering::SeqCst) + 1;
 
         // Abort any previous task before spawning a new one
         CURRENT_TASK_HANDLE.with(|h| {
@@ -134,6 +144,7 @@ where
         let source_value = source_for_effect.get();
         let fetcher = fetcher_clone.clone();
         let dispatcher = dispatcher.clone();
+        let version_for_task = Arc::clone(&version_clone);
 
         let tcb = current_thread_control_block().expect("GC not initialized");
         let scope = HandleScope::new(&tcb);
@@ -145,10 +156,20 @@ where
         let handle = rt.spawn(async move {
             let result = fetcher(source_value).await;
 
+            // Check if this task is still current
+            if version_for_task.load(Ordering::SeqCst) != current_version {
+                return; // Stale - a newer fetch started
+            }
+
             let new_state = match result {
                 Ok(data) => ResourceState::Ready(data),
                 Err(err) => ResourceState::Error(err),
             };
+
+            // Double-check version after async work
+            if version_for_task.load(Ordering::SeqCst) != current_version {
+                return; // Stale
+            }
 
             dispatcher.set(Gc::new(new_state)).await;
         });
@@ -174,5 +195,5 @@ where
         });
     });
 
-    Resource { state, refetch_counter, source, effect }
+    Resource { state, refetch_counter, source, effect, version }
 }
