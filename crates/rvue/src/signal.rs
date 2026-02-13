@@ -52,6 +52,9 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn notify_subscribers(&self) {
+        let subscribers = self.subscribers.borrow();
+        drop(subscribers);
+
         let effects: Vec<_> = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().filter_map(|sub| sub.try_upgrade()).collect()
