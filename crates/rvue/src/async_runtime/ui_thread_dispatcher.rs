@@ -42,11 +42,12 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
         super::dispatch::dispatch_to_ui(move || {
             log::debug!("[Dispatcher] Starting dispatch");
             let signal: Gc<SignalDataInner<T>> = handle.resolve();
-            log::debug!("[Dispatcher] Resolved signal, setting value");
+            let signal_ptr = &*signal as *const _ as *const ();
+            log::debug!("[Dispatcher] Resolved signal {:?}, setting value", signal_ptr);
             *signal.inner.value.borrow_mut_gen_only() = value;
             log::debug!("[Dispatcher] Value set, incrementing version");
             signal.inner.version.fetch_add(1, Ordering::SeqCst);
-            log::debug!("[Dispatcher] Calling notify_subscribers");
+            log::debug!("[Dispatcher] Calling notify_subscribers on signal {:?}", signal_ptr);
             signal.notify_subscribers();
             log::debug!("[Dispatcher] notify_subscribers completed");
         });

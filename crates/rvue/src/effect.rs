@@ -1,7 +1,6 @@
 //! Reactive effect implementation for automatic dependency tracking
 
 use crate::component::Component;
-use crate::signal::SignalDataInner;
 use rudo_gc::handles::HandleScope;
 use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
@@ -144,22 +143,31 @@ impl Effect {
         gc_effect.is_dirty.store(false, Ordering::SeqCst);
 
         // Set this effect as the current effect in thread-local storage
-        CURRENT_EFFECT.with(|cell| {
-            let previous = cell.borrow().clone();
+        let previous = CURRENT_EFFECT.with(|cell| {
+            let prev = cell.borrow().clone();
             *cell.borrow_mut() = Some(Gc::clone(gc_effect));
+            prev
+        });
 
-            // Execute the closure (this may trigger signal.get() calls which will
-            // automatically register this effect as a subscriber)
-            let owner = gc_effect.owner.borrow();
-            if owner.is_some() {
-                crate::runtime::with_owner(Gc::clone(owner.as_ref().unwrap()), || {
-                    (gc_effect.closure)();
-                });
-            } else {
+        log::debug!("Effect::run: Setting current effect, previous = {:?}", previous.is_some());
+
+        // Execute the closure (this may trigger signal.get() calls which will
+        // automatically register this effect as a subscriber)
+        let owner_opt = {
+            let owner_ref = gc_effect.owner.borrow();
+            owner_ref.clone()
+        };
+
+        if let Some(owner) = owner_opt {
+            crate::runtime::with_owner(owner, || {
                 (gc_effect.closure)();
-            }
+            });
+        } else {
+            (gc_effect.closure)();
+        }
 
-            // Restore previous effect (if any)
+        // Restore previous effect (if any)
+        CURRENT_EFFECT.with(|cell| {
             *cell.borrow_mut() = previous;
         });
 
@@ -215,12 +223,12 @@ pub fn untracked<T, F>(f: F) -> T
 where
     F: FnOnce() -> T,
 {
+    let previous = CURRENT_EFFECT.with(|cell| cell.borrow_mut().take());
+    let result = f();
     CURRENT_EFFECT.with(|cell| {
-        let previous = cell.borrow_mut().take();
-        let result = f();
         *cell.borrow_mut() = previous;
-        result
-    })
+    });
+    result
 }
 
 /// Register a cleanup function for the current reactive scope (Effect or Component)

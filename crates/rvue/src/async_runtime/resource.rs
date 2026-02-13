@@ -13,7 +13,7 @@ use crate::effect::{create_effect, Effect};
 use crate::signal::{create_signal, ReadSignal, WriteSignal};
 
 thread_local! {
-    static CURRENT_CANCELLATION: RefCell<Option<Cancellation>> = RefCell::new(None);
+    static CURRENT_CANCELLATION: RefCell<Option<Cancellation>> = const { RefCell::new(None) };
 }
 
 /// A resource that fetches data asynchronously based on a source signal.
@@ -25,6 +25,7 @@ thread_local! {
 /// The effect is stored within the Resource to prevent GC collection.
 /// When the Resource is dropped, the effect is automatically cleaned up.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     state: ReadSignal<Gc<ResourceState<T>>>,
     refetch_counter: WriteSignal<usize>,
@@ -137,6 +138,8 @@ where
 
     let effect = create_effect(move || {
         let _ = refetch_counter_read.get();
+        // Note: We don't read state here - the effect should only react to source
+        // or refetch_counter changes, not state changes.
 
         // Increment version - old tasks will see stale version and skip
         let current_version = version_clone.fetch_add(1, Ordering::SeqCst) + 1;
@@ -158,14 +161,15 @@ where
 
         // Set loading state
         set_state_clone.set(Gc::new(ResourceState::Loading));
+        println!("[Resource] Set Loading state");
 
         let rt = get_or_init_runtime();
         rt.spawn(async move {
-            log::debug!("[Resource] Async task started, version={}", current_version);
+            println!("[Resource] Async task started, version={}", current_version);
 
             // Check cancellation before starting
             if cancellation_for_task.is_cancelled() {
-                log::debug!("[Resource] Task cancelled before start");
+                println!("[Resource] Task cancelled before start");
                 return;
             }
 
@@ -173,13 +177,13 @@ where
 
             // Check if cancelled after fetch
             if cancellation_for_task.is_cancelled() {
-                log::debug!("[Resource] Task cancelled after fetch");
+                println!("[Resource] Task cancelled after fetch");
                 return;
             }
 
             // Check if this task is still current (version check)
             if version_for_task.load(Ordering::SeqCst) != current_version {
-                log::debug!("[Resource] Task stale (version check 1), dropping result");
+                println!("[Resource] Task stale (version check 1), dropping result");
                 return; // Stale - a newer fetch started
             }
 
@@ -190,19 +194,19 @@ where
 
             // Double-check version after async work AND cancellation
             if cancellation_for_task.is_cancelled() {
-                log::debug!("[Resource] Task cancelled after async");
+                println!("[Resource] Task cancelled after async");
                 return;
             }
 
             if version_for_task.load(Ordering::SeqCst) != current_version {
-                log::debug!("[Resource] Task stale (version check 2), dropping result");
+                println!("[Resource] Task stale (version check 2), dropping result");
                 return; // Stale
             }
 
-            log::debug!("[Resource] Setting final state, version={}", current_version);
+            println!("[Resource] Setting final state, version={}", current_version);
             // Use dispatcher to safely update signal from async context
             dispatcher.set(Gc::new(new_state)).await;
-            log::debug!("[Resource] State updated successfully, version={}", current_version);
+            println!("[Resource] State updated successfully, version={}", current_version);
         });
 
         // Store cancellation for cleanup

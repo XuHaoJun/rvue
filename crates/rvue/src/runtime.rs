@@ -14,10 +14,12 @@ thread_local! {
 pub fn with_owner<R>(owner: Gc<Component>, f: impl FnOnce() -> R) -> R {
     OWNER_STACK.with(|stack| {
         stack.borrow_mut().push(owner);
-        let result = f();
+    });
+    let result = f();
+    OWNER_STACK.with(|stack| {
         stack.borrow_mut().pop();
-        result
-    })
+    });
+    result
 }
 
 /// Get the current owner (the top component on the owner stack).

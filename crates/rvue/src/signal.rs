@@ -51,14 +51,29 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().any(|sub| {
-                sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
+                sub.try_upgrade()
+                    .map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr)
+                    .unwrap_or(false)
             })
         };
 
         if !already_subscribed {
+            log::debug!(
+                "subscribe: Adding new subscription for effect {:?} to signal {:?}",
+                effect_ptr,
+                signal_ptr
+            );
             let mut subscribers = self.subscribers.borrow_mut_gen_only();
+            let len_before = subscribers.len();
             subscribers.push(weak_effect.clone());
+            log::debug!("subscribe: Subscribers count: {} -> {}", len_before, subscribers.len());
             effect.add_subscription(signal_ptr, &weak_effect);
+        } else {
+            log::debug!(
+                "subscribe: Effect {:?} already subscribed to signal {:?}",
+                effect_ptr,
+                signal_ptr
+            );
         }
     }
 
@@ -67,9 +82,14 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
         // First, get valid effects to notify
         let effects_to_update: Vec<Gc<Effect>> = {
+            // Clean up stale weak refs first
+            {
+                let mut subscribers = self.subscribers.borrow_mut_gen_only();
+                subscribers.retain(|weak| weak.try_upgrade().is_some());
+            }
             let subscribers = self.subscribers.borrow();
             log::debug!("notify_subscribers: {} total subscribers", subscribers.len());
-            subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
+            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
         };
 
         log::debug!("notify_subscribers: {} effects to update", effects_to_update.len());
@@ -125,7 +145,10 @@ impl<T: Trace + Clone + 'static> ReadSignal<T> {
         T: Clone,
     {
         if let Some(effect) = current_effect() {
+            log::debug!("ReadSignal::get: Found current effect, calling subscribe");
             self.data.subscribe(effect);
+        } else {
+            log::debug!("ReadSignal::get: No current effect, not subscribing");
         }
         self.data.get()
     }
