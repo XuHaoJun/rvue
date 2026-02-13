@@ -1371,6 +1371,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-macro"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "futures-sink"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1389,6 +1400,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
  "futures-core",
+ "futures-macro",
  "futures-task",
  "pin-project-lite",
  "pin-utils",
@@ -3562,7 +3574,10 @@ dependencies = [
  "libc",
  "parking_lot",
  "rudo-gc-derive",
+ "rudo-gc-tokio-derive",
  "sys_alloc",
+ "tokio",
+ "tokio-util",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -3572,6 +3587,17 @@ name = "rudo-gc-derive"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4be708560c24a22c908a80de065079e31c4344f925d09cf2f81ed80fe70be45a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "rudo-gc-tokio-derive"
+version = "0.8.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea77bbffe698d5d969f2ea4787c8efc14eb0da557d5576455b0e73b1519f22db"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4432,6 +4458,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]

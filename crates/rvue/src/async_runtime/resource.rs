@@ -3,8 +3,7 @@ use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use rudo_gc::handles::AsyncHandleScope;
-use rudo_gc::heap::current_thread_control_block;
+use rudo_gc::tokio::GcTokioExt;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
@@ -171,10 +170,6 @@ where
 
         let rt = get_or_init_runtime();
         rt.spawn(async move {
-            // Create async scope to track GC roots during async operation
-            let tcb = current_thread_control_block().expect("Async task requires GC thread");
-            let scope = AsyncHandleScope::new(&tcb);
-
             println!("[Resource] Async task started, version={}", current_version);
 
             // Check cancellation before starting
@@ -213,9 +208,9 @@ where
                 return; // Stale
             }
 
-            // Create the final Gc inside the tracked scope
+            // Create the final Gc and protect it with root guard
             let final_state = Gc::new(new_state);
-            let _final_handle = scope.handle(&final_state);
+            let _guard = final_state.root_guard();
 
             println!("[Resource] Setting final state, version={}", current_version);
             // Use dispatcher to safely update signal from async context
