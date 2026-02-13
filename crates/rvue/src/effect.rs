@@ -121,11 +121,20 @@ impl Effect {
             return;
         }
 
-        // Clear old subscriptions - we'll rebuild them during execution
-        // This prevents subscription accumulation
+        // Properly unsubscribe from all signals BEFORE clearing internal subscriptions
+        // This ensures the signal's subscriber list is cleaned up (Leptos-style)
         {
-            let mut subscriptions = gc_effect.subscriptions.borrow_mut_gen_only();
-            subscriptions.clear();
+            let subscriptions: Vec<(usize, Weak<Effect>)> = {
+                let mut subs = gc_effect.subscriptions.borrow_mut_gen_only();
+                std::mem::take(&mut subs)
+            };
+            for (signal_ptr, weak_effect) in subscriptions {
+                let signal_ptr_void = signal_ptr as *const ();
+                crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(
+                    signal_ptr_void,
+                    &weak_effect,
+                );
+            }
         }
 
         // Run cleanups from previous run
