@@ -42,15 +42,15 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
     pub(crate) fn subscribe(&self, effect: Gc<Effect>) {
         let weak_effect = Gc::downgrade(&effect);
-        let effect_ptr = Gc::as_ptr(&effect) as *const ();
         let signal_ptr = self as *const _ as *const ();
 
+        // Check if already subscribed - use Weak::ptr_eq() to avoid crashes
+        // Weak::ptr_eq doesn't dereference, just compares stored addresses
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().any(|sub| {
-                sub.try_upgrade()
-                    .map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr)
-                    .unwrap_or(false)
+                // Direct pointer comparison - doesn't require upgrade or validity check
+                Weak::ptr_eq(sub, &weak_effect)
             })
         };
 
@@ -62,6 +62,8 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn notify_subscribers(&self) {
+        // Use try_upgrade directly - it handles invalid pointers safely
+        // No need to clone first - try_upgrade returns None for invalid refs
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
@@ -106,14 +108,13 @@ impl<T: Trace + Clone + 'static> std::fmt::Debug for SignalDataInner<T> {
 unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
-        let subscribers = self.subscribers.borrow();
 
-        let mut valid_subscribers = Vec::new();
-        for weak in subscribers.iter() {
-            if let Some(effect) = weak.try_upgrade() {
-                valid_subscribers.push(effect);
-            }
-        }
+        // Use try_upgrade directly - it handles invalid pointers safely
+        // No need to clone first - try_upgrade returns None for invalid refs
+        let valid_subscribers: Vec<_> = {
+            let subscribers = self.subscribers.borrow();
+            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
+        };
 
         for effect in valid_subscribers {
             effect.trace(visitor);
