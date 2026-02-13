@@ -44,36 +44,32 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let weak_effect = Gc::downgrade(&effect);
         let signal_ptr = self as *const _ as *const ();
 
-        // Check if already subscribed - use Weak::ptr_eq() to avoid crashes
-        // Weak::ptr_eq doesn't dereference, just compares stored addresses
+        // Check if already subscribed using Weak::ptr_eq for reliable comparison
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().any(|sub| {
-                // Direct pointer comparison - doesn't require upgrade or validity check
-                Weak::ptr_eq(sub, &weak_effect)
-            })
+            subscribers.iter().any(|sub| Weak::ptr_eq(sub, &weak_effect))
         };
 
         if !already_subscribed {
             let mut subscribers = self.subscribers.borrow_mut_gen_only();
             subscribers.push(weak_effect.clone());
-            effect.add_subscription(signal_ptr, &weak_effect);
+            effect.add_source(signal_ptr, weak_effect);
         }
     }
 
     pub(crate) fn notify_subscribers(&self) {
-        // Use try_upgrade directly - it handles invalid pointers safely
-        // No need to clone first - try_upgrade returns None for invalid refs
-        let effects_to_update: Vec<Gc<Effect>> = {
+        // Collect upgraded subscribers FIRST, then drop the borrow before running effects
+        let effects: Vec<_> = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
+            subscribers.iter().filter_map(|sub| sub.try_upgrade()).collect()
         };
 
-        for effect in effects_to_update.iter() {
+        // Now we can safely run effects since the RefCell borrow is released
+        for effect in effects.iter() {
             effect.mark_dirty();
         }
 
-        for effect in effects_to_update.iter() {
+        for effect in effects.iter() {
             if effect.is_dirty() {
                 Effect::update_if_dirty(effect);
             }
@@ -109,15 +105,11 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
 
-        // Use try_upgrade directly - it handles invalid pointers safely
-        // No need to clone first - try_upgrade returns None for invalid refs
-        let valid_subscribers: Vec<_> = {
-            let subscribers = self.subscribers.borrow();
-            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
-        };
-
-        for effect in valid_subscribers {
-            effect.trace(visitor);
+        let subscribers = self.subscribers.borrow();
+        for weak_sub in subscribers.iter() {
+            if let Some(subscriber) = weak_sub.try_upgrade() {
+                subscriber.trace(visitor);
+            }
         }
     }
 }

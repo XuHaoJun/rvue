@@ -18,6 +18,7 @@ pub mod gc;
 pub mod layout;
 pub mod prelude;
 pub mod properties;
+pub mod reactivity;
 pub mod render;
 pub mod runtime;
 pub mod signal;
