@@ -143,6 +143,9 @@ impl Effect {
         gc_effect.is_dirty.store(false, Ordering::SeqCst);
 
         // Set this effect as the current effect in thread-local storage
+        let effect_ptr = Gc::as_ptr(gc_effect) as *const ();
+        log::debug!("Effect::run: START effect ptr={:?}", effect_ptr);
+
         let previous = CURRENT_EFFECT.with(|cell| {
             let prev = cell.borrow().clone();
             *cell.borrow_mut() = Some(Gc::clone(gc_effect));

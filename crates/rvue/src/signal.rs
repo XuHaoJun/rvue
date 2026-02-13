@@ -78,7 +78,10 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn notify_subscribers(&self) {
+        let signal_ptr = self as *const _ as *const ();
         NOTIFYING.with(|n| *n.borrow_mut() = true);
+
+        log::debug!("notify_subscribers: START signal {:?}", signal_ptr);
 
         // First, get valid effects to notify
         let effects_to_update: Vec<Gc<Effect>> = {
@@ -93,6 +96,10 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         };
 
         log::debug!("notify_subscribers: {} effects to update", effects_to_update.len());
+        for (i, effect) in effects_to_update.iter().enumerate() {
+            let effect_ptr = Gc::as_ptr(effect) as *const ();
+            log::debug!("notify_subscribers: effect[{}] ptr={:?}", i, effect_ptr);
+        }
 
         // Run effects
         for effect in effects_to_update.iter() {
@@ -144,11 +151,20 @@ impl<T: Trace + Clone + 'static> ReadSignal<T> {
     where
         T: Clone,
     {
+        let signal_ptr = Gc::as_ptr(&self.data) as *const ();
         if let Some(effect) = current_effect() {
-            log::debug!("ReadSignal::get: Found current effect, calling subscribe");
+            let effect_ptr = Gc::as_ptr(&effect) as *const ();
+            log::debug!(
+                "ReadSignal::get: effect {:?} subscribing to signal {:?}",
+                effect_ptr,
+                signal_ptr
+            );
             self.data.subscribe(effect);
         } else {
-            log::debug!("ReadSignal::get: No current effect, not subscribing");
+            log::debug!(
+                "ReadSignal::get: No current effect for signal {:?}, not subscribing",
+                signal_ptr
+            );
         }
         self.data.get()
     }
@@ -208,7 +224,8 @@ pub struct WriteSignal<T: Trace + Clone + 'static> {
 impl<T: Trace + Clone + 'static> WriteSignal<T> {
     #[inline(always)]
     pub fn set(&self, value: T) {
-        log::debug!("WriteSignal::set: setting new value");
+        let signal_ptr = Gc::as_ptr(&self.data) as *const ();
+        log::debug!("WriteSignal::set: signal {:?} setting new value", signal_ptr);
         *self.data.inner.value.borrow_mut_gen_only() = value;
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
@@ -220,7 +237,8 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        log::debug!("WriteSignal::update: starting update");
+        let signal_ptr = Gc::as_ptr(&self.data) as *const ();
+        log::debug!("WriteSignal::update: signal {:?} starting update", signal_ptr);
         f(&mut *self.data.inner.value.borrow_mut_gen_only());
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();

@@ -141,6 +141,8 @@ where
         // Note: We don't read state here - the effect should only react to source
         // or refetch_counter changes, not state changes.
 
+        log::debug!("[Resource] Effect triggered, reading source and refetch_counter");
+
         // Increment version - old tasks will see stale version and skip
         let current_version = version_clone.fetch_add(1, Ordering::SeqCst) + 1;
         log::debug!("[Resource] Effect triggered, version={}", current_version);
@@ -151,7 +153,9 @@ where
         // Create new cancellation for this task
         let task_cancellation = Cancellation::new();
 
+        log::debug!("[Resource] Effect reading source signal");
         let source_value = source_for_effect.get();
+
         let fetcher = fetcher_clone.clone();
         let dispatcher = dispatcher.clone();
         let version_for_task = Arc::clone(&version_clone);
