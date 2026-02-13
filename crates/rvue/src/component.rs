@@ -13,6 +13,8 @@ use crate::render::FlexScrollState;
 use crate::text::cursor::GcCursorBlinkState;
 use crate::text::editor::SharedTextEditor;
 use crate::text::TextContext;
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
 use std::sync::atomic::AtomicBool;
@@ -363,6 +365,9 @@ impl Component {
         component_type: ComponentType,
         properties: PropertyMap,
     ) -> Gc<Self> {
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
         let initial_children_capacity = match component_type {
             ComponentType::Flex => 8,
             _ => 0,
@@ -381,7 +386,7 @@ impl Component {
             _ => {}
         }
 
-        Gc::new(Self {
+        let component = Gc::new(Self {
             id,
             component_type,
             children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
@@ -410,7 +415,10 @@ impl Component {
             cursor_blink: GcCell::new(None),
             clip: GcCell::new(false),
             ime_area: GcCell::new(None),
-        })
+        });
+
+        let handle = scope.handle(&component);
+        handle.to_gc()
     }
 
     /// Create a new component with a globally unique ID and properties (for use in slots)

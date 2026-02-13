@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::future::Future;
 
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
@@ -133,7 +135,11 @@ where
         let fetcher = fetcher_clone.clone();
         let dispatcher = dispatcher.clone();
 
-        set_state_clone.set(Gc::new(ResourceState::Loading));
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+        let loading_state = Gc::new(ResourceState::Loading);
+        let loading_handle = scope.handle(&loading_state);
+        set_state_clone.set(loading_handle.to_gc());
 
         let rt = get_or_init_runtime();
         let handle = rt.spawn(async move {

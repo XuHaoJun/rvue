@@ -110,6 +110,7 @@ pub use properties::{
     TextContent, TextInputValue, WidgetProperty, WidgetStyles,
 };
 pub use render::{render_component, FlexScrollState, Scene};
+pub use rudo_gc::handles::HandleScope;
 pub use rudo_gc::Gc;
 pub use rvue_style::Overflow;
 pub use signal::{

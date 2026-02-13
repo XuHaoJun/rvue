@@ -2,6 +2,8 @@
 
 use crate::component::Component;
 use crate::signal::SignalDataInner;
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,17 +24,23 @@ pub fn create_effect<F>(closure: F) -> Gc<Effect>
 where
     F: Fn() + 'static,
 {
+    let tcb = current_thread_control_block().expect("GC not initialized");
+    let scope = HandleScope::new(&tcb);
+
     let effect = Effect::new(closure);
+    let handle = scope.handle(&effect);
+    let escaped_gc = handle.to_gc();
+
     DEFER_EFFECT_RUN.with(|defer| {
         if *defer.borrow() {
             EFFECTS_PENDING_RUN.with(|pending| {
-                pending.borrow_mut().push(Gc::clone(&effect));
+                pending.borrow_mut().push(Gc::clone(&escaped_gc));
             });
         } else {
-            Effect::run(&effect);
+            Effect::run(&escaped_gc);
         }
     });
-    effect
+    escaped_gc
 }
 
 /// Flush any pending effects that were deferred during layout tree building

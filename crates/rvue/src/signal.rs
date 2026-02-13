@@ -6,6 +6,8 @@
 pub use rvue_signals::{create_signal as create_signal_base, SignalData, SignalRead, SignalWrite};
 
 use crate::effect::{current_effect, Effect};
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::Ordering;
@@ -259,8 +261,14 @@ impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
 pub fn create_signal<T: Trace + Clone + 'static>(
     initial_value: T,
 ) -> (ReadSignal<T>, WriteSignal<T>) {
+    let tcb = current_thread_control_block().expect("GC not initialized");
+    let scope = HandleScope::new(&tcb);
+
     let data = Gc::new(SignalDataInner::new(initial_value));
-    (ReadSignal { data: Gc::clone(&data) }, WriteSignal { data })
+    let handle = scope.handle(&data);
+    let escaped_gc = handle.to_gc();
+
+    (ReadSignal { data: Gc::clone(&escaped_gc) }, WriteSignal { data: escaped_gc })
 }
 
 pub fn create_memo<T: Trace + Clone + 'static, F>(f: F) -> ReadSignal<T>

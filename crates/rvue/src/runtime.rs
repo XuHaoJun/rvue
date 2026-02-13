@@ -1,4 +1,6 @@
 use crate::component::Component;
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::Gc;
 use std::cell::RefCell;
 
@@ -26,5 +28,7 @@ pub fn current_owner() -> Option<Gc<Component>> {
 /// Execute a closure within a component scope.
 /// This is used by the #[component] macro and BuildContext.
 pub fn with_component_scope<R>(component: Gc<Component>, f: impl FnOnce() -> R) -> R {
+    let tcb = current_thread_control_block().expect("GC not initialized");
+    let _scope = HandleScope::new(&tcb);
     with_owner(component, f)
 }

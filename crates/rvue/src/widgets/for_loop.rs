@@ -10,6 +10,8 @@ use crate::widget::{
 use crate::widgets::keyed_state::{diff_keys, KeyedState};
 use indexmap::IndexSet;
 use log::warn;
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace};
 use rustc_hash::FxHasher;
 use std::hash::{BuildHasherDefault, Hash};
@@ -307,7 +309,12 @@ where
         reorder_children(&component, &keyed_state.rendered_items.borrow());
 
         let keyed_state_gc = GcCell::new(keyed_state);
-        let keyed_state_gc_shared = Gc::new(keyed_state_gc);
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
+        let keyed_state_gc_gc = Gc::new(keyed_state_gc);
+        let handle = scope.handle(&keyed_state_gc_gc);
+        let keyed_state_gc_shared = handle.to_gc();
         let comp_clone = Gc::clone(&component);
         let key_fn_clone = self.key_fn;
         let view_fn_clone = self.view_fn;

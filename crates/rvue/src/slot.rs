@@ -18,6 +18,8 @@
 use crate::component::Component;
 use crate::view::ViewStruct;
 use crate::widget::BuildContext;
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, Trace};
 
 /// Marker trait for slot properties
@@ -154,7 +156,12 @@ where
     F: Fn(&mut BuildContext) -> ViewStruct + 'static,
 {
     fn to_children(self) -> ChildrenFn {
-        ChildrenFn(Gc::new(LazyView::new(Box::new(self))))
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
+        let lazy_view = Gc::new(LazyView::new(Box::new(self)));
+        let handle = scope.handle(&lazy_view);
+        ChildrenFn(handle.to_gc())
     }
 }
 
@@ -169,8 +176,14 @@ where
 
 impl ToChildren<ChildrenFn> for ViewStruct {
     fn to_children(self) -> ChildrenFn {
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
         let view = self;
-        ChildrenFn(Gc::new(LazyView::new(Box::new(move |_ctx: &mut BuildContext| view.clone()))))
+        let lazy_view =
+            Gc::new(LazyView::new(Box::new(move |_ctx: &mut BuildContext| view.clone())));
+        let handle = scope.handle(&lazy_view);
+        ChildrenFn(handle.to_gc())
     }
 }
 
@@ -183,13 +196,18 @@ impl ToChildren<Children> for ViewStruct {
 
 impl ToChildren<ChildrenFn> for MaybeChildren {
     fn to_children(self) -> ChildrenFn {
-        ChildrenFn(Gc::new(LazyView::new(Box::new(|_ctx: &mut BuildContext| {
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
+        let lazy_view = Gc::new(LazyView::new(Box::new(|_ctx: &mut BuildContext| {
             ViewStruct::new(Component::with_properties(
                 0,
                 crate::component::ComponentType::Text,
                 crate::properties::PropertyMap::new(),
             ))
-        }))))
+        })));
+        let handle = scope.handle(&lazy_view);
+        ChildrenFn(handle.to_gc())
     }
 }
 

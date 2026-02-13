@@ -6,6 +6,8 @@
 //! - IME composition support
 //! - Basic text editing operations
 
+use rudo_gc::handles::HandleScope;
+use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -571,11 +573,21 @@ impl Default for SharedTextEditor {
 
 impl SharedTextEditor {
     pub fn new() -> Self {
-        Self(Gc::new(TextEditor::new()))
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
+        let editor = Gc::new(TextEditor::new());
+        let handle = scope.handle(&editor);
+        Self(handle.to_gc())
     }
 
     pub fn with_text(text: &str) -> Self {
-        Self(Gc::new(TextEditor::with_text(text)))
+        let tcb = current_thread_control_block().expect("GC not initialized");
+        let scope = HandleScope::new(&tcb);
+
+        let editor = Gc::new(TextEditor::with_text(text));
+        let handle = scope.handle(&editor);
+        Self(handle.to_gc())
     }
 
     pub fn editor(&self) -> &Gc<TextEditor> {
