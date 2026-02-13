@@ -48,7 +48,13 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
         let already_subscribed = {
             let subscribers = self.subscribers.borrow();
             subscribers.iter().any(|sub| {
-                sub.upgrade().map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr).unwrap_or(false)
+                let upgraded =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| sub.upgrade()));
+                upgraded
+                    .ok()
+                    .flatten()
+                    .map(|e| (Gc::as_ptr(&e) as *const ()) == effect_ptr)
+                    .unwrap_or(false)
             })
         };
 
@@ -62,7 +68,14 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     pub(crate) fn notify_subscribers(&self) {
         let effects_to_update: Vec<Gc<Effect>> = {
             let subscribers = self.subscribers.borrow();
-            subscribers.iter().filter_map(|weak| weak.upgrade()).collect()
+            subscribers
+                .iter()
+                .filter_map(|weak| {
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| weak.upgrade()))
+                        .ok()
+                        .flatten()
+                })
+                .collect()
         };
 
         for effect in effects_to_update.iter() {
@@ -78,6 +91,15 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
 
     #[allow(dead_code)]
     pub(crate) fn unsubscribe_by_ptr(effect_ptr: *const (), weak_effect: &Weak<Effect>) {
+        if effect_ptr.is_null() {
+            return;
+        }
+
+        let addr = effect_ptr as usize;
+        if addr < 4096 || addr % std::mem::align_of::<SignalDataInner<()>>() != 0 {
+            return;
+        }
+
         unsafe {
             let signal = &*effect_ptr.cast::<SignalDataInner<()>>();
             let mut subscribers = signal.subscribers.borrow_mut_gen_only();
@@ -96,10 +118,18 @@ unsafe impl<T: Trace + Clone + 'static> Trace for SignalDataInner<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.inner.trace(visitor);
         let subscribers = self.subscribers.borrow();
+
+        let mut valid_subscribers = Vec::new();
         for weak in subscribers.iter() {
-            if let Some(effect) = weak.upgrade() {
-                effect.trace(visitor);
+            let upgraded =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| weak.upgrade()));
+            if let Ok(Some(effect)) = upgraded {
+                valid_subscribers.push(effect);
             }
+        }
+
+        for effect in valid_subscribers {
+            effect.trace(visitor);
         }
     }
 }

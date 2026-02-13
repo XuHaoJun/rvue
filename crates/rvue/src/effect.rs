@@ -70,12 +70,19 @@ unsafe impl Trace for Effect {
                 continue;
             }
 
+            // Validate pointer before visiting - check alignment and reasonable address
+            let addr = *signal_ptr as usize;
+            if addr < 4096 || addr % std::mem::align_of::<crate::signal::SignalDataInner<()>>() != 0
+            {
+                continue;
+            }
+
             // Trace the signal data using conservative scanning
             // SAFETY: The pointer is a valid SignalDataInner pointer that was stored when
-            // the effect subscribed to the signal.
+            // the effect subscribed to the signal. We validated alignment above.
             unsafe {
                 let signal_ptr_u8 = *signal_ptr as *const u8;
-                let size = std::mem::size_of::<SignalDataInner<()>>();
+                let size = std::mem::size_of::<crate::signal::SignalDataInner<()>>();
                 visitor.visit_region(signal_ptr_u8, size);
             }
         }
@@ -145,6 +152,23 @@ impl Effect {
         if gc_effect.is_running.swap(true, Ordering::SeqCst) {
             // Already running, skip to prevent infinite loop
             return;
+        }
+
+        // Clean up old subscriptions before re-running to prevent stale weak refs
+        // This ensures we start with a clean subscription list on each run
+        let subscriptions = std::mem::take(&mut *gc_effect.subscriptions.borrow_mut_gen_only());
+        for (signal_ptr, weak_effect) in subscriptions {
+            if !signal_ptr.is_null() {
+                let addr = signal_ptr as usize;
+                if addr >= 4096
+                    && addr % std::mem::align_of::<crate::signal::SignalDataInner<()>>() == 0
+                {
+                    crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(
+                        signal_ptr,
+                        &weak_effect,
+                    );
+                }
+            }
         }
 
         // Run cleanups from previous run
