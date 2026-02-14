@@ -4,7 +4,7 @@
 //! It handles the core value storage and versioning without subscriber tracking,
 //! which is handled by the parent crates.
 
-use rudo_gc::{Gc, GcCell, Trace};
+use rudo_gc::{Gc, GcThreadSafeCell, Trace};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Internal signal data structure containing the value and version tracking.
@@ -12,23 +12,20 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// This is the core storage type shared between rvue and rvue-style.
 /// Version tracking allows consumers to detect when values change.
 ///
-/// Design: Uses GcCell for same-thread access (fast, no locking).
-/// For cross-thread updates, use UiThreadDispatcher which holds a GcHandle
-/// and dispatches updates back to the origin thread.
-///
-/// This design is 3-10x faster than GcRwLock while still supporting
-/// async updates via the dispatcher pattern.
+/// Design: Uses GcThreadSafeCell for thread-safe cross-thread access.
+/// This allows mutations from tokio worker threads without needing
+/// to dispatch back to the main thread.
 pub struct SignalData<T: Clone + 'static> {
-    /// The stored value (protected by GcCell for same-thread access)
-    pub value: GcCell<T>,
+    /// The stored value (protected by GcThreadSafeCell for thread-safe access)
+    pub value: GcThreadSafeCell<T>,
     /// Monotonically increasing version counter
     pub version: AtomicU64,
 }
 
-impl<T: Clone + 'static> SignalData<T> {
+impl<T: Clone + Trace + 'static> SignalData<T> {
     /// Create a new signal data structure
     pub fn new(value: T) -> Self {
-        Self { value: GcCell::new(value), version: AtomicU64::new(0) }
+        Self { value: GcThreadSafeCell::new(value), version: AtomicU64::new(0) }
     }
 
     /// Get the current value
@@ -43,7 +40,7 @@ impl<T: Clone + 'static> SignalData<T> {
     /// Set a new value and increment version
     #[inline(always)]
     pub fn set(&self, value: T) {
-        *self.value.borrow_mut_gen_only() = value;
+        *self.value.borrow_mut_simple() = value;
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -53,7 +50,7 @@ impl<T: Clone + 'static> SignalData<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.value.borrow_mut_gen_only());
+        f(&mut *self.value.borrow_mut_simple());
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 

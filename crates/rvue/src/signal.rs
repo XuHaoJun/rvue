@@ -44,6 +44,11 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
     }
 
     pub(crate) fn subscribe(&self, effect: Gc<Effect>) {
+        // Skip if effect is being cleaned up (marked invalid)
+        if !effect.is_valid() {
+            return;
+        }
+
         let weak_effect = Gc::downgrade(&effect);
         let effect_ptr = Gc::as_ptr(&effect) as *const ();
         let signal_ptr = self as *const _ as *const ();
@@ -109,7 +114,12 @@ impl<T: Trace + Clone + 'static> SignalDataInner<T> {
                 subscribers.len(),
                 subscriber_count
             );
-            subscribers.iter().filter_map(|weak| weak.try_upgrade()).collect()
+            // Filter: must be able to upgrade AND effect must be valid
+            subscribers
+                .iter()
+                .filter_map(|weak| weak.try_upgrade())
+                .filter(|e| e.is_valid())
+                .collect()
         };
 
         log::debug!("notify_subscribers: {} effects to update", effects_to_update.len());

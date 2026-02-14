@@ -9,7 +9,6 @@ use rudo_gc::Trace;
 
 use crate::async_runtime::cancellation::Cancellation;
 use crate::async_runtime::get_or_init_runtime;
-use crate::async_runtime::ui_thread_dispatcher::WriteSignalUiExt;
 use crate::effect::{create_effect, Effect};
 use crate::signal::{create_signal, ReadSignal, WriteSignal};
 
@@ -133,7 +132,6 @@ where
     let fetcher_clone = fetcher.clone();
     let set_state_clone = set_state.clone();
 
-    let dispatcher = set_state.ui_dispatcher();
     let version_clone = Arc::clone(&version);
     let cancellation_clone = cancellation.clone();
 
@@ -158,18 +156,20 @@ where
         let source_value = source_for_effect.get();
 
         let fetcher = fetcher_clone.clone();
-        let dispatcher = dispatcher.clone();
+        let set_state_for_task = set_state_clone.clone();
         let version_for_task = Arc::clone(&version_clone);
         let cancellation_for_task = task_cancellation.clone();
 
         log::debug!("[Resource] Setting Loading state, version={}", current_version);
 
-        // Set loading state
+        // Set loading state - now thread-safe with GcThreadSafeCell
         set_state_clone.set(Gc::new(ResourceState::Loading));
         println!("[Resource] Set Loading state");
 
+        // Use block_on to run async - this avoids Send requirement
+        // but blocks the current thread during async work
         let rt = get_or_init_runtime();
-        rt.spawn(async move {
+        rt.block_on(async move {
             println!("[Resource] Async task started, version={}", current_version);
 
             // Check cancellation before starting
@@ -205,24 +205,17 @@ where
 
             if version_for_task.load(Ordering::SeqCst) != current_version {
                 println!("[Resource] Task stale (version check 2), dropping result");
-                return; // Stale
+                return;
             }
 
             println!("[Resource] Setting final state, version={}", current_version);
 
-            // Use spawn_main_thread to create Gc on main thread (where GC heap exists)
-            let dispatcher_clone = dispatcher.clone();
+            // Direct signal update since we're on main thread
+            let final_state = Gc::new(new_state);
+            let _guard = final_state.root_guard();
+            set_state_for_task.set(final_state);
 
-            // Run Gc creation and dispatch on the main thread
-            crate::async_runtime::dispatch::UiDispatchQueue::spawn_main_thread(move || {
-                let final_state = Gc::new(new_state);
-                let _guard = final_state.root_guard();
-
-                // Use synchronous set on main thread
-                dispatcher_clone.set_sync(final_state);
-
-                println!("[Resource] State updated successfully, version={}", current_version);
-            });
+            println!("[Resource] State updated successfully, version={}", current_version);
         });
 
         // Store cancellation for cleanup

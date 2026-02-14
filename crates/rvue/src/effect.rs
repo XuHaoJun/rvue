@@ -60,6 +60,7 @@ pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
     is_dirty: AtomicBool,
     is_running: AtomicBool, // Prevent recursive execution
+    is_valid: AtomicBool,   // False when effect is being cleaned up / unsubscribed
     owner: GcCell<Option<Gc<Component>>>,
     cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
     subscriptions: GcCell<Vec<(usize, Weak<Effect>)>>, // (signal_ptr, weak_ref) pairs
@@ -92,6 +93,7 @@ impl Effect {
             closure: boxed,
             is_dirty: AtomicBool::new(true),
             is_running: AtomicBool::new(false),
+            is_valid: AtomicBool::new(true),
             owner: GcCell::new(owner),
             cleanups: GcCell::new(Vec::new()),
             subscriptions: GcCell::new(Vec::new()),
@@ -109,6 +111,11 @@ impl Effect {
         }
     }
 
+    /// Check if this effect is still valid (not being cleaned up)
+    pub fn is_valid(&self) -> bool {
+        self.is_valid.load(Ordering::SeqCst)
+    }
+
     /// Run the effect closure with automatic dependency tracking
     /// This is an associated function that requires a Gc reference
     pub fn run(gc_effect: &Gc<Self>) {
@@ -121,8 +128,17 @@ impl Effect {
             return;
         }
 
-        // Properly unsubscribe from all signals BEFORE clearing internal subscriptions
-        // This ensures the signal's subscriber list is cleaned up (Leptos-style)
+        // Step 1: Run cleanups from previous run
+        let cleanups = {
+            let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
+            std::mem::take(&mut *cleanups)
+        };
+        for cleanup in cleanups {
+            cleanup();
+        }
+
+        // Step 2: Unsubscribe from old signals while effect is valid
+        // This ensures signal's subscriber list is cleaned up
         {
             let subscriptions: Vec<(usize, Weak<Effect>)> = {
                 let mut subs = gc_effect.subscriptions.borrow_mut_gen_only();
@@ -137,21 +153,8 @@ impl Effect {
             }
         }
 
-        // Run cleanups from previous run
-        let cleanups = {
-            let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
-            std::mem::take(&mut *cleanups)
-        };
-        for cleanup in cleanups {
-            cleanup();
-        }
-
-        // Mark as clean before running
+        // Step 3: Run the closure - is_running prevents recursive execution
         gc_effect.is_dirty.store(false, Ordering::SeqCst);
-
-        // Set this effect as the current effect in thread-local storage
-        let effect_ptr = Gc::as_ptr(gc_effect) as *const ();
-        log::debug!("Effect::run: START effect ptr={:?}", effect_ptr);
 
         let previous = CURRENT_EFFECT.with(|cell| {
             let prev = cell.borrow().clone();
@@ -161,8 +164,6 @@ impl Effect {
 
         log::debug!("Effect::run: Setting current effect, previous = {:?}", previous.is_some());
 
-        // Execute the closure (this may trigger signal.get() calls which will
-        // automatically register this effect as a subscriber)
         let owner_opt = {
             let owner_ref = gc_effect.owner.borrow();
             owner_ref.clone()
@@ -176,14 +177,11 @@ impl Effect {
             (gc_effect.closure)();
         }
 
-        // Restore previous effect (if any)
         CURRENT_EFFECT.with(|cell| {
             *cell.borrow_mut() = previous;
         });
 
-        // Mark as not running
         gc_effect.is_running.store(false, Ordering::SeqCst);
-        log::debug!("Effect::run: completed effect");
     }
 
     /// Mark the effect as dirty (needs to run)
