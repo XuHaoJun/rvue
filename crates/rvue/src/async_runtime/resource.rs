@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rudo_gc::tokio::GcTokioExt;
 use rudo_gc::Gc;
@@ -170,6 +170,9 @@ where
         // Get the signal's inner Gc and create a cross-thread handle for it
         let signal_gc = set_state_clone.data.clone();
         let signal_handle = signal_gc.cross_thread_handle();
+        // Clone signal_handle for use in both async task and immediate dispatch
+        let signal_handle_for_task = signal_handle.clone();
+        let signal_handle_for_dispatch = signal_handle.clone();
 
         // Clone version and cancellation for both async task and dispatch
         let version_for_task = Arc::clone(&version_clone);
@@ -177,8 +180,13 @@ where
         let cancellation_for_task = task_cancellation.clone();
         let cancellation_for_dispatch = task_cancellation.clone();
 
-        // Create channel to send result from async task to main thread
-        let (tx, rx) = std::sync::mpsc::channel();
+        // Use Arc<Mutex<Option>> to share result between async task and dispatch
+        // This avoids the channel race condition where dispatch gives up before result arrives
+        // Note: Error type is String based on the Future definition
+        let result_arc: Arc<Mutex<Option<Result<T, String>>>> = Arc::new(Mutex::new(None));
+        let result_arc_for_task: Arc<Mutex<Option<Result<T, String>>>> = Arc::clone(&result_arc);
+        let result_arc_for_dispatch: Arc<Mutex<Option<Result<T, String>>>> =
+            Arc::clone(&result_arc);
 
         // Spawn async task (non-blocking - returns immediately)
         rt.spawn(async move {
@@ -204,137 +212,87 @@ where
                 return;
             }
 
-            // Send result through channel to main thread
-            println!("[Resource] Sending result via channel, version={}", current_version);
-            let _ = tx.send(result);
-        });
+            // Store result in Arc - this is the key fix!
+            // Instead of using a channel that can be missed, we store in shared memory
+            println!("[Resource] Storing result in shared Arc, version={}", current_version);
+            *result_arc_for_task.lock().unwrap() = Some(result);
 
-        println!("[Resource] About to dispatch callback");
+            // Trigger dispatch to process the result
+            let version_for_task = version_for_task.clone();
+            let cancellation_for_task = cancellation_for_task.clone();
+            let result_arc_for_dispatch = result_arc_for_task.clone();
 
-        // Dispatch callback to run on main thread - this will receive result and update signal
-        // Uses GcHandle which is Send+Sync to avoid capturing non-Send WriteSignal
-        use crate::async_runtime::dispatch::UiDispatchQueue;
-        println!("[Resource] Calling dispatch...");
-        UiDispatchQueue::dispatch(move || {
-            println!("[Resource] Dispatch callback executing!");
-            // Try to receive the result (non-blocking)
-            match rx.try_recv() {
-                Ok(result) => {
-                    // Check version
-                    if version_for_dispatch.load(Ordering::SeqCst) != current_version {
-                        println!("[Resource] Task stale in dispatch callback");
+            use crate::async_runtime::dispatch::UiDispatchQueue;
+            UiDispatchQueue::dispatch(move || {
+                println!("[Resource] Post-result dispatch executing!");
+                let mut guard = result_arc_for_dispatch.lock().unwrap();
+                if let Some(result) = guard.take() {
+                    if version_for_task.load(Ordering::SeqCst) != current_version {
+                        println!("[Resource] Post-result: stale version");
                         return;
                     }
-
-                    // Check cancellation
-                    if cancellation_for_dispatch.is_cancelled() {
-                        println!("[Resource] Task cancelled in dispatch");
+                    if cancellation_for_task.is_cancelled() {
+                        println!("[Resource] Post-result: cancelled");
                         return;
                     }
-
                     let new_state = match result {
                         Ok(data) => ResourceState::Ready(data),
                         Err(err) => ResourceState::Error(err),
                     };
-
-                    println!(
-                        "[Resource] Setting final state from dispatch, version={}",
-                        current_version
-                    );
-
-                    // Resolve GcHandle to get Gc<SignalDataInner>
-                    let signal_inner = signal_handle.resolve();
-
-                    // Create final state GC object
+                    println!("[Resource] Post-result: setting state, version={}", current_version);
+                    let signal_inner = signal_handle_for_task.resolve();
                     let final_state = Gc::new(new_state);
                     let _guard = final_state.root_guard();
-
-                    // Directly update signal inner (same as WriteSignal::set)
                     *signal_inner.inner.value.borrow_mut_simple() = final_state;
                     signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
                     signal_inner.notify_subscribers();
+                    println!("[Resource] Post-result: done!");
+                } else {
+                    println!("[Resource] Post-result: no result in arc (should not happen!)");
+                }
+            });
+        });
 
-                    println!("[Resource] State updated successfully, version={}", current_version);
+        // The dispatch that runs immediately - it will check the Arc
+        // If result is ready (from a fast synchronous fetcher), process it immediately
+        // Otherwise, the async task's post-result dispatch will handle it
+        use crate::async_runtime::dispatch::UiDispatchQueue;
+        println!("[Resource] Calling dispatch...");
+        UiDispatchQueue::dispatch(move || {
+            println!("[Resource] Immediate dispatch callback executing!");
+            // Try to get result from Arc
+            let mut guard = result_arc_for_dispatch.lock().unwrap();
+            if let Some(result) = guard.take() {
+                // Check version
+                if version_for_dispatch.load(Ordering::SeqCst) != current_version {
+                    println!("[Resource] Immediate dispatch: stale version");
+                    return;
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Result not ready yet - re-dispatch to try again later
-                    // This is the key to non-blocking: keep re-dispatching until result is ready
-                    println!("[Resource] Result not ready, re-dispatching...");
-                    use crate::async_runtime::dispatch::UiDispatchQueue;
-                    UiDispatchQueue::dispatch(move || {
-                        // Re-use the same logic - this creates a loop until result is ready
-                        match rx.try_recv() {
-                            Ok(result) => {
-                                if version_for_dispatch.load(Ordering::SeqCst) != current_version {
-                                    return;
-                                }
-                                if cancellation_for_dispatch.is_cancelled() {
-                                    return;
-                                }
-                                let new_state = match result {
-                                    Ok(data) => ResourceState::Ready(data),
-                                    Err(err) => ResourceState::Error(err),
-                                };
-                                println!(
-                                    "[Resource] Setting final state from re-dispatch, version={}",
-                                    current_version
-                                );
-                                let signal_inner = signal_handle.resolve();
-                                let final_state = Gc::new(new_state);
-                                let _guard = final_state.root_guard();
-                                *signal_inner.inner.value.borrow_mut_simple() = final_state;
-                                signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
-                                signal_inner.notify_subscribers();
-                                println!(
-                                    "[Resource] State updated successfully, version={}",
-                                    current_version
-                                );
-                            }
-                            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                                // Still not ready, re-dispatch again
-                                println!("[Resource] Still not ready, re-dispatching again...");
-                                UiDispatchQueue::dispatch(move || {
-                                    match rx.try_recv() {
-                                        Ok(r) => {
-                                            if version_for_dispatch.load(Ordering::SeqCst)
-                                                != current_version
-                                            {
-                                                return;
-                                            }
-                                            if cancellation_for_dispatch.is_cancelled() {
-                                                return;
-                                            }
-                                            let ns = match r {
-                                                Ok(d) => ResourceState::Ready(d),
-                                                Err(e) => ResourceState::Error(e),
-                                            };
-                                            println!("[Resource] Setting final state from 2nd re-dispatch, version={}", current_version);
-                                            let si = signal_handle.resolve();
-                                            let fs = Gc::new(ns);
-                                            let _g = fs.root_guard();
-                                            *si.inner.value.borrow_mut_simple() = fs;
-                                            si.inner.version.fetch_add(1, Ordering::SeqCst);
-                                            si.notify_subscribers();
-                                        }
-                                        Err(std::sync::mpsc::TryRecvError::Empty) => {
-                                            // Give up after multiple tries - will be handled by next effect trigger
-                                            println!("[Resource] Giving up after multiple tries");
-                                        }
-                                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                                            println!("[Resource] Channel disconnected!");
-                                        }
-                                    }
-                                });
-                            }
-                            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                                println!("[Resource] Channel disconnected!");
-                            }
-                        }
-                    });
+                // Check cancellation
+                if cancellation_for_dispatch.is_cancelled() {
+                    println!("[Resource] Immediate dispatch: cancelled");
+                    return;
                 }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    println!("[Resource] Channel disconnected!");
-                }
+                let new_state = match result {
+                    Ok(data) => ResourceState::Ready(data),
+                    Err(err) => ResourceState::Error(err),
+                };
+                println!(
+                    "[Resource] Immediate dispatch: setting state, version={}",
+                    current_version
+                );
+                let signal_inner = signal_handle_for_dispatch.resolve();
+                let final_state = Gc::new(new_state);
+                let _guard = final_state.root_guard();
+                *signal_inner.inner.value.borrow_mut_simple() = final_state;
+                signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
+                signal_inner.notify_subscribers();
+                println!("[Resource] Immediate dispatch: done!");
+            } else {
+                // Result not ready yet - the async task's post-result dispatch will handle it
+                println!(
+                    "[Resource] Immediate dispatch: result not ready, async task will handle it"
+                );
             }
         });
 
