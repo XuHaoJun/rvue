@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Single EnvFilter so LevelFilter::current() is set (needed for tracing-log).
     // Fallback to "debug" when RUST_LOG is unset so log::debug! from rvue is visible.
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("debug"))
+        .unwrap_or_else(|_| EnvFilter::new(""))
         .add_directive("rvue=debug".parse().unwrap())
         .add_directive("rudo_gc=debug".parse().unwrap());
 

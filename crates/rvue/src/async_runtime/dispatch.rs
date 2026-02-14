@@ -20,6 +20,10 @@ pub struct UiDispatchQueue;
 impl UiDispatchQueue {
     pub fn set_proxy(proxy: EventLoopProxy<RvueUserEvent>) {
         let _ = PROXY.set(proxy);
+
+        // Drain any pending callbacks that were queued before proxy was available
+        println!("[Dispatch] Proxy set, draining pending callbacks");
+        Self::drain_global_and_execute();
     }
 
     fn get_proxy() -> Option<&'static EventLoopProxy<RvueUserEvent>> {
@@ -30,11 +34,17 @@ impl UiDispatchQueue {
     where
         F: FnOnce() + Send + 'static,
     {
+        let has_proxy = Self::get_proxy().is_some();
+        println!("[Dispatch] dispatch called, has_proxy={}", has_proxy);
+
         let mut queue = GLOBAL_CALLBACKS.lock().unwrap();
         queue.push_back(Box::new(callback));
 
         if let Some(proxy) = Self::get_proxy() {
+            println!("[Dispatch] sending AsyncDispatchReady event");
             let _ = proxy.send_event(RvueUserEvent::AsyncDispatchReady);
+        } else {
+            println!("[Dispatch] NO PROXY - callback queued but not executed!");
         }
     }
 

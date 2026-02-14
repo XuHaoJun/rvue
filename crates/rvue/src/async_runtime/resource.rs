@@ -209,10 +209,14 @@ where
             let _ = tx.send(result);
         });
 
+        println!("[Resource] About to dispatch callback");
+
         // Dispatch callback to run on main thread - this will receive result and update signal
         // Uses GcHandle which is Send+Sync to avoid capturing non-Send WriteSignal
         use crate::async_runtime::dispatch::UiDispatchQueue;
+        println!("[Resource] Calling dispatch...");
         UiDispatchQueue::dispatch(move || {
+            println!("[Resource] Dispatch callback executing!");
             // Try to receive the result (non-blocking)
             match rx.try_recv() {
                 Ok(result) => {
