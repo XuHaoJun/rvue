@@ -7,11 +7,9 @@ use crate::view::View;
 use crate::widget::{
     with_current_ctx, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
 };
-use crate::widgets::keyed_state::{diff_keys, KeyedState};
+use crate::widgets::keyed_state::KeyedState;
 use indexmap::IndexSet;
 use log::warn;
-use rudo_gc::handles::HandleScope;
-use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace};
 use rustc_hash::FxHasher;
 use std::hash::{BuildHasherDefault, Hash};
@@ -132,83 +130,33 @@ where
             new_keys.insert(key);
         }
 
-        let old_keys = self.get_current_keys();
-        let diff = diff_keys(&old_keys, &new_keys);
-
         {
-            let keyed_state = self.keyed_state.borrow_mut();
-            let mut rendered_items_mut = keyed_state.rendered_items.borrow_mut_gen_only();
-
-            for op in &diff.removed {
-                if op.at < rendered_items_mut.len() {
-                    if let Some(entry) = rendered_items_mut[op.at].take() {
-                        entry.component.unmount();
-                    }
-                }
-            }
-
-            if diff.clear {
-                rendered_items_mut.clear();
-            }
-
-            if rendered_items_mut.len() < new_keys.len() {
-                rendered_items_mut.resize_with(new_keys.len(), || None);
-            }
-        }
-
-        {
+            // Safety-first strategy: rebuild the keyed list each update.
+            // This avoids complex move/remove bookkeeping that can leave stale component refs.
             let mut keyed_state = self.keyed_state.borrow_mut();
-            let mut rendered_items_mut = keyed_state.rendered_items.borrow_mut_gen_only();
+            let mut rendered_items_mut = keyed_state.rendered_items.borrow_mut();
 
-            for op in &diff.added {
-                if let Some(item) = new_items.get(op.at) {
-                    let key = key_fn(item);
-                    let view = with_current_ctx(ctx.id_counter, || view_fn(item.clone()));
-                    let child_component = view.into_component();
-
-                    while rendered_items_mut.len() <= op.at {
-                        rendered_items_mut.push(None);
-                    }
-
-                    rendered_items_mut[op.at] = Some(crate::widgets::keyed_state::ItemEntry {
-                        key: key.clone(),
-                        item: item.clone(),
-                        component: Gc::clone(&child_component),
-                        mounted: false,
-                    });
-                    child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
-                    child_component.mount(None);
-                }
+            for entry in rendered_items_mut.iter_mut().flatten() {
+                entry.component.unmount();
             }
+            rendered_items_mut.clear();
 
-            for op in &diff.moved {
-                for i in 0..op.len {
-                    let from_idx = op.from + i;
-                    let to_idx = op.to + i;
-                    if from_idx < rendered_items_mut.len() && to_idx < rendered_items_mut.len() {
-                        let (adjusted_from_idx, adjusted_to_idx) = if op.move_in_dom {
-                            (from_idx, to_idx)
-                        } else {
-                            let removed_before_from =
-                                diff.removed.iter().filter(|r| r.at < from_idx).count();
-                            let adjusted_from_idx = from_idx - removed_before_from;
-                            let removed_before_to =
-                                diff.removed.iter().filter(|r| r.at < to_idx).count();
-                            let adjusted_to_idx = to_idx - removed_before_to;
-                            (adjusted_from_idx, adjusted_to_idx)
-                        };
+            for item in &new_items {
+                let key = key_fn(item);
+                let view = with_current_ctx(ctx.id_counter, || view_fn(item.clone()));
+                let child_component = view.into_component();
+                child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
+                child_component.mount(None);
 
-                        if adjusted_from_idx < rendered_items_mut.len()
-                            && adjusted_to_idx < rendered_items_mut.len()
-                        {
-                            rendered_items_mut.swap(adjusted_from_idx, adjusted_to_idx);
-                        }
-                    }
-                }
+                rendered_items_mut.push(Some(crate::widgets::keyed_state::ItemEntry {
+                    key,
+                    item: item.clone(),
+                    component: Gc::clone(&child_component),
+                    mounted: false,
+                }));
             }
 
             reorder_children(&keyed_state.marker, &rendered_items_mut);
-
             drop(rendered_items_mut);
             keyed_state.hashed_items = new_keys.clone();
         }
@@ -221,7 +169,7 @@ fn reorder_children<K, T>(
     parent: &Gc<Component>,
     rendered_items: &[Option<crate::widgets::keyed_state::ItemEntry<K, T>>],
 ) {
-    let mut children = parent.children.borrow_mut_gen_only();
+    let mut children = parent.children.borrow_mut();
     children.clear();
     for item in rendered_items.iter().flatten() {
         children.push(Gc::clone(&item.component));
@@ -309,17 +257,11 @@ where
         reorder_children(&component, &keyed_state.rendered_items.borrow());
 
         let keyed_state_gc = GcCell::new(keyed_state);
-        let tcb = current_thread_control_block().expect("GC not initialized");
-        let scope = HandleScope::new(&tcb);
-
-        let keyed_state_gc_gc = Gc::new(keyed_state_gc);
-        let handle = scope.handle(&keyed_state_gc_gc);
-        let keyed_state_gc_shared = handle.to_gc();
+        let keyed_state_gc_shared = Gc::new(keyed_state_gc);
         let comp_clone = Gc::clone(&component);
         let key_fn_clone = self.key_fn;
         let view_fn_clone = self.view_fn;
         let items_reactive = self.items.clone();
-        let ctx_id = *ctx.id_counter;
         let keyed_state_for_effect = Gc::clone(&keyed_state_gc_shared);
 
         let item_count_effect = if self.items.is_reactive() {
@@ -335,7 +277,7 @@ where
                     };
                     let mut temp_taffy = taffy::TaffyTree::new();
                     let mut temp_text_context = crate::text::TextContext::new();
-                    let mut temp_id_counter = ctx_id;
+                    let mut temp_id_counter = crate::component::next_component_id();
                     let mut temp_ctx = BuildContext::new(
                         &mut temp_taffy,
                         &mut temp_text_context,
@@ -366,46 +308,12 @@ where
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        if self.items.is_reactive() {
-            let comp = Gc::clone(&state.component);
-            let key_fn = self.key_fn;
-            let view_fn = self.view_fn;
-            let items = self.items.clone();
-            let keyed_state_gc_shared = Gc::clone(&state.keyed_state);
-            let ctx_id = state.component.id;
-
-            let effect = create_effect(move || {
-                let new_items = items.get();
-                let new_count = new_items.len();
-                {
-                    let state = ForState {
-                        component: Gc::clone(&comp),
-                        keyed_state: Gc::clone(&keyed_state_gc_shared),
-                        item_count_effect: None,
-                        _phantom: std::marker::PhantomData,
-                    };
-                    let mut temp_taffy = taffy::TaffyTree::new();
-                    let mut temp_text_context = crate::text::TextContext::new();
-                    let mut temp_id_counter = ctx_id;
-                    let mut temp_ctx = BuildContext::new(
-                        &mut temp_taffy,
-                        &mut temp_text_context,
-                        &mut temp_id_counter,
-                    );
-                    let _new_keys =
-                        state.update_keyed_items(new_items, &key_fn, &view_fn, &mut temp_ctx);
-                }
-                comp.properties.borrow_mut_gen_only().insert(ForItemCount(new_count));
-                comp.mark_dirty();
-            });
-            state.component.add_effect(Gc::clone(&effect));
-            state.item_count_effect = Some(effect);
-        } else {
+        if !self.items.is_reactive() {
             let new_items = self.items.get();
             let new_count = new_items.len();
             let mut temp_taffy = taffy::TaffyTree::new();
             let mut temp_text_context = crate::text::TextContext::new();
-            let mut temp_id_counter = self.items.get().len() as u64 + 1000;
+            let mut temp_id_counter = crate::component::next_component_id();
             let mut temp_ctx =
                 BuildContext::new(&mut temp_taffy, &mut temp_text_context, &mut temp_id_counter);
             let _ = state.update_keyed_items(new_items, &self.key_fn, &self.view_fn, &mut temp_ctx);

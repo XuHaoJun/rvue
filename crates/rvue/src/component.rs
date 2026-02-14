@@ -13,8 +13,6 @@ use crate::render::FlexScrollState;
 use crate::text::cursor::GcCursorBlinkState;
 use crate::text::editor::SharedTextEditor;
 use crate::text::TextContext;
-use rudo_gc::handles::HandleScope;
-use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace};
 use std::any::{Any, TypeId};
 use std::sync::atomic::AtomicBool;
@@ -288,7 +286,7 @@ pub struct Component {
 unsafe impl Trace for Component {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.children.trace(visitor);
-        // self.parent.trace(visitor); // REMOVED: Tracing parent creates Component <-> Component cycles
+        self.parent.trace(visitor);
         self.effects.trace(visitor);
         self.properties.trace(visitor);
         self.layout_node.trace(visitor);
@@ -365,9 +363,6 @@ impl Component {
         component_type: ComponentType,
         properties: PropertyMap,
     ) -> Gc<Self> {
-        let tcb = current_thread_control_block().expect("GC not initialized");
-        let scope = HandleScope::new(&tcb);
-
         let initial_children_capacity = match component_type {
             ComponentType::Flex => 8,
             _ => 0,
@@ -417,8 +412,7 @@ impl Component {
             ime_area: GcCell::new(None),
         });
 
-        let handle = scope.handle(&component);
-        handle.to_gc()
+        component
     }
 
     /// Create a new component with a globally unique ID and properties (for use in slots)
@@ -515,17 +509,17 @@ impl Component {
 
     /// Set the parent component
     pub fn set_parent(&self, parent: Option<Gc<Component>>) {
-        *self.parent.borrow_mut_gen_only() = parent;
+        *self.parent.borrow_mut() = parent;
     }
 
     /// Add an effect to this component
     pub fn add_effect(&self, effect: Gc<Effect>) {
-        self.effects.borrow_mut_gen_only().push(effect);
+        self.effects.borrow_mut().push(effect);
     }
 
     /// Remove an effect from this component
     pub fn remove_effect(&self, effect: &Gc<Effect>) {
-        let mut effects = self.effects.borrow_mut_gen_only();
+        let mut effects = self.effects.borrow_mut();
         if let Some(pos) = effects.iter().position(|e| Gc::ptr_eq(e, effect)) {
             effects.remove(pos);
         }

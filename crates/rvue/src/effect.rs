@@ -1,34 +1,25 @@
-//! Reactive effect implementation for automatic dependency tracking
+//! Effect system for reactive computations
+//!
+//! This module provides the `Effect` type and related utilities for
+//! automatic dependency tracking and reactive updates.
 
 use crate::component::Component;
-use rudo_gc::handles::HandleScope;
-use rudo_gc::heap::current_thread_control_block;
 use rudo_gc::{Gc, GcCell, Trace, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-// Thread-local storage for tracking the currently running effect
 thread_local! {
-    static CURRENT_EFFECT: RefCell<Option<Gc<Effect>>> = const { RefCell::new(None) };
-    static EFFECTS_PENDING_RUN: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
+    pub(crate) static CURRENT_EFFECT: RefCell<Option<Weak<Effect>>> = const { RefCell::new(None) };
     static DEFER_EFFECT_RUN: RefCell<bool> = const { RefCell::new(false) };
+    static EFFECTS_PENDING_RUN: RefCell<Vec<Gc<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Create a new effect that automatically runs when dependencies change
-///
-/// The effect runs immediately on creation, and automatically tracks
-/// which signals are accessed during execution. When any tracked signal
-/// changes, the effect will be marked dirty and can be re-run.
-pub fn create_effect<F>(closure: F) -> Gc<Effect>
+/// Create a new effect that runs a closure and automatically tracks its dependencies
+pub fn create_effect<F>(f: F) -> Gc<Effect>
 where
     F: Fn() + 'static,
 {
-    let tcb = current_thread_control_block().expect("GC not initialized");
-    let scope = HandleScope::new(&tcb);
-
-    let effect = Effect::new(closure);
-    let handle = scope.handle(&effect);
-    let escaped_gc = handle.to_gc();
+    let escaped_gc = Effect::new(f);
 
     DEFER_EFFECT_RUN.with(|defer| {
         if *defer.borrow() {
@@ -55,6 +46,13 @@ pub fn set_defer_effect_run(defer: bool) {
     DEFER_EFFECT_RUN.with(|d| *d.borrow_mut() = defer);
 }
 
+/// Register a cleanup function for the current effect or component
+pub fn on_cleanup<F: FnOnce() + 'static>(cleanup: F) {
+    if let Some(effect) = current_effect() {
+        effect.cleanups.borrow_mut_gen_only().push(Box::new(cleanup));
+    }
+}
+
 /// Effect structure for reactive computations
 pub struct Effect {
     closure: Box<dyn Fn() + 'static>,
@@ -62,13 +60,16 @@ pub struct Effect {
     is_running: AtomicBool, // Prevent recursive execution
     is_valid: AtomicBool,   // False when effect is being cleaned up / unsubscribed
     owner: GcCell<Option<Gc<Component>>>,
-    cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
-    subscriptions: GcCell<Vec<(usize, Weak<Effect>)>>, // (signal_ptr, weak_ref) pairs
+    pub(crate) cleanups: GcCell<Vec<Box<dyn FnOnce() + 'static>>>,
+    pub(crate) subscriptions: GcCell<Vec<(usize, Weak<()>, Weak<()>)>>, // (signal_ptr, signal_weak, effect_weak)
 }
 
 unsafe impl Trace for Effect {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.owner.trace(visitor);
+        // Note: cleanups and subscriptions are not traced because:
+        // 1. Weak refs in subscriptions don't need marking
+        // 2. cleanups are Boxed closures which aren't easily traceable
     }
 }
 
@@ -88,26 +89,41 @@ impl Effect {
         F: Fn() + 'static,
     {
         let owner = crate::runtime::current_owner();
-        let boxed = Box::new(closure);
-        Gc::new(Self {
-            closure: boxed,
-            is_dirty: AtomicBool::new(true),
+        let effect = Gc::new(Self {
+            closure: Box::new(closure),
+            is_dirty: AtomicBool::new(false),
             is_running: AtomicBool::new(false),
             is_valid: AtomicBool::new(true),
-            owner: GcCell::new(owner),
+            owner: GcCell::new(owner.clone()),
             cleanups: GcCell::new(Vec::new()),
             subscriptions: GcCell::new(Vec::new()),
-        })
+        });
+
+        if let Some(owner) = owner {
+            owner.add_effect(Gc::clone(&effect));
+        } else {
+            // Global effect - keep it alive via global root
+            crate::signal::leak_effect(Gc::clone(&effect));
+        }
+
+        effect
     }
 
     /// Register a signal that this effect is subscribed to
-    pub fn add_subscription(&self, signal_ptr: usize, weak_effect: &Weak<Effect>) {
+    pub fn add_subscription(
+        &self,
+        signal_ptr: usize,
+        signal_weak: &Weak<()>,
+        weak_opaque: &Weak<()>,
+    ) {
         let mut subscriptions = self.subscriptions.borrow_mut_gen_only();
 
         // Avoid duplicates
-        if !subscriptions.iter().any(|(ptr, w)| *ptr == signal_ptr && Weak::ptr_eq(w, weak_effect))
+        if !subscriptions.iter().any(|(ptr, s, w)| {
+            *ptr == signal_ptr && Weak::ptr_eq(s, signal_weak) && Weak::ptr_eq(w, weak_opaque)
+        })
         {
-            subscriptions.push((signal_ptr, weak_effect.clone()));
+            subscriptions.push((signal_ptr, signal_weak.clone(), weak_opaque.clone()));
         }
     }
 
@@ -123,12 +139,10 @@ impl Effect {
 
         // Prevent recursive execution
         if gc_effect.is_running.swap(true, Ordering::SeqCst) {
-            log::debug!("Effect::run: already running, skipping");
-            // Already running, skip to prevent infinite loop
             return;
         }
 
-        // Step 1: Run cleanups from previous run
+        // Step 1: Run cleanups
         let cleanups = {
             let mut cleanups = gc_effect.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)
@@ -137,45 +151,24 @@ impl Effect {
             cleanup();
         }
 
-        // Step 2: Unsubscribe from old signals while effect is valid
-        // This ensures signal's subscriber list is cleaned up
+        // Step 2: Drop old subscription records.
+        // We intentionally avoid raw-pointer signal mutation here because stale
+        // pointers can be reclaimed by GC; signals self-clean dead weak refs on notify.
         {
-            let subscriptions: Vec<(usize, Weak<Effect>)> = {
-                let mut subs = gc_effect.subscriptions.borrow_mut_gen_only();
-                std::mem::take(&mut subs)
-            };
-            for (signal_ptr, weak_effect) in subscriptions {
-                let signal_ptr_void = signal_ptr as *const ();
-                crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(
-                    signal_ptr_void,
-                    &weak_effect,
-                );
-            }
+            let mut subs = gc_effect.subscriptions.borrow_mut_gen_only();
+            subs.clear();
         }
 
         // Step 3: Run the closure - is_running prevents recursive execution
         gc_effect.is_dirty.store(false, Ordering::SeqCst);
 
         let previous = CURRENT_EFFECT.with(|cell| {
-            let prev = cell.borrow().clone();
-            *cell.borrow_mut() = Some(Gc::clone(gc_effect));
+            let prev = (*cell.borrow()).clone();
+            *cell.borrow_mut() = Some(Gc::downgrade(gc_effect));
             prev
         });
 
-        log::debug!("Effect::run: Setting current effect, previous = {:?}", previous.is_some());
-
-        let owner_opt = {
-            let owner_ref = gc_effect.owner.borrow();
-            owner_ref.clone()
-        };
-
-        if let Some(owner) = owner_opt {
-            crate::runtime::with_owner(owner, || {
-                (gc_effect.closure)();
-            });
-        } else {
-            (gc_effect.closure)();
-        }
+        (gc_effect.closure)();
 
         CURRENT_EFFECT.with(|cell| {
             *cell.borrow_mut() = previous;
@@ -205,20 +198,13 @@ impl Effect {
     ///
     /// This properly removes the weak ref from each signal's subscriber list.
     fn unsubscribe_all(&self) {
-        let subscriptions: Vec<(usize, Weak<Effect>)> = {
-            let mut subs = self.subscriptions.borrow_mut_gen_only();
-            std::mem::take(&mut subs)
-        };
-
-        for (signal_ptr, weak_effect) in subscriptions {
-            let signal_ptr_void = signal_ptr as *const ();
-            crate::signal::SignalDataInner::<()>::unsubscribe_by_ptr(signal_ptr_void, &weak_effect);
-        }
+        self.subscriptions.borrow_mut_gen_only().clear();
     }
 }
 
 impl Drop for Effect {
     fn drop(&mut self) {
+        self.is_valid.store(false, Ordering::SeqCst);
         self.unsubscribe_all();
     }
 }
@@ -226,7 +212,7 @@ impl Drop for Effect {
 /// Get the currently running effect (if any)
 /// This is used by signals to automatically register dependencies
 pub(crate) fn current_effect() -> Option<Gc<Effect>> {
-    CURRENT_EFFECT.with(|cell| cell.borrow().clone())
+    CURRENT_EFFECT.with(|cell| cell.borrow().as_ref().and_then(|w| w.try_upgrade()))
 }
 
 /// Run a closure without tracking any dependencies
@@ -243,21 +229,4 @@ where
         *cell.borrow_mut() = previous;
     });
     result
-}
-
-/// Register a cleanup function for the current reactive scope (Effect or Component)
-pub fn on_cleanup<F>(f: F)
-where
-    F: FnOnce() + 'static,
-{
-    // Try Effect first
-    if let Some(effect) = current_effect() {
-        effect.cleanups.borrow_mut_gen_only().push(Box::new(f));
-        return;
-    }
-
-    // Try Component
-    if let Some(owner) = crate::runtime::current_owner() {
-        owner.cleanups.borrow_mut_gen_only().push(Box::new(f));
-    }
 }

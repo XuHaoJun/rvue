@@ -686,7 +686,7 @@ impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
                 self.focused_path.clear();
                 *self.pointer_capture.borrow_mut() = None;
                 *self.hovered_component.borrow_mut() = None;
-                self.scene.root_components.clear();
+                self.scene.root_components.borrow_mut().clear();
                 self.scene.vello_scene = None;
                 self.view = None;
                 event_loop.exit();
@@ -833,7 +833,7 @@ impl<'a> Drop for AppState<'a> {
         *self.hovered_component.borrow_mut() = None;
 
         // Clear the scene's root components to break the reference chain
-        self.scene.root_components.clear();
+        self.scene.root_components.borrow_mut().clear();
         self.scene.vello_scene = None;
 
         // Clear the view to break the reference to root component
@@ -946,7 +946,7 @@ impl<'a> AppState<'a> {
         });
 
         // Populate scene from view if not already done
-        if self.scene.root_components.is_empty() {
+        if self.scene.root_components.borrow().is_empty() {
             if let Some(view) = &self.view {
                 self.scene.add_fragment(view.root_component.clone());
             }
@@ -1109,6 +1109,7 @@ pub fn run_app<F>(view_fn: F) -> Result<(), AppError>
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
+    rudo_gc::set_gc_enabled(false);
     rudo_gc::set_collect_condition(|_| false);
 
     let view = view_fn();
@@ -1185,6 +1186,7 @@ pub fn run_app_with_stylesheet<F>(
 where
     F: FnOnce() -> ViewStruct + 'static,
 {
+    rudo_gc::set_gc_enabled(false);
     rudo_gc::set_collect_condition(|_| false);
 
     let view = view_fn();

@@ -263,7 +263,7 @@ where
             tokio::select! {
                 biased;
                 _ = interval.tick() => {
-                    let current = read_handle.get().inner.get();
+                    let current = read_handle.get().get();
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(current)));
                     match result {
                         Ok(Some(new_value)) => {

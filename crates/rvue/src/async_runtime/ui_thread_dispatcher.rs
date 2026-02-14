@@ -9,7 +9,7 @@ use rudo_gc::handles::GcHandle;
 use rudo_gc::Gc;
 use rudo_gc::Trace;
 
-use crate::signal::SignalDataInner;
+use crate::signal::{SignalData, SignalDataExt};
 
 /// A handle for dispatching signal updates from async contexts to the UI thread.
 ///
@@ -17,7 +17,7 @@ use crate::signal::SignalDataInner;
 /// and can be safely sent to any thread. Resolution happens on the UI thread.
 #[derive(Clone)]
 pub struct UiThreadDispatcher<T: Trace + Clone + 'static> {
-    handle: GcHandle<SignalDataInner<T>>,
+    handle: GcHandle<SignalData<T>>,
 }
 
 impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
@@ -41,12 +41,12 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
         let handle = self.handle.clone();
         super::dispatch::dispatch_to_ui(move || {
             log::debug!("[Dispatcher] Starting dispatch");
-            let signal: Gc<SignalDataInner<T>> = handle.resolve();
+            let signal: Gc<SignalData<T>> = handle.resolve();
             let signal_ptr = &*signal as *const _ as *const ();
             log::debug!("[Dispatcher] Resolved signal {:?}, setting value", signal_ptr);
-            *signal.inner.value.borrow_mut_gen_only() = value;
+            *signal.value.borrow_mut_simple() = value;
             log::debug!("[Dispatcher] Value set, incrementing version");
-            signal.inner.version.fetch_add(1, Ordering::SeqCst);
+            signal.version.fetch_add(1, Ordering::SeqCst);
             log::debug!("[Dispatcher] Calling notify_subscribers on signal {:?}", signal_ptr);
             signal.notify_subscribers();
             log::debug!("[Dispatcher] notify_subscribers completed");
@@ -57,9 +57,9 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
     ///
     /// This MUST be called on the main thread where the GC heap exists.
     pub fn set_sync(&self, value: T) {
-        let signal: Gc<SignalDataInner<T>> = self.handle.resolve();
-        *signal.inner.value.borrow_mut_gen_only() = value;
-        signal.inner.version.fetch_add(1, Ordering::SeqCst);
+        let signal: Gc<SignalData<T>> = self.handle.resolve();
+        *signal.value.borrow_mut_simple() = value;
+        signal.version.fetch_add(1, Ordering::SeqCst);
         signal.notify_subscribers();
     }
 }
