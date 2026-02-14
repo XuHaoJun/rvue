@@ -253,8 +253,80 @@ where
                     println!("[Resource] State updated successfully, version={}", current_version);
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Result not ready yet, will be called again
-                    println!("[Resource] Result not ready yet...");
+                    // Result not ready yet - re-dispatch to try again later
+                    // This is the key to non-blocking: keep re-dispatching until result is ready
+                    println!("[Resource] Result not ready, re-dispatching...");
+                    use crate::async_runtime::dispatch::UiDispatchQueue;
+                    UiDispatchQueue::dispatch(move || {
+                        // Re-use the same logic - this creates a loop until result is ready
+                        match rx.try_recv() {
+                            Ok(result) => {
+                                if version_for_dispatch.load(Ordering::SeqCst) != current_version {
+                                    return;
+                                }
+                                if cancellation_for_dispatch.is_cancelled() {
+                                    return;
+                                }
+                                let new_state = match result {
+                                    Ok(data) => ResourceState::Ready(data),
+                                    Err(err) => ResourceState::Error(err),
+                                };
+                                println!(
+                                    "[Resource] Setting final state from re-dispatch, version={}",
+                                    current_version
+                                );
+                                let signal_inner = signal_handle.resolve();
+                                let final_state = Gc::new(new_state);
+                                let _guard = final_state.root_guard();
+                                *signal_inner.inner.value.borrow_mut_simple() = final_state;
+                                signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
+                                signal_inner.notify_subscribers();
+                                println!(
+                                    "[Resource] State updated successfully, version={}",
+                                    current_version
+                                );
+                            }
+                            Err(std::sync::mpsc::TryRecvError::Empty) => {
+                                // Still not ready, re-dispatch again
+                                println!("[Resource] Still not ready, re-dispatching again...");
+                                UiDispatchQueue::dispatch(move || {
+                                    match rx.try_recv() {
+                                        Ok(r) => {
+                                            if version_for_dispatch.load(Ordering::SeqCst)
+                                                != current_version
+                                            {
+                                                return;
+                                            }
+                                            if cancellation_for_dispatch.is_cancelled() {
+                                                return;
+                                            }
+                                            let ns = match r {
+                                                Ok(d) => ResourceState::Ready(d),
+                                                Err(e) => ResourceState::Error(e),
+                                            };
+                                            println!("[Resource] Setting final state from 2nd re-dispatch, version={}", current_version);
+                                            let si = signal_handle.resolve();
+                                            let fs = Gc::new(ns);
+                                            let _g = fs.root_guard();
+                                            *si.inner.value.borrow_mut_simple() = fs;
+                                            si.inner.version.fetch_add(1, Ordering::SeqCst);
+                                            si.notify_subscribers();
+                                        }
+                                        Err(std::sync::mpsc::TryRecvError::Empty) => {
+                                            // Give up after multiple tries - will be handled by next effect trigger
+                                            println!("[Resource] Giving up after multiple tries");
+                                        }
+                                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                                            println!("[Resource] Channel disconnected!");
+                                        }
+                                    }
+                                });
+                            }
+                            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                                println!("[Resource] Channel disconnected!");
+                            }
+                        }
+                    });
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     println!("[Resource] Channel disconnected!");

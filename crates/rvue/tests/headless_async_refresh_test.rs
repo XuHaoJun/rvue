@@ -5,13 +5,14 @@
 mod tests {
     use rvue::async_runtime::create_resource;
     use rvue::create_signal;
-    use rvue::headless::{advance, init_runtime};
+    use rvue::headless::{advance, advance_tokio, init_runtime};
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
 
     fn wait_for_async() {
         for _ in 0..20 {
+            advance_tokio();
             advance();
             std::thread::sleep(Duration::from_millis(10));
         }
@@ -40,11 +41,13 @@ mod tests {
         for i in 0..10 {
             println!("=== Setting source to {}", i);
             set_source.set(i);
+            advance_tokio();
             advance();
 
             // Wait for async to complete
             let mut waited = 0;
             while !resource.get().is_ready() && waited < 100 {
+                advance_tokio();
                 advance();
                 std::thread::sleep(Duration::from_millis(20));
                 waited += 1;
@@ -79,6 +82,7 @@ mod tests {
         // Rapid updates - this might trigger the crash
         for i in 0..20 {
             set_source.set(i);
+            advance_tokio();
             advance();
         }
 

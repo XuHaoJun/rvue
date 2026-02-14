@@ -60,6 +60,15 @@ pub mod headless {
         run_effects();
     }
 
+    /// Advance tokio runtime by spawning a task that yields
+    /// This helps process spawned async tasks in tests
+    pub fn advance_tokio() {
+        let rt = get_or_init_runtime();
+        let _ = rt.block_on(async {
+            tokio::time::sleep(std::time::Duration::ZERO).await;
+        });
+    }
+
     /// Run the async system until no more work is pending
     pub fn settle() {
         loop {
