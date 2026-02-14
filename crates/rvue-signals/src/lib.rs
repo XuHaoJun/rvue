@@ -40,7 +40,10 @@ impl<T: Clone + Trace + 'static> SignalData<T> {
     /// Set a new value and increment version
     #[inline(always)]
     pub fn set(&self, value: T) {
-        *self.value.borrow_mut_simple() = value;
+        let _old = {
+            let mut guard = self.value.borrow_mut_simple();
+            std::mem::replace(&mut *guard, value)
+        };
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -50,7 +53,12 @@ impl<T: Clone + Trace + 'static> SignalData<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.value.borrow_mut_simple());
+        let _old = {
+            let mut guard = self.value.borrow_mut_simple();
+            let old = (*guard).clone();
+            f(&mut *guard);
+            old
+        };
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 

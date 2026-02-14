@@ -1585,6 +1585,7 @@ dependencies = [
  "rvue-macro",
  "rvue-style",
  "serde",
+ "tokio",
  "tracing-log",
  "tracing-subscriber",
 ]

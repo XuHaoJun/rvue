@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::future::Future;
+use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -191,14 +192,21 @@ where
         // Spawn async task (non-blocking - returns immediately)
         rt.spawn(async move {
             println!("[Resource] Async task started, version={}", current_version);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
 
             // Check cancellation before starting
+            println!("[Resource] Pre-cancellation check, version={}", current_version);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
             if cancellation_for_task.is_cancelled() {
                 println!("[Resource] Task cancelled before start");
                 return;
             }
 
+            println!("[Resource] About to call fetcher, version={}", current_version);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
             let result = fetcher(source_value).await;
+            println!("[Resource] Fetcher returned, version={}", current_version);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
 
             // Check if cancelled after fetch
             if cancellation_for_task.is_cancelled() {
@@ -215,6 +223,7 @@ where
             // Store result in Arc - this is the key fix!
             // Instead of using a channel that can be missed, we store in shared memory
             println!("[Resource] Storing result in shared Arc, version={}", current_version);
+            std::io::Write::flush(&mut std::io::stdout()).ok();
             *result_arc_for_task.lock().unwrap() = Some(result);
 
             // Trigger dispatch to process the result
@@ -225,8 +234,10 @@ where
             use crate::async_runtime::dispatch::UiDispatchQueue;
             UiDispatchQueue::dispatch(move || {
                 println!("[Resource] Post-result dispatch executing!");
-                let mut guard = result_arc_for_dispatch.lock().unwrap();
-                if let Some(result) = guard.take() {
+                // Use as_ref() to check without consuming - if immediate dispatch already
+                // processed the result, that's fine (no "should not happen!" error)
+                let guard = result_arc_for_dispatch.lock().unwrap();
+                if let Some(ref result) = *guard {
                     if version_for_task.load(Ordering::SeqCst) != current_version {
                         println!("[Resource] Post-result: stale version");
                         return;
@@ -235,7 +246,8 @@ where
                         println!("[Resource] Post-result: cancelled");
                         return;
                     }
-                    let new_state = match result {
+                    // Clone result since we're not consuming it with take()
+                    let new_state = match result.clone() {
                         Ok(data) => ResourceState::Ready(data),
                         Err(err) => ResourceState::Error(err),
                     };
@@ -243,12 +255,19 @@ where
                     let signal_inner = signal_handle_for_task.resolve();
                     let final_state = Gc::new(new_state);
                     let _guard = final_state.root_guard();
-                    *signal_inner.inner.value.borrow_mut_simple() = final_state;
+                    // Defer drop of old state until after notify_subscribers
+                    let _old_state = {
+                        let mut guard = signal_inner.inner.value.borrow_mut_simple();
+                        std::mem::replace(&mut *guard, final_state)
+                    };
                     signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
                     signal_inner.notify_subscribers();
                     println!("[Resource] Post-result: done!");
                 } else {
-                    println!("[Resource] Post-result: no result in arc (should not happen!)");
+                    // Result was already processed by immediate dispatch - this is fine
+                    println!(
+                        "[Resource] Post-result: result already processed (immediate dispatch won)"
+                    );
                 }
             });
         });
@@ -284,7 +303,11 @@ where
                 let signal_inner = signal_handle_for_dispatch.resolve();
                 let final_state = Gc::new(new_state);
                 let _guard = final_state.root_guard();
-                *signal_inner.inner.value.borrow_mut_simple() = final_state;
+                // Defer drop of old state until after notify_subscribers
+                let _old_state = {
+                    let mut guard = signal_inner.inner.value.borrow_mut_simple();
+                    std::mem::replace(&mut *guard, final_state)
+                };
                 signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
                 signal_inner.notify_subscribers();
                 println!("[Resource] Immediate dispatch: done!");

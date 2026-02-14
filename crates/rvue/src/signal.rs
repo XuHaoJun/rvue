@@ -261,10 +261,17 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     pub fn set(&self, value: T) {
         let signal_ptr = Gc::as_ptr(&self.data) as *const ();
         log::debug!("WriteSignal::set: signal {:?} setting new value", signal_ptr);
-        *self.data.inner.value.borrow_mut_gen_only() = value;
+        // Defer drop of old value until after notify_subscribers completes.
+        // This prevents double-free when cascading effects trigger GC collection
+        // while the old Gc's GcBox memory is being freed.
+        let _old_value = {
+            let mut guard = self.data.inner.value.borrow_mut_gen_only();
+            std::mem::replace(&mut *guard, value)
+        };
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
         log::debug!("WriteSignal::set: notified subscribers");
+        // _old_value dropped here, after all cascading effects complete
     }
 
     #[inline(always)]
@@ -274,10 +281,17 @@ impl<T: Trace + Clone + 'static> WriteSignal<T> {
     {
         let signal_ptr = Gc::as_ptr(&self.data) as *const ();
         log::debug!("WriteSignal::update: signal {:?} starting update", signal_ptr);
-        f(&mut *self.data.inner.value.borrow_mut_gen_only());
+        // Capture old value before mutation for deferred drop
+        let _old_value = {
+            let mut guard = self.data.inner.value.borrow_mut_gen_only();
+            let old = (*guard).clone();
+            f(&mut *guard);
+            old
+        };
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
         log::debug!("WriteSignal::update: notified subscribers");
+        // _old_value dropped here, after all cascading effects complete
     }
 
     /// Sets the value WITHOUT effect tracking or scope validation.
@@ -322,7 +336,10 @@ impl<T: Trace + Clone + 'static> SignalRead<T> for ReadSignal<T> {
 impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     #[inline(always)]
     fn set(&self, value: T) {
-        *self.data.inner.value.borrow_mut_gen_only() = value;
+        let _old_value = {
+            let mut guard = self.data.inner.value.borrow_mut_gen_only();
+            std::mem::replace(&mut *guard, value)
+        };
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }
@@ -332,7 +349,12 @@ impl<T: Trace + Clone + 'static> SignalWrite<T> for WriteSignal<T> {
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.data.inner.value.borrow_mut_gen_only());
+        let _old_value = {
+            let mut guard = self.data.inner.value.borrow_mut_gen_only();
+            let old = (*guard).clone();
+            f(&mut *guard);
+            old
+        };
         self.data.inner.version.fetch_add(1, Ordering::SeqCst);
         self.data.notify_subscribers();
     }

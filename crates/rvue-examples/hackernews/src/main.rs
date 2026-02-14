@@ -4,6 +4,7 @@ use rudo_gc::{Trace, Visitor};
 use rvue::async_runtime::create_resource;
 use rvue::event::types::PointerButtonEvent;
 use rvue::impl_gc_capture;
+use std::io::Write;
 
 use rvue::prelude::*;
 use rvue_macro::view;
@@ -33,7 +34,112 @@ unsafe impl Trace for Story {
 
 impl_gc_capture!(Story);
 
+fn get_mock_stories() -> Vec<Story> {
+    vec![
+        Story {
+            id: 47012717,
+            title: "Zig – io_uring and Grand Central Dispatch".to_string(),
+            url: "".to_string(),
+            score: 100,
+            by: "testuser".to_string(),
+            time: 1700000000,
+        },
+        Story {
+            id: 46954696,
+            title: "Show HN: I spent 3 years reverse-engineering a 40 yo stock market sim"
+                .to_string(),
+            url: "".to_string(),
+            score: 200,
+            by: "hnuser".to_string(),
+            time: 1700000001,
+        },
+        Story {
+            id: 47011567,
+            title: "Show HN: SQL-tap – Real-time SQL traffic viewer".to_string(),
+            url: "".to_string(),
+            score: 150,
+            by: "dev".to_string(),
+            time: 1700000002,
+        },
+        Story {
+            id: 46965829,
+            title: "The Three Year Myth".to_string(),
+            url: "".to_string(),
+            score: 80,
+            by: "reader".to_string(),
+            time: 1700000003,
+        },
+        Story {
+            id: 46936671,
+            title: "Understanding the Go Compiler: The Linker".to_string(),
+            url: "".to_string(),
+            score: 120,
+            by: "gopher".to_string(),
+            time: 1700000004,
+        },
+        Story {
+            id: 47013059,
+            title: "Ars Technica makes up quotes from Matplotlib maintainer".to_string(),
+            url: "".to_string(),
+            score: 300,
+            by: "news".to_string(),
+            time: 1700000005,
+        },
+        Story {
+            id: 47000505,
+            title: "Babylon 5 is now free to watch on YouTube".to_string(),
+            url: "".to_string(),
+            score: 500,
+            by: "tvfan".to_string(),
+            time: 1700000006,
+        },
+        Story {
+            id: 47012964,
+            title: "YouTube as Storage".to_string(),
+            url: "".to_string(),
+            score: 90,
+            by: "hacker".to_string(),
+            time: 1700000007,
+        },
+        Story {
+            id: 46963047,
+            title: "The mathematics of compression in database systems".to_string(),
+            url: "".to_string(),
+            score: 70,
+            by: "math".to_string(),
+            time: 1700000008,
+        },
+        Story {
+            id: 47008163,
+            title: "Show HN: Data Engineering Book".to_string(),
+            url: "".to_string(),
+            score: 110,
+            by: "book".to_string(),
+            time: 1700000009,
+        },
+    ]
+}
+
 async fn fetch_top_stories() -> Result<Vec<Story>, String> {
+    // Use mock HTTP if MOCK_HTTP env var is set
+    if std::env::var("MOCK_HTTP").is_ok() {
+        println!("[MOCK] Using mock HTTP client");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        println!("[MOCK] Sleep done, creating stories");
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let stories = get_mock_stories();
+        println!("[MOCK] Stories created, count={}", stories.len());
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        for (i, story) in stories.iter().enumerate() {
+            println!("[MOCK] Fetched story[{}]: id={}, title={}", i, story.id, story.title);
+        }
+        println!("[MOCK] Total stories fetched: {}", stories.len());
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+        return Ok(stories);
+    }
+
+    // Real HTTP client
     let client = reqwest::Client::new();
     let response = client
         .get("https://hacker-news.firebaseio.com/v0/topstories.json")
@@ -73,10 +179,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_directive("rvue=debug".parse().unwrap())
         .add_directive("rudo_gc=debug".parse().unwrap());
 
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(env_filter)
-        .init();
+    tracing_subscriber::registry().with(fmt::layer()).with(env_filter).init();
 
     // Bridge log crate to tracing so we can see log::debug! output from rvue
     tracing_log::LogTracer::init().ok();
