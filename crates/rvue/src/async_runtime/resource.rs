@@ -156,9 +156,6 @@ where
         let source_value = source_for_effect.get();
 
         let fetcher = fetcher_clone.clone();
-        let set_state_for_task = set_state_clone.clone();
-        let version_for_task = Arc::clone(&version_clone);
-        let cancellation_for_task = task_cancellation.clone();
 
         log::debug!("[Resource] Setting Loading state, version={}", current_version);
 
@@ -166,10 +163,25 @@ where
         set_state_clone.set(Gc::new(ResourceState::Loading));
         println!("[Resource] Set Loading state");
 
-        // Use block_on to run async - this avoids Send requirement
-        // but blocks the current thread during async work
+        // Non-blocking approach: spawn async task and dispatch result to main thread
+        // Use GcHandle to pass signal data across threads (GcHandle is Send+Sync)
         let rt = get_or_init_runtime();
-        rt.block_on(async move {
+
+        // Get the signal's inner Gc and create a cross-thread handle for it
+        let signal_gc = set_state_clone.data.clone();
+        let signal_handle = signal_gc.cross_thread_handle();
+
+        // Clone version and cancellation for both async task and dispatch
+        let version_for_task = Arc::clone(&version_clone);
+        let version_for_dispatch = Arc::clone(&version_clone);
+        let cancellation_for_task = task_cancellation.clone();
+        let cancellation_for_dispatch = task_cancellation.clone();
+
+        // Create channel to send result from async task to main thread
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        // Spawn async task (non-blocking - returns immediately)
+        rt.spawn(async move {
             println!("[Resource] Async task started, version={}", current_version);
 
             // Check cancellation before starting
@@ -189,33 +201,65 @@ where
             // Check if this task is still current (version check)
             if version_for_task.load(Ordering::SeqCst) != current_version {
                 println!("[Resource] Task stale (version check 1), dropping result");
-                return; // Stale - a newer fetch started
-            }
-
-            let new_state = match result {
-                Ok(data) => ResourceState::Ready(data),
-                Err(err) => ResourceState::Error(err),
-            };
-
-            // Double-check version after async work AND cancellation
-            if cancellation_for_task.is_cancelled() {
-                println!("[Resource] Task cancelled after async");
                 return;
             }
 
-            if version_for_task.load(Ordering::SeqCst) != current_version {
-                println!("[Resource] Task stale (version check 2), dropping result");
-                return;
+            // Send result through channel to main thread
+            println!("[Resource] Sending result via channel, version={}", current_version);
+            let _ = tx.send(result);
+        });
+
+        // Dispatch callback to run on main thread - this will receive result and update signal
+        // Uses GcHandle which is Send+Sync to avoid capturing non-Send WriteSignal
+        use crate::async_runtime::dispatch::UiDispatchQueue;
+        UiDispatchQueue::dispatch(move || {
+            // Try to receive the result (non-blocking)
+            match rx.try_recv() {
+                Ok(result) => {
+                    // Check version
+                    if version_for_dispatch.load(Ordering::SeqCst) != current_version {
+                        println!("[Resource] Task stale in dispatch callback");
+                        return;
+                    }
+
+                    // Check cancellation
+                    if cancellation_for_dispatch.is_cancelled() {
+                        println!("[Resource] Task cancelled in dispatch");
+                        return;
+                    }
+
+                    let new_state = match result {
+                        Ok(data) => ResourceState::Ready(data),
+                        Err(err) => ResourceState::Error(err),
+                    };
+
+                    println!(
+                        "[Resource] Setting final state from dispatch, version={}",
+                        current_version
+                    );
+
+                    // Resolve GcHandle to get Gc<SignalDataInner>
+                    let signal_inner = signal_handle.resolve();
+
+                    // Create final state GC object
+                    let final_state = Gc::new(new_state);
+                    let _guard = final_state.root_guard();
+
+                    // Directly update signal inner (same as WriteSignal::set)
+                    *signal_inner.inner.value.borrow_mut_simple() = final_state;
+                    signal_inner.inner.version.fetch_add(1, Ordering::SeqCst);
+                    signal_inner.notify_subscribers();
+
+                    println!("[Resource] State updated successfully, version={}", current_version);
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    // Result not ready yet, will be called again
+                    println!("[Resource] Result not ready yet...");
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    println!("[Resource] Channel disconnected!");
+                }
             }
-
-            println!("[Resource] Setting final state, version={}", current_version);
-
-            // Direct signal update since we're on main thread
-            let final_state = Gc::new(new_state);
-            let _guard = final_state.root_guard();
-            set_state_for_task.set(final_state);
-
-            println!("[Resource] State updated successfully, version={}", current_version);
         });
 
         // Store cancellation for cleanup
