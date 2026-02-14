@@ -208,14 +208,21 @@ where
                 return; // Stale
             }
 
-            // Create the final Gc and protect it with root guard
-            let final_state = Gc::new(new_state);
-            let _guard = final_state.root_guard();
-
             println!("[Resource] Setting final state, version={}", current_version);
-            // Use dispatcher to safely update signal from async context
-            dispatcher.set(final_state).await;
-            println!("[Resource] State updated successfully, version={}", current_version);
+
+            // Use spawn_main_thread to create Gc on main thread (where GC heap exists)
+            let dispatcher_clone = dispatcher.clone();
+
+            // Run Gc creation and dispatch on the main thread
+            crate::async_runtime::dispatch::UiDispatchQueue::spawn_main_thread(move || {
+                let final_state = Gc::new(new_state);
+                let _guard = final_state.root_guard();
+
+                // Use synchronous set on main thread
+                dispatcher_clone.set_sync(final_state);
+
+                println!("[Resource] State updated successfully, version={}", current_version);
+            });
         });
 
         // Store cancellation for cleanup

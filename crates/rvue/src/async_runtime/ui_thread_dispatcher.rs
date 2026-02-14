@@ -52,6 +52,16 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
             log::debug!("[Dispatcher] notify_subscribers completed");
         });
     }
+
+    /// Synchronously dispatch a signal update on the current thread.
+    ///
+    /// This MUST be called on the main thread where the GC heap exists.
+    pub fn set_sync(&self, value: T) {
+        let signal: Gc<SignalDataInner<T>> = self.handle.resolve();
+        *signal.inner.value.borrow_mut_gen_only() = value;
+        signal.inner.version.fetch_add(1, Ordering::SeqCst);
+        signal.notify_subscribers();
+    }
 }
 
 /// Extension trait for WriteSignal.
