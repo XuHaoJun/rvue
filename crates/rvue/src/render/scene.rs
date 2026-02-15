@@ -6,7 +6,7 @@ use crate::layout::node::LayoutNode;
 use crate::render::widget::render_component;
 use crate::style::Stylesheet;
 use crate::text::TextContext;
-use rudo_gc::Gc;
+use rudo_gc::{Gc, GcCell};
 use rustc_hash::FxHashSet;
 use taffy::prelude::*;
 use taffy::TaffyTree;
@@ -15,7 +15,7 @@ use vello::kurbo::Affine;
 /// Scene structure for managing Vello rendering
 pub struct Scene {
     pub vello_scene: Option<vello::Scene>,
-    pub root_components: Vec<Gc<Component>>,
+    pub root_components: Gc<GcCell<Vec<Gc<Component>>>>,
     pub is_dirty: bool,
     pub renderer_initialized: bool,
     pub taffy: TaffyTree<()>,
@@ -28,7 +28,7 @@ impl Scene {
     pub fn new() -> Self {
         Self {
             vello_scene: None,
-            root_components: Vec::new(),
+            root_components: Gc::new(GcCell::new(Vec::new())),
             is_dirty: true,
             renderer_initialized: false,
             taffy: TaffyTree::new(),
@@ -58,7 +58,7 @@ impl Scene {
 
     /// Add a root component to the scene
     pub fn add_fragment(&mut self, component: Gc<Component>) {
-        self.root_components.push(component);
+        self.root_components.borrow_mut().push(component);
         self.is_dirty = true;
     }
 
@@ -71,7 +71,8 @@ impl Scene {
 
     /// Update the scene by regenerating dirty fragments
     pub fn update(&mut self) {
-        let any_dirty = self.root_components.iter().any(|c| c.is_dirty());
+        let root_components = self.root_components.borrow().clone();
+        let any_dirty = root_components.iter().any(|c| c.is_dirty());
         if !self.is_dirty && !any_dirty {
             return;
         }
@@ -83,14 +84,14 @@ impl Scene {
                 scene.reset();
             }
             self.taffy = TaffyTree::new();
-            Self::clear_all_component_layout_nodes(&self.root_components);
+            Self::clear_all_component_layout_nodes(&root_components);
         }
 
         let mut already_appended = FxHashSet::default();
 
         let force_rebuild_layout = self.is_dirty || any_dirty;
 
-        for component in &self.root_components {
+        for component in &root_components {
             crate::effect::set_defer_effect_run(true);
 
             let layout = build_layout_tree(

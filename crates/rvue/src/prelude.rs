@@ -31,3 +31,10 @@ pub mod ev {
     pub use super::PointerMove;
     pub use super::PointerUp;
 }
+
+#[cfg(feature = "async")]
+pub use crate::async_runtime::{
+    spawn_debounced, spawn_interval, spawn_task, watch_signal, ComponentScope, DebouncedTask,
+    IntervalHandle, Resource, ResourceState, SignalWatcher, TaskHandle, TaskId, UiThreadDispatcher,
+    WriteSignalUiExt,
+};

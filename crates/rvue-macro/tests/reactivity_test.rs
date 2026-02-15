@@ -43,6 +43,8 @@ fn test_block_expansion_reactivity() {
 
     set_count.set("1".to_string());
     root.update();
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -58,6 +60,8 @@ fn test_custom_component_reactive_prop() {
         set_label.set("Updated".to_string());
         root.update();
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -79,6 +83,8 @@ fn test_memo_reactivity() {
 
         assert_eq!(doubled.get(), "Doubled: 5");
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -87,6 +93,8 @@ fn test_for_each_reactive_item() {
     assert_eq!(count.get(), 0);
     set_count.set(1);
     assert_eq!(count.get(), 1);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -105,6 +113,8 @@ fn test_event_handler_0arg_closure() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_click().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -121,6 +131,8 @@ fn test_event_handler_1arg_closure() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_input().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -139,6 +151,8 @@ fn test_event_handler_2arg_closure() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_click().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -155,6 +169,8 @@ fn test_event_handler_with_signal_capture() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_input().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -202,6 +218,8 @@ fn test_multiple_event_handlers_in_view() {
         assert!(click_handler_found, "Click handler not found in any component");
         assert!(input_handler_found, "Input handler not found in any component");
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -218,6 +236,8 @@ fn test_keyboard_event_handler() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_key_down().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -234,6 +254,8 @@ fn test_focus_event_handler() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_focus().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -250,6 +272,8 @@ fn test_change_event_handler() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_change().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -266,4 +290,6 @@ fn test_blur_event_handler() {
         let handlers = root.event_handlers.borrow();
         assert!(handlers.get_blur().is_some());
     });
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }

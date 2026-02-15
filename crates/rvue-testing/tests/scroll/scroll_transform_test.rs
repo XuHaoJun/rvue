@@ -223,7 +223,7 @@ fn print_layout_tree(harness: &TestHarness, component: &Gc<Component>, depth: us
             state.scroll_offset_y
         );
     } else {
-        eprintln!("{}*{} (no layout)", indent, tag);
+        eprintln!("{}* (no layout)", indent);
     }
 
     for child in component.children.borrow().iter() {

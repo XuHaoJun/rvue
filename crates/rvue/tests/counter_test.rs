@@ -67,4 +67,9 @@ fn test_counter_reactive_updates() {
     assert_eq!(call_count.get(), 3);
     assert_eq!(last_value.get(), 20);
     assert_eq!(count.get(), 20);
+
+    // Clear subscriptions before test end to avoid TLS destroy-order: dropping
+    // Gc<Effect> during thread_local teardown would trigger GC, which can access
+    // already-destroyed rudo-gc thread locals.
+    rvue::signal::__test_clear_signal_subscriptions();
 }

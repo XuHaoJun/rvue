@@ -286,7 +286,7 @@ pub struct Component {
 unsafe impl Trace for Component {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
         self.children.trace(visitor);
-        // self.parent.trace(visitor); // REMOVED: Tracing parent creates Component <-> Component cycles
+        self.parent.trace(visitor);
         self.effects.trace(visitor);
         self.properties.trace(visitor);
         self.layout_node.trace(visitor);
@@ -297,8 +297,6 @@ unsafe impl Trace for Component {
         self.has_active.trace(visitor);
         self.is_focused.trace(visitor);
         self.has_focus_target.trace(visitor);
-        // Note: vello::Scene is not GC-managed, but GcCell needs tracing if it could contain GC pointers.
-        // vello::Scene itself doesn't contain GC pointers, so we just trace the cell.
         self.vello_cache.trace(visitor);
         // Cleanups are not traced since they are closures
         // Trace context values by directly visiting Gc pointers
@@ -1376,12 +1374,8 @@ pub fn build_layout_tree(
         for (child, child_layout) in component.children.borrow().iter().zip(child_layouts.iter()) {
             child.set_layout_node(child_layout.clone());
             child.set_parent(Some(Gc::clone(component)));
-            // Set layout nodes on grandchildren (the actual content inside Show/For)
-            for (i, grandchild) in child.children.borrow().iter().enumerate() {
-                if i < child_layouts.len() {
-                    grandchild.set_layout_node(child_layouts[i].clone());
-                }
-            }
+            // Note: Grandchildren's layouts are already set during recursive build_layout_tree
+            // We should NOT overwrite them here - that would assign wrong layouts
         }
 
         return LayoutNode { taffy_node: None, is_dirty: true, layout_result: None };
@@ -1397,6 +1391,16 @@ pub fn build_layout_tree(
     }
 
     node
+}
+
+impl Component {
+    /// Debug: Get the Gc pointer address
+    #[doc(hidden)]
+    pub fn gc_ptr_addr(&self) -> usize {
+        // We can't access the internal ptr field, so we use pointer arithmetic
+        // Gc<T> is a thin pointer, so the address is the same as self
+        self as *const Component as usize
+    }
 }
 
 impl ComponentLifecycle for Component {
@@ -1418,15 +1422,17 @@ impl ComponentLifecycle for Component {
     }
 
     fn unmount(&self) {
-        // Unmount all children
+        #[cfg(feature = "async")]
+        {
+            use crate::async_runtime::registry::TaskRegistry;
+            TaskRegistry::cancel_all(self.id);
+            TaskRegistry::cleanup_completed();
+        }
+
         for child in self.children.borrow().iter() {
             child.unmount();
         }
 
-        // Clean up effects
-        // Effects are cleaned up by GC when component is dropped
-
-        // Run cleanups
         let cleanups = {
             let mut cleanups = self.cleanups.borrow_mut_gen_only();
             std::mem::take(&mut *cleanups)

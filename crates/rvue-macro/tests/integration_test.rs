@@ -123,6 +123,8 @@ fn test_reactive_text_update() {
             .expect("Expected TextContent property")
     };
     assert_eq!(content, "1");
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -141,6 +143,8 @@ fn test_static_vs_dynamic_effects() {
 
     assert_eq!(reactive_view.root_component.effects.borrow().len(), 1);
     assert_eq!(static_view.root_component.effects.borrow().len(), 0);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -162,4 +166,6 @@ fn test_nested_reactive_update() {
         text_content.expect("Expected TextContent property")
     };
     assert_eq!(content, "Bob");
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }

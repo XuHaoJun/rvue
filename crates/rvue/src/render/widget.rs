@@ -351,7 +351,7 @@ fn render_button(
             let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
+            render_border(scene, transform, &styles, 0.0, 0.0, width, height, border_radius);
         }
     }
 }
@@ -395,7 +395,7 @@ fn render_text_input(
             let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
+            render_border(scene, transform, &styles, 0.0, 0.0, width, height, border_radius);
 
             let clip = *component.clip.borrow();
             let clip_rect = Rect::new(0.0, 0.0, width, height);
@@ -536,7 +536,7 @@ fn render_number_input(
             let rounded_rect = RoundedRect::new(0.0, 0.0, width, height, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(scene, transform, &Some(styles), 0.0, 0.0, width, height, border_radius);
+            render_border(scene, transform, &styles, 0.0, 0.0, width, height, border_radius);
 
             if !text_value.is_empty() && text_value != "0" {
                 let mut layout_builder = text_context.layout_ctx.ranged_builder(
@@ -648,16 +648,7 @@ fn render_checkbox(
             let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(
-                scene,
-                transform,
-                &Some(styles.clone()),
-                0.0,
-                0.0,
-                size,
-                size,
-                border_radius,
-            );
+            render_border(scene, transform, &styles, 0.0, 0.0, size, size, border_radius);
 
             if is_checked {
                 let checked_color = styles
@@ -764,18 +755,16 @@ fn render_radio(
 fn render_border(
     scene: &mut vello::Scene,
     transform: Affine,
-    styles: &Option<ComputedStyles>,
+    styles: &ComputedStyles,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
     border_radius: f64,
 ) {
-    if let (Some(border), Some(bw), Some(bs)) = (
-        styles.as_ref().and_then(|s| s.border_color.as_ref()),
-        styles.as_ref().and_then(|s| s.border_width.as_ref()),
-        styles.as_ref().and_then(|s| s.border_style.as_ref()),
-    ) {
+    if let (Some(border), Some(bw), Some(bs)) =
+        (styles.border_color.as_ref(), styles.border_width.as_ref(), styles.border_style.as_ref())
+    {
         if *bs != BorderStyle::None {
             let rgb = border.0 .0;
             let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
@@ -831,16 +820,7 @@ fn render_flex_background(
                 );
             }
 
-            render_border(
-                scene,
-                Affine::IDENTITY,
-                &Some(styles.clone()),
-                0.0,
-                0.0,
-                width,
-                height,
-                border_radius,
-            );
+            render_border(scene, Affine::IDENTITY, &styles, 0.0, 0.0, width, height, border_radius);
 
             // Render scrollbars if overflow is set
             let overflow_x = styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);

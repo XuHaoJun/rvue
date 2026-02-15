@@ -4,27 +4,40 @@
 //! It handles the core value storage and versioning without subscriber tracking,
 //! which is handled by the parent crates.
 
-use rudo_gc::{Gc, GcCell, Trace};
+use rudo_gc::{Gc, GcCell, GcThreadSafeCell, Trace};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Internal signal data structure containing the value and version tracking.
+/// Internal signal data structure containing the value, version tracking, and subscribers.
 ///
 /// This is the core storage type shared between rvue and rvue-style.
 /// Version tracking allows consumers to detect when values change.
+///
+/// Design: Uses GcThreadSafeCell for thread-safe cross-thread access.
+/// This allows mutations from tokio worker threads without needing
+/// to dispatch back to the main thread.
+#[repr(C)]
 pub struct SignalData<T: Clone + 'static> {
-    /// The stored value
-    pub value: GcCell<T>,
+    /// List of subscribers (effects). We use Weak<()> as a type-erased placeholder
+    /// to avoid circular dependency on rvue::Effect.
+    pub subscribers: GcCell<Vec<rudo_gc::Weak<()>>>,
+    /// The stored value (protected by GcThreadSafeCell for thread-safe access)
+    pub value: GcThreadSafeCell<T>,
     /// Monotonically increasing version counter
     pub version: AtomicU64,
 }
 
-impl<T: Clone + 'static> SignalData<T> {
+impl<T: Clone + Trace + 'static> SignalData<T> {
     /// Create a new signal data structure
     pub fn new(value: T) -> Self {
-        Self { value: GcCell::new(value), version: AtomicU64::new(0) }
+        Self {
+            subscribers: GcCell::new(Vec::new()),
+            value: GcThreadSafeCell::new(value),
+            version: AtomicU64::new(0),
+        }
     }
 
     /// Get the current value
+    #[inline(always)]
     pub fn get(&self) -> T
     where
         T: Clone,
@@ -33,21 +46,32 @@ impl<T: Clone + 'static> SignalData<T> {
     }
 
     /// Set a new value and increment version
+    #[inline(always)]
     pub fn set(&self, value: T) {
-        *self.value.borrow_mut_gen_only() = value;
+        let _old = {
+            let mut guard = self.value.borrow_mut_simple();
+            std::mem::replace(&mut *guard, value)
+        };
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
     /// Modify the value and increment version
+    #[inline(always)]
     pub fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut T),
     {
-        f(&mut *self.value.borrow_mut_gen_only());
+        let _old = {
+            let mut guard = self.value.borrow_mut_simple();
+            let old = (*guard).clone();
+            f(&mut *guard);
+            old
+        };
         self.version.fetch_add(1, Ordering::SeqCst);
     }
 
     /// Get the current version
+    #[inline(always)]
     pub fn version(&self) -> u64 {
         self.version.load(Ordering::SeqCst)
     }
@@ -63,9 +87,8 @@ impl<T: Clone + 'static> std::fmt::Debug for SignalData<T> {
 
 unsafe impl<T: Clone + Trace + 'static> Trace for SignalData<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        // Trace the GcCell<T> field to ensure the value is marked as reachable
+        self.subscribers.trace(visitor);
         self.value.trace(visitor);
-        // AtomicU64 doesn't need tracing (it's a primitive)
     }
 }
 
@@ -196,7 +219,7 @@ impl<T: Clone + Trace + 'static> SignalRead<T> for ReadSignal<T> {
 
 impl<T: Clone + Trace + 'static> SignalWrite<T> for WriteSignal<T> {
     fn set(&self, value: T) {
-        self.data.set(value);
+        self.data.set(value)
     }
 
     fn update<F>(&self, f: F)

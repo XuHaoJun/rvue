@@ -1,0 +1,18 @@
+[package]
+name = "hackernews-example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+rvue = { path = "../../rvue", features = ["async"] }
+rvue-macro = { path = "../../rvue-macro" }
+rvue-style = { path = "../../rvue-style" }
+rudo-gc = { workspace = true }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-log = "0.2"
+tokio = { version = "1", features = ["time"] }

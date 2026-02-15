@@ -289,18 +289,21 @@ impl Widget for Flex {
             None
         };
 
-        // Setup reactive styles effect
-        // Update WidgetStyles in PropertyMap when styles change
+        // Setup reactive styles effect only when styles contain reactive/dynamic properties.
+        // Static ReactiveStyles (e.g. ReactiveStyles::new().set_*(value)) need no effect.
         let styles_effect = if let Some(ref styles) = self.styles {
-            let comp = Gc::clone(&component);
-            let styles = styles.clone();
-            let effect = crate::effect::create_effect(move || {
-                // Compute new styles and update PropertyMap
-                let computed = styles.compute();
-                comp.set_widget_styles(computed);
-            });
-            component.add_effect(Gc::clone(&effect));
-            Some(effect)
+            if styles.is_reactive() {
+                let comp = Gc::clone(&component);
+                let styles = styles.clone();
+                let effect = crate::effect::create_effect(move || {
+                    let computed = styles.compute();
+                    comp.set_widget_styles(computed);
+                });
+                component.add_effect(Gc::clone(&effect));
+                Some(effect)
+            } else {
+                None
+            }
         } else {
             None
         };

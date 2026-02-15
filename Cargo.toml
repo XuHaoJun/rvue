@@ -14,6 +14,8 @@ members = [
     "crates/rvue-examples/styles",
     "crates/rvue-examples/scroll",
     "crates/rvue-examples/custom_widget",
+    "crates/rvue-examples/minimal_for_test",
+    "crates/rvue-examples/hackernews",
 ]
 resolver = "2"
 
@@ -24,13 +26,11 @@ authors = ["Rvue Contributors"]
 license = "MIT OR Apache-2.0"
 rust-version = "1.84"
 repository = "https://github.com/anomalyco/rvue"
+keywords = ["garbage-collection", "gc", "memory", "smart-pointer"]
+categories = ["memory-management", "rust-patterns"]
 
 [workspace.dependencies]
-rudo-gc = { version = "0.7", features = ["test-util", "default"] }
-rudo-gc-derive = "0.7"
-sys_alloc = "0.7"
-libc = "0.2"
-windows-sys = "0.52"
+rudo-gc = { version = "0.8.13", features = ["test-util", "default", "tracing", "debug-suspicious-sweep", "tokio"] }
 
 [workspace.lints.clippy]
 pedantic = "warn"

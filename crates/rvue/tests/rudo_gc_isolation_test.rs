@@ -94,7 +94,7 @@ impl FakeComponent {
 
     fn provide_context(&self, value: ValueEnum) {
         let type_id = std::any::TypeId::of::<i32>();
-        self.contexts.borrow_mut().push(ContextEntry { type_id, value });
+        self.contexts.borrow_mut_gen_only().push(ContextEntry { type_id, value });
     }
 
     fn find_context(&self) -> Option<Gc<i32>> {
@@ -135,8 +135,8 @@ fn test_many_sequential_contexts() {
 
         let root = FakeComponent::new();
         let child = FakeComponent::new();
-        child.parent.borrow_mut().replace(root.clone());
-        root.children.borrow_mut().push(child.clone());
+        child.parent.borrow_mut_gen_only().replace(root.clone());
+        root.children.borrow_mut_gen_only().push(child.clone());
         root.provide_context(ValueEnum::from_i32(i));
         let gc = child.find_context();
         assert_eq!(**gc.as_ref().unwrap(), i);
@@ -156,8 +156,8 @@ fn test_single_context() {
     let root = FakeComponent::new();
     let child = FakeComponent::new();
 
-    child.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(child.clone());
+    child.parent.borrow_mut_gen_only().replace(root.clone());
+    root.children.borrow_mut_gen_only().push(child.clone());
 
     root.provide_context(ValueEnum::from_i32(42));
 
@@ -178,8 +178,8 @@ fn test_two_components_sequential() {
 
     let root1 = FakeComponent::new();
     let child1 = FakeComponent::new();
-    child1.parent.borrow_mut().replace(root1.clone());
-    root1.children.borrow_mut().push(child1.clone());
+    child1.parent.borrow_mut_gen_only().replace(root1.clone());
+    root1.children.borrow_mut_gen_only().push(child1.clone());
     root1.provide_context(ValueEnum::from_i32(100));
     let _ = child1.find_context();
 
@@ -189,8 +189,8 @@ fn test_two_components_sequential() {
 
     let root2 = FakeComponent::new();
     let child2 = FakeComponent::new();
-    child2.parent.borrow_mut().replace(root2.clone());
-    root2.children.borrow_mut().push(child2.clone());
+    child2.parent.borrow_mut_gen_only().replace(root2.clone());
+    root2.children.borrow_mut_gen_only().push(child2.clone());
     root2.provide_context(ValueEnum::from_i32(200));
     let gc = child2.find_context();
     assert_eq!(**gc.as_ref().unwrap(), 200);
@@ -210,10 +210,10 @@ fn test_nested_context() {
     let mid = FakeComponent::new();
     let leaf = FakeComponent::new();
 
-    mid.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(mid.clone());
-    leaf.parent.borrow_mut().replace(mid.clone());
-    mid.children.borrow_mut().push(leaf.clone());
+    mid.parent.borrow_mut_gen_only().replace(root.clone());
+    root.children.borrow_mut_gen_only().push(mid.clone());
+    leaf.parent.borrow_mut_gen_only().replace(mid.clone());
+    mid.children.borrow_mut_gen_only().push(leaf.clone());
 
     root.provide_context(ValueEnum::from_i32(100));
     mid.provide_context(ValueEnum::from_i32(200));
@@ -235,8 +235,8 @@ fn test_full_component_pattern() {
 
     let root = FakeComponent::new();
     let child = FakeComponent::new();
-    child.parent.borrow_mut().replace(root.clone());
-    root.children.borrow_mut().push(child.clone());
+    child.parent.borrow_mut_gen_only().replace(root.clone());
+    root.children.borrow_mut_gen_only().push(child.clone());
 
     root.provide_context(ValueEnum::from_i32(42));
     let gc = child.find_context();
@@ -255,8 +255,8 @@ fn test_two_tests_sequential() {
 
     let root1 = FakeComponent::new();
     let child1 = FakeComponent::new();
-    child1.parent.borrow_mut().replace(root1.clone());
-    root1.children.borrow_mut().push(child1.clone());
+    child1.parent.borrow_mut_gen_only().replace(root1.clone());
+    root1.children.borrow_mut_gen_only().push(child1.clone());
     root1.provide_context(ValueEnum::from_i32(100));
     let _ = child1.find_context();
 
@@ -266,8 +266,8 @@ fn test_two_tests_sequential() {
 
     let root2 = FakeComponent::new();
     let child2 = FakeComponent::new();
-    child2.parent.borrow_mut().replace(root2.clone());
-    root2.children.borrow_mut().push(child2.clone());
+    child2.parent.borrow_mut_gen_only().replace(root2.clone());
+    root2.children.borrow_mut_gen_only().push(child2.clone());
     root2.provide_context(ValueEnum::from_i32(200));
     let gc2 = child2.find_context();
     assert_eq!(**gc2.as_ref().unwrap(), 200);

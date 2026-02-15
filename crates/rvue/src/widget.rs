@@ -19,6 +19,48 @@ type CtxMap = Arc<Mutex<HashMap<std::thread::ThreadId, usize>>>;
 pub(crate) static CURRENT_CTX: std::sync::LazyLock<CtxMap, fn() -> CtxMap> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+/// Opaque handle for sharing BuildContext across view! invocations (e.g. in For loops).
+/// Avoids recreating TextContext (with expensive font loading) per item.
+#[derive(Clone, Copy)]
+pub struct BuildContextHandle {
+    /// Used by view! macro when reusing shared context.
+    pub taffy: *mut TaffyTree<()>,
+    /// Used by view! macro when reusing shared context.
+    pub text_context: *mut TextContext,
+    /// Used by view! macro when reusing shared context.
+    pub id_counter: *mut u64,
+}
+
+#[doc(hidden)]
+pub fn with_build_context<F, R>(ctx: &mut BuildContext<'_>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let handle = BuildContextHandle {
+        taffy: ctx.taffy as *mut _,
+        text_context: ctx.text_context as *mut _,
+        id_counter: ctx.id_counter as *mut _,
+    };
+    CURRENT_BUILD_CTX.with(|cell| {
+        *cell.borrow_mut() = Some(handle);
+    });
+    let result = f();
+    CURRENT_BUILD_CTX.with(|cell| {
+        *cell.borrow_mut() = None;
+    });
+    result
+}
+
+thread_local! {
+    static CURRENT_BUILD_CTX: std::cell::RefCell<Option<BuildContextHandle>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[doc(hidden)]
+pub fn get_build_context() -> Option<BuildContextHandle> {
+    CURRENT_BUILD_CTX.with(|cell| *cell.borrow())
+}
+
 #[doc(hidden)]
 pub fn with_current_ctx<F, R>(ctx: &mut u64, f: F) -> R
 where

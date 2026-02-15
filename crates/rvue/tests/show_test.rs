@@ -57,6 +57,8 @@ fn test_show_component_with_signal_tracking() {
     set_visible.set(false);
     assert_eq!(call_count.get(), 3);
     assert!(!is_visible.get());
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]

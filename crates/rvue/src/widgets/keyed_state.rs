@@ -1,31 +1,35 @@
 use crate::component::{Component, ComponentLifecycle};
 use indexmap::IndexSet;
-use rudo_gc::{Gc, Trace};
-use rudo_gc_derive::GcCell;
+use rudo_gc::cell::GcCapture;
+use rudo_gc::{Gc, GcCell, Trace};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 use std::hash::Hash;
 
-#[derive(Clone, GcCell)]
+#[derive(Clone)]
 pub struct KeyedState<K, T>
 where
     K: Eq + Hash + Clone + 'static,
+    T: rudo_gc::Trace + Clone + 'static,
 {
     pub parent: Option<Gc<Component>>,
     pub marker: Gc<Component>,
     pub hashed_items: IndexSet<K, BuildHasherDefault<FxHasher>>,
-    pub rendered_items: Vec<Option<ItemEntry<K, T>>>,
+    /// GcCell<Vec<...>> ensures the Vec is traced during GC
+    pub rendered_items: GcCell<Vec<Option<ItemEntry<K, T>>>>,
 }
 
-unsafe impl<K, T> Trace for KeyedState<K, T>
+impl<K, T> GcCapture for ItemEntry<K, T>
 where
     K: Eq + Hash + Clone + 'static,
-    T: Trace + Clone + 'static,
+    T: GcCapture + Clone + 'static,
 {
-    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        self.parent.trace(visitor);
-        self.marker.trace(visitor);
-        self.rendered_items.trace(visitor);
+    fn capture_gc_ptrs(&self) -> &[std::ptr::NonNull<rudo_gc::GcBox<()>>] {
+        &[]
+    }
+
+    fn capture_gc_ptrs_into(&self, ptrs: &mut Vec<std::ptr::NonNull<rudo_gc::GcBox<()>>>) {
+        self.component.capture_gc_ptrs_into(ptrs);
     }
 }
 
@@ -45,6 +49,35 @@ impl<K, T> ItemEntry<K, T> {
     pub fn prepare_for_move(&mut self) {}
 
     pub fn finalize_move(&mut self) {}
+}
+
+unsafe impl<K, T> Trace for KeyedState<K, T>
+where
+    K: Eq + Hash + Clone + 'static,
+    T: rudo_gc::Trace + Clone + 'static,
+{
+    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+        self.marker.trace(visitor);
+        self.rendered_items.trace(visitor);
+    }
+}
+
+impl<K, T> GcCapture for KeyedState<K, T>
+where
+    K: Eq + Hash + Clone + 'static,
+    T: GcCapture + rudo_gc::Trace + Clone + 'static,
+{
+    fn capture_gc_ptrs(&self) -> &[std::ptr::NonNull<rudo_gc::GcBox<()>>] {
+        &[]
+    }
+
+    fn capture_gc_ptrs_into(&self, ptrs: &mut Vec<std::ptr::NonNull<rudo_gc::GcBox<()>>>) {
+        if let Some(parent) = &self.parent {
+            parent.capture_gc_ptrs_into(ptrs);
+        }
+        self.marker.capture_gc_ptrs_into(ptrs);
+        self.rendered_items.capture_gc_ptrs_into(ptrs);
+    }
 }
 
 unsafe impl<K, T> Trace for ItemEntry<K, T>
