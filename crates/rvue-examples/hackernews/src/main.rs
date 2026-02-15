@@ -1,7 +1,7 @@
 //! Hacker News example with create_resource
 
 use rudo_gc::{Trace, Visitor};
-use rvue::async_runtime::create_resource;
+use rvue::async_runtime::{create_resource, spawn_interval};
 use rvue::event::types::PointerButtonEvent;
 use rvue::impl_gc_capture;
 
@@ -9,6 +9,9 @@ use rvue::prelude::*;
 use rvue_macro::view;
 use rvue_style::{BorderWidth, Height, ReactiveStyles, Size, Width};
 use serde::Deserialize;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Clone, Debug, Deserialize)]
@@ -189,13 +192,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn hacker_news_app() -> ViewStruct {
-    let (page, _) = create_signal(0usize);
+    let (refresh_trigger, set_refresh_trigger) = create_signal(0u32);
+    let resource =
+        create_resource(refresh_trigger.clone(), |_| async move { fetch_top_stories().await });
 
-    let resource = create_resource(page, |_page: usize| async move { fetch_top_stories().await });
+    let (countdown, set_countdown) = create_signal(10u32);
+    let countdown_atomic = Arc::new(AtomicU32::new(10));
+    let refresh_trigger_atomic = Arc::new(AtomicU32::new(0));
+    let countdown_dispatcher = set_countdown.ui_dispatcher();
+    let refresh_dispatcher = set_refresh_trigger.ui_dispatcher();
 
-    let resource_for_refresh = resource.clone();
+    let countdown_atomic_interval = Arc::clone(&countdown_atomic);
+    let refresh_trigger_atomic_interval = Arc::clone(&refresh_trigger_atomic);
+    spawn_interval(Duration::from_secs(1), move || {
+        let countdown_atomic = Arc::clone(&countdown_atomic_interval);
+        let refresh_trigger_atomic = Arc::clone(&refresh_trigger_atomic_interval);
+        let countdown_dispatcher = countdown_dispatcher.clone();
+        let refresh_dispatcher = refresh_dispatcher.clone();
+        async move {
+            let prev = countdown_atomic.fetch_sub(1, Ordering::SeqCst);
+            if prev <= 1 {
+                let next = refresh_trigger_atomic.fetch_add(1, Ordering::SeqCst) + 1;
+                refresh_dispatcher.set(next).await;
+                countdown_atomic.store(10, Ordering::SeqCst);
+                countdown_dispatcher.set(10).await;
+            } else {
+                countdown_dispatcher.set(prev - 1).await;
+            }
+        }
+    });
+
+    let set_countdown_for_click = set_countdown.clone();
+    let set_refresh_for_click = set_refresh_trigger.clone();
     let refresh = move || {
-        resource_for_refresh.refetch();
+        let next = refresh_trigger_atomic.fetch_add(1, Ordering::SeqCst) + 1;
+        set_refresh_for_click.set(next);
+        set_countdown_for_click.set(10);
+        countdown_atomic.store(10, Ordering::SeqCst);
     };
 
     let stories = create_memo(move || {
@@ -234,6 +267,22 @@ fn hacker_news_app() -> ViewStruct {
             </Flex>
             <Flex
                 styles=ReactiveStyles::new()
+                    .set_gap(Gap(8.0))
+                    .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
+            >
+                <Button on_click=move |_: &PointerButtonEvent| {
+                    refresh();
+                }>
+                    <Text content=create_memo(move || format!("Refresh ({}s)", countdown.get())) font_size=14.0 />
+                </Button>
+            </Flex>
+            <Flex
+                styles=ReactiveStyles::new()
+                    .set_height(Height(Size::Pixels(1.0)))
+                    .set_background_color(BackgroundColor(Color::rgb(224, 224, 224)))
+            />
+            <Flex
+                styles=ReactiveStyles::new()
                     .set_height(Height(Size::Pixels(1.0)))
                     .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
             />
@@ -256,22 +305,6 @@ fn hacker_news_app() -> ViewStruct {
                      <Text content=format!("by {}", s.by) font_size=12.0 color="#666" />
                 </Flex>
             }}/>
-            <Flex
-                styles=ReactiveStyles::new()
-                    .set_height(Height(Size::Pixels(1.0)))
-                    .set_background_color(BackgroundColor(Color::rgb(224, 224, 224)))
-            />
-            <Flex
-                styles=ReactiveStyles::new()
-                    .set_gap(Gap(8.0))
-                    .set_background_color(BackgroundColor(Color::rgb(255, 255, 255)))
-            >
-                <Button on_click=move |_: &PointerButtonEvent| {
-                    refresh();
-                }>
-                    <Text content="Refresh" font_size=14.0 />
-                </Button>
-            </Flex>
         </Flex>
     }
 }
