@@ -135,24 +135,29 @@ where
 
         let rt = get_or_init_runtime();
         let signal_gc = set_state_clone.data.clone();
-        let signal_handle = signal_gc.cross_thread_handle();
-        let signal_handle_for_task = signal_handle.clone();
-        let signal_handle_for_dispatch = signal_handle.clone();
+        let signal_handle_for_task = signal_gc.cross_thread_handle();
 
         let version_for_task = Arc::clone(&version_clone);
-        let version_for_dispatch = Arc::clone(&version_clone);
         let cancellation_for_task = task_cancellation.clone();
-        let cancellation_for_dispatch = task_cancellation.clone();
 
+        // Single write path: when the async task completes, dispatch one callback to the UI
+        // queue. That callback runs on the main thread when the queue is drained (e.g. advance()).
+        // We do not dispatch a second "poll" callback from the effect, to avoid double-write
+        // and ordering races that could corrupt the resource state in headless tests.
         let result_arc: Arc<Mutex<Option<Result<T, String>>>> = Arc::new(Mutex::new(None));
         let result_arc_for_task = Arc::clone(&result_arc);
-        let result_arc_for_dispatch = Arc::clone(&result_arc);
 
         rt.spawn(async move {
-            if cancellation_for_task.is_cancelled() { return; }
+            if cancellation_for_task.is_cancelled() {
+                return;
+            }
             let result = fetcher(source_value).await;
-            if cancellation_for_task.is_cancelled() { return; }
-            if version_for_task.load(Ordering::SeqCst) != current_version { return; }
+            if cancellation_for_task.is_cancelled() {
+                return;
+            }
+            if version_for_task.load(Ordering::SeqCst) != current_version {
+                return;
+            }
 
             *result_arc_for_task.lock().unwrap() = Some(result);
 
@@ -162,11 +167,15 @@ where
 
             use crate::async_runtime::dispatch::UiDispatchQueue;
             UiDispatchQueue::dispatch(move || {
-                let guard = result_arc_for_dispatch.lock().unwrap();
-                if let Some(ref result) = *guard {
-                    if version_for_task.load(Ordering::SeqCst) != current_version { return; }
-                    if cancellation_for_task.is_cancelled() { return; }
-                    let new_state = match result.clone() {
+                let mut guard = result_arc_for_dispatch.lock().unwrap();
+                if let Some(result) = guard.take() {
+                    if version_for_task.load(Ordering::SeqCst) != current_version {
+                        return;
+                    }
+                    if cancellation_for_task.is_cancelled() {
+                        return;
+                    }
+                    let new_state = match result {
                         Ok(data) => ResourceState::Ready(data),
                         Err(err) => ResourceState::Error(err),
                     };
@@ -174,35 +183,13 @@ where
                     let final_state = Gc::new(new_state);
                     let _guard = final_state.root_guard();
                     {
-                        let mut guard = signal_data.value.borrow_mut();
-                        let _ = std::mem::replace(&mut *guard, final_state);
+                        let mut cell_guard = signal_data.value.borrow_mut();
+                        let _ = std::mem::replace(&mut *cell_guard, final_state);
                     }
                     signal_data.version.fetch_add(1, Ordering::SeqCst);
                     signal_data.notify_subscribers();
                 }
             });
-        });
-
-        use crate::async_runtime::dispatch::UiDispatchQueue;
-        UiDispatchQueue::dispatch(move || {
-            let mut guard = result_arc_for_dispatch.lock().unwrap();
-            if let Some(result) = guard.take() {
-                if version_for_dispatch.load(Ordering::SeqCst) != current_version { return; }
-                if cancellation_for_dispatch.is_cancelled() { return; }
-                let new_state = match result {
-                    Ok(data) => ResourceState::Ready(data),
-                    Err(err) => ResourceState::Error(err),
-                };
-                let signal_data = signal_handle_for_dispatch.resolve();
-                let final_state = Gc::new(new_state);
-                let _guard = final_state.root_guard();
-                {
-                    let mut guard = signal_data.value.borrow_mut();
-                    let _ = std::mem::replace(&mut *guard, final_state);
-                }
-                signal_data.version.fetch_add(1, Ordering::SeqCst);
-                signal_data.notify_subscribers();
-            }
         });
 
         CURRENT_CANCELLATION.with(|c| {
