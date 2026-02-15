@@ -64,7 +64,7 @@ pub mod headless {
     /// This helps process spawned async tasks in tests
     pub fn advance_tokio() {
         let rt = get_or_init_runtime();
-        let _ = rt.block_on(async {
+        rt.block_on(async {
             tokio::time::sleep(std::time::Duration::ZERO).await;
         });
     }

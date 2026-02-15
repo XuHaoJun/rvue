@@ -127,8 +127,7 @@ impl Effect {
         // Avoid duplicates
         if !subscriptions.iter().any(|(ptr, s, w)| {
             *ptr == signal_ptr && Weak::ptr_eq(s, signal_weak) && Weak::ptr_eq(w, weak_opaque)
-        })
-        {
+        }) {
             subscriptions.push((signal_ptr, signal_weak.clone(), weak_opaque.clone()));
         }
     }

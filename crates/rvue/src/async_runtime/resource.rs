@@ -10,7 +10,7 @@ use rudo_gc::Trace;
 use crate::async_runtime::cancellation::Cancellation;
 use crate::async_runtime::get_or_init_runtime;
 use crate::effect::{create_effect, on_cleanup, Effect};
-use crate::signal::{create_signal, ReadSignal, WriteSignal, SignalDataExt};
+use crate::signal::{create_signal, ReadSignal, SignalDataExt, WriteSignal};
 
 thread_local! {
     static CURRENT_CANCELLATION: RefCell<Option<Cancellation>> = const { RefCell::new(None) };
@@ -23,6 +23,7 @@ pub struct Resource<T: Trace + Clone + 'static, S: Trace + Clone + 'static> {
     refetch_counter: WriteSignal<usize>,
     source: ReadSignal<S>,
     effect: Gc<Effect>,
+    #[allow(dead_code)]
     version: Arc<AtomicU64>,
     cancellation: Cancellation,
 }
@@ -78,9 +79,8 @@ impl<T: Trace + Clone + 'static> ResourceState<T> {
 
 unsafe impl<T: Trace + Clone + 'static> Trace for ResourceState<T> {
     fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
-        match self {
-            ResourceState::Ready(t) => t.trace(visitor),
-            _ => {}
+        if let ResourceState::Ready(t) = self {
+            t.trace(visitor);
         }
     }
 }

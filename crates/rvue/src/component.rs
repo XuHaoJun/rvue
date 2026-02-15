@@ -381,7 +381,7 @@ impl Component {
             _ => {}
         }
 
-        let component = Gc::new(Self {
+        Gc::new(Self {
             id,
             component_type,
             children: GcCell::new(Vec::with_capacity(initial_children_capacity)),
@@ -410,9 +410,7 @@ impl Component {
             cursor_blink: GcCell::new(None),
             clip: GcCell::new(false),
             ime_area: GcCell::new(None),
-        });
-
-        component
+        })
     }
 
     /// Create a new component with a globally unique ID and properties (for use in slots)

@@ -33,8 +33,6 @@ impl UiDispatchQueue {
     where
         F: FnOnce() + Send + 'static,
     {
-        let has_proxy = Self::get_proxy().is_some();
-
         let mut queue = GLOBAL_CALLBACKS.lock().unwrap();
         queue.push_back(Box::new(callback));
 

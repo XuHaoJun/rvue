@@ -113,8 +113,9 @@ where
 /// This is useful for running async code from synchronous contexts,
 /// such as within effects that need to wait for async operations.
 ///
-/// # Panics
-/// Panics if called outside a tokio runtime context (use `spawn_task` for async contexts).
+/// # Warning
+/// Avoid calling from the UI thread—blocking can freeze the UI. Prefer
+/// `spawn_task` for async work that updates the UI via `dispatch_to_ui`.
 pub fn block_on<F>(future: F) -> F::Output
 where
     F: std::future::Future,
@@ -149,6 +150,9 @@ where
 }
 
 /// Handle for stopping a signal watcher.
+///
+/// `stop()` may be delayed by up to one polling period before the
+/// background task actually exits.
 #[derive(Clone)]
 pub struct SignalWatcher {
     stopped: Arc<AtomicBool>,
@@ -280,7 +284,6 @@ where
                                 log::error!("watch_signal callback panicked with unknown payload");
                             }
                             let handler = panic_handler_clone.lock().unwrap().take();
-                            drop(panic_handler_clone.lock().unwrap());
                             if let Some(handler) = handler {
                                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(handler));
                             }
@@ -311,6 +314,8 @@ impl IntervalHandle {
         Self { stopped: Arc::new(AtomicBool::new(false)) }
     }
 
+    /// Request stop. The task exits after the current tick completes;
+    /// it may run one more iteration before shutting down.
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::SeqCst);
     }
@@ -361,7 +366,7 @@ where
                 break;
             }
 
-            f();
+            f().await;
         }
     });
 
@@ -382,6 +387,8 @@ impl<T: Send + 'static> DebouncedTask<T> {
         let _ = self.sender.send(value);
     }
 
+    /// Request cancellation. The background task exits when it next regains
+    /// control (after a tick or new value); it does not stop immediately.
     pub fn cancel(&self) {
         self.stopped.store(true, Ordering::SeqCst);
     }

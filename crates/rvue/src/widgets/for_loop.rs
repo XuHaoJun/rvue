@@ -107,6 +107,7 @@ where
         &self.component
     }
 
+    #[allow(dead_code)]
     fn get_current_keys(&self) -> IndexSet<K, BuildHasherDefault<FxHasher>> {
         (*self.keyed_state).borrow().hashed_items.clone()
     }

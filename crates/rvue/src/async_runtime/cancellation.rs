@@ -28,7 +28,11 @@ impl Cancellation {
         self.cancelled.store(true, Ordering::SeqCst);
     }
 
-    /// Reset for reuse (creates new flag)
+    /// Reset the flag for reuse.
+    ///
+    /// Resets the same `AtomicBool` in place (does not allocate).
+    /// Use with caution when shared across tasks: concurrent `cancel()`/`reset()`
+    /// may lead to unpredictable state.
     pub fn reset(&self) {
         self.cancelled.store(false, Ordering::SeqCst);
     }

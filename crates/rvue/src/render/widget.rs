@@ -648,16 +648,7 @@ fn render_checkbox(
             let rounded_rect = RoundedRect::new(0.0, 0.0, size, size, border_radius);
             scene.fill(vello::peniko::Fill::NonZero, transform, bg_color, None, &rounded_rect);
 
-            render_border(
-                scene,
-                transform,
-                &styles,
-                0.0,
-                0.0,
-                size,
-                size,
-                border_radius,
-            );
+            render_border(scene, transform, &styles, 0.0, 0.0, size, size, border_radius);
 
             if is_checked {
                 let checked_color = styles
@@ -771,11 +762,9 @@ fn render_border(
     height: f64,
     border_radius: f64,
 ) {
-    if let (Some(border), Some(bw), Some(bs)) = (
-        styles.border_color.as_ref(),
-        styles.border_width.as_ref(),
-        styles.border_style.as_ref(),
-    ) {
+    if let (Some(border), Some(bw), Some(bs)) =
+        (styles.border_color.as_ref(), styles.border_width.as_ref(), styles.border_style.as_ref())
+    {
         if *bs != BorderStyle::None {
             let rgb = border.0 .0;
             let border_color = Color::from_rgb8(rgb.r, rgb.g, rgb.b);
@@ -831,16 +820,7 @@ fn render_flex_background(
                 );
             }
 
-            render_border(
-                scene,
-                Affine::IDENTITY,
-                &styles,
-                0.0,
-                0.0,
-                width,
-                height,
-                border_radius,
-            );
+            render_border(scene, Affine::IDENTITY, &styles, 0.0, 0.0, width, height, border_radius);
 
             // Render scrollbars if overflow is set
             let overflow_x = styles.overflow_x.unwrap_or(rvue_style::properties::Overflow::Visible);

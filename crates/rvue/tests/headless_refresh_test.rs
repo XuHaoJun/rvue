@@ -44,7 +44,7 @@ fn test_rapid_signal_updates() {
     }
 
     let seen = values_seen.lock().unwrap();
-    assert!(seen.len() >= 1, "Should have seen at least one update");
+    assert!(!seen.is_empty(), "Should have seen at least one update");
 }
 
 #[test]
@@ -115,9 +115,9 @@ fn test_multiple_effects_chained() {
 #[test]
 fn test_deeply_nested_notifications() {
     let (a, set_a) = create_signal(0);
-    let (b, set_b) = create_signal(0);
-    let (c, set_c) = create_signal(0);
-    let (d, set_d) = create_signal(0);
+    let (_b, set_b) = create_signal(0);
+    let (_c, set_c) = create_signal(0);
+    let (_d, set_d) = create_signal(0);
 
     let count = Arc::new(Mutex::new(0));
     let count_clone = count.clone();

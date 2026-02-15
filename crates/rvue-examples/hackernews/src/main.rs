@@ -4,7 +4,6 @@ use rudo_gc::{Trace, Visitor};
 use rvue::async_runtime::create_resource;
 use rvue::event::types::PointerButtonEvent;
 use rvue::impl_gc_capture;
-use std::io::Write;
 
 use rvue::prelude::*;
 use rvue_macro::view;

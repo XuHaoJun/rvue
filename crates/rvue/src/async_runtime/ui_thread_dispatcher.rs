@@ -31,7 +31,8 @@ impl<T: Trace + Clone + 'static> UiThreadDispatcher<T> {
     /// Dispatch a signal update to the UI thread.
     ///
     /// The update is executed via `dispatch_to_ui`, ensuring all effects
-    /// run on the UI thread.
+    /// run on the UI thread. This future completes when the update is
+    /// *queued*, not when the UI thread has applied it.
     ///
     /// Note: T must be Send because the value is sent through the dispatch queue.
     pub async fn set(&self, value: T)
