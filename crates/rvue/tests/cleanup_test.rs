@@ -30,6 +30,8 @@ fn test_effect_cleanup() {
     // Update signal again
     set_count.set(2);
     assert_eq!(*cleanup_called.lock().unwrap(), 2);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]

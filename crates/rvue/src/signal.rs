@@ -19,6 +19,20 @@ thread_local! {
         RefCell::new(HashMap::new());
 }
 
+/// Clear signal subscriptions without dropping Gc refs.
+/// Call before test end to avoid TLS destroy-order: dropping Gc during our
+/// thread_local destructor would trigger GC, which can access already-destroyed
+/// rudo-gc thread locals.
+#[doc(hidden)]
+pub fn __test_clear_signal_subscriptions() {
+    STRONG_SIGNAL_SUBS.with(|cell| {
+        let mut map = cell.borrow_mut();
+        for (_, vec) in map.drain() {
+            std::mem::forget(vec);
+        }
+    });
+}
+
 pub(crate) trait SignalDataExt {
     fn subscribe(&self, signal_weak: &Weak<()>, effect: Gc<Effect>);
     fn notify_subscribers(&self);

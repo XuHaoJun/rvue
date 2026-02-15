@@ -47,9 +47,15 @@ pub fn set_defer_effect_run(defer: bool) {
 }
 
 /// Register a cleanup function for the current effect or component
+///
+/// When running inside an effect, registers with that effect (runs when effect re-runs).
+/// When running inside a component scope (with_owner) but no effect, registers with the
+/// component (runs when component unmounts).
 pub fn on_cleanup<F: FnOnce() + 'static>(cleanup: F) {
     if let Some(effect) = current_effect() {
         effect.cleanups.borrow_mut_gen_only().push(Box::new(cleanup));
+    } else if let Some(owner) = crate::runtime::current_owner() {
+        owner.cleanups.borrow_mut_gen_only().push(Box::new(cleanup));
     }
 }
 

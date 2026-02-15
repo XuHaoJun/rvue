@@ -20,6 +20,7 @@ fn test_create_effect_runs_immediately() {
     assert!(!effect.is_dirty());
 
     rudo_gc::collect_full();
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -49,6 +50,8 @@ fn test_effect_reruns_on_signal_change() {
     write.set(20);
     assert_eq!(call_count.get(), 3);
     assert_eq!(last_value.get(), 20);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -77,6 +80,8 @@ fn test_effect_multiple_dependencies() {
     // Update second signal
     write2.set(20);
     assert_eq!(call_count.get(), 3);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -90,6 +95,8 @@ fn test_effect_mark_dirty() {
 
     Effect::update_if_dirty(&effect);
     assert!(!effect.is_dirty()); // Should be clean after update
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 #[test]
@@ -116,6 +123,8 @@ fn test_effect_independent_signals() {
     // Update read1 - effect SHOULD re-run
     write1.set(10);
     assert_eq!(call_count.get(), 2);
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
 
 /// Regression test for subscription cleanup on effect re-run
@@ -156,4 +165,6 @@ fn test_effect_subscription_cleanup_on_rerun() {
 
     // Final GC to verify no corruption
     rudo_gc::collect_full();
+
+    rvue::signal::__test_clear_signal_subscriptions();
 }
