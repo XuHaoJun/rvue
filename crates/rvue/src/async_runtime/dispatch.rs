@@ -22,7 +22,6 @@ impl UiDispatchQueue {
         let _ = PROXY.set(proxy);
 
         // Drain any pending callbacks that were queued before proxy was available
-        println!("[Dispatch] Proxy set, draining pending callbacks");
         Self::drain_global_and_execute();
     }
 
@@ -35,16 +34,14 @@ impl UiDispatchQueue {
         F: FnOnce() + Send + 'static,
     {
         let has_proxy = Self::get_proxy().is_some();
-        println!("[Dispatch] dispatch called, has_proxy={}", has_proxy);
 
         let mut queue = GLOBAL_CALLBACKS.lock().unwrap();
         queue.push_back(Box::new(callback));
 
         if let Some(proxy) = Self::get_proxy() {
-            println!("[Dispatch] sending AsyncDispatchReady event");
             let _ = proxy.send_event(RvueUserEvent::AsyncDispatchReady);
         } else {
-            println!("[Dispatch] NO PROXY - callback queued but not executed!");
+            log::warn!("[Dispatch] NO PROXY - callback queued but not executed!");
         }
     }
 
@@ -80,6 +77,15 @@ impl UiDispatchQueue {
         Self::drain_all_and_execute();
     }
 
+    /// Spawn a closure to run on the main thread, blocking until it completes.
+    ///
+    /// # Warning: Do NOT call from the UI thread
+    ///
+    /// This function uses a blocking `recv()` call. If invoked from the UI thread,
+    /// it will deadlock because the UI thread is blocked waiting for a callback
+    /// that can only execute when the UI thread is free.
+    ///
+    /// Use `dispatch()` or `dispatch_to_ui()` for async dispatch instead.
     #[doc(hidden)]
     pub fn spawn_main_thread<F>(f: F)
     where
