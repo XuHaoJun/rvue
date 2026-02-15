@@ -242,6 +242,15 @@ impl<T: Clone + Trace + 'static> ReactiveProperty<T> {
     pub fn is_reactive(&self) -> bool {
         matches!(self, ReactiveProperty::Reactive(_))
     }
+
+    /// Returns true if this property needs an effect to stay up-to-date
+    /// (Reactive signals or Dynamic getters that may read reactive state).
+    pub fn needs_effect(&self) -> bool {
+        matches!(
+            self,
+            ReactiveProperty::Reactive(_) | ReactiveProperty::Dynamic(_)
+        )
+    }
 }
 
 impl<T: Clone + Trace + 'static> From<T> for ReactiveProperty<T> {
@@ -517,6 +526,42 @@ impl ReactiveStyles {
         self.overflow_y = ReactiveProperty::with_getter(getter);
         self.flags |= StyleFlags::OVERFLOW_Y;
         self
+    }
+
+    /// Returns true if any set property is reactive or dynamic (needs effect to update).
+    /// When false, styles can be computed once at build time without a subscription effect.
+    pub fn is_reactive(&self) -> bool {
+        let flags = self.flags;
+        (flags.contains(StyleFlags::BACKGROUND_COLOR) && self.background_color.needs_effect())
+            || (flags.contains(StyleFlags::COLOR) && self.color.needs_effect())
+            || (flags.contains(StyleFlags::TEXT_COLOR) && self.text_color.needs_effect())
+            || (flags.contains(StyleFlags::FONT_SIZE) && self.font_size.needs_effect())
+            || (flags.contains(StyleFlags::FONT_FAMILY) && self.font_family.needs_effect())
+            || (flags.contains(StyleFlags::FONT_WEIGHT) && self.font_weight.needs_effect())
+            || (flags.contains(StyleFlags::PADDING) && self.padding.needs_effect())
+            || (flags.contains(StyleFlags::MARGIN) && self.margin.needs_effect())
+            || (flags.contains(StyleFlags::WIDTH) && self.width.needs_effect())
+            || (flags.contains(StyleFlags::HEIGHT) && self.height.needs_effect())
+            || (flags.contains(StyleFlags::DISPLAY) && self.display.needs_effect())
+            || (flags.contains(StyleFlags::FLEX_DIRECTION) && self.flex_direction.needs_effect())
+            || (flags.contains(StyleFlags::JUSTIFY_CONTENT)
+                && self.justify_content.needs_effect())
+            || (flags.contains(StyleFlags::ALIGN_ITEMS) && self.align_items.needs_effect())
+            || (flags.contains(StyleFlags::ALIGN_SELF) && self.align_self.needs_effect())
+            || (flags.contains(StyleFlags::FLEX_GROW) && self.flex_grow.needs_effect())
+            || (flags.contains(StyleFlags::FLEX_SHRINK) && self.flex_shrink.needs_effect())
+            || (flags.contains(StyleFlags::FLEX_BASIS) && self.flex_basis.needs_effect())
+            || (flags.contains(StyleFlags::GAP) && self.gap.needs_effect())
+            || (flags.contains(StyleFlags::BORDER_COLOR) && self.border_color.needs_effect())
+            || (flags.contains(StyleFlags::BORDER_WIDTH) && self.border_width.needs_effect())
+            || (flags.contains(StyleFlags::BORDER_RADIUS) && self.border_radius.needs_effect())
+            || (flags.contains(StyleFlags::BORDER_STYLE) && self.border_style.needs_effect())
+            || (flags.contains(StyleFlags::OPACITY) && self.opacity.needs_effect())
+            || (flags.contains(StyleFlags::VISIBILITY) && self.visibility.needs_effect())
+            || (flags.contains(StyleFlags::Z_INDEX) && self.z_index.needs_effect())
+            || (flags.contains(StyleFlags::CURSOR) && self.cursor.needs_effect())
+            || (flags.contains(StyleFlags::OVERFLOW_X) && self.overflow_x.needs_effect())
+            || (flags.contains(StyleFlags::OVERFLOW_Y) && self.overflow_y.needs_effect())
     }
 
     /// Computes the final computed styles for rendering.

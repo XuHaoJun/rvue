@@ -131,7 +131,8 @@ pub use taffy::TaffyTree;
 pub use text::TextContext;
 pub use view::{View, ViewStruct};
 pub use widget::{
-    get_current_ctx, with_current_ctx, BuildContext, IntoReactiveValue, IntoWidget, Mountable,
-    ReactiveValue, Widget, WidgetWrapper,
+    get_build_context, get_current_ctx, with_build_context, with_current_ctx, BuildContext,
+    BuildContextHandle, IntoReactiveValue, IntoWidget, Mountable, ReactiveValue, Widget,
+    WidgetWrapper,
 };
 pub use widgets::{Button, Checkbox, Flex, For, NumberInput, Radio, Show, Text, TextInput};

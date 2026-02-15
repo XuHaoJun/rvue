@@ -3,9 +3,10 @@
 use crate::component::{Component, ComponentLifecycle, ComponentType};
 use crate::effect::create_effect;
 use crate::properties::{ForItemCount, PropertyMap};
+use crate::runtime::with_owner;
 use crate::view::View;
 use crate::widget::{
-    with_current_ctx, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
+    with_build_context, BuildContext, IntoReactiveValue, Mountable, ReactiveValue, Widget,
 };
 use crate::widgets::keyed_state::KeyedState;
 use indexmap::IndexSet;
@@ -143,7 +144,9 @@ where
 
             for item in &new_items {
                 let key = key_fn(item);
-                let view = with_current_ctx(ctx.id_counter, || view_fn(item.clone()));
+                let view = with_build_context(ctx, || {
+                    with_owner(Gc::clone(&keyed_state.marker), || view_fn(item.clone()))
+                });
                 let child_component = view.into_component();
                 child_component.set_parent(Some(Gc::clone(&keyed_state.marker)));
                 child_component.mount(None);
@@ -224,7 +227,9 @@ where
         for item in initial_items.iter() {
             let key = (self.key_fn)(item);
 
-            let view = with_current_ctx(ctx.id_counter, || (self.view_fn)(item.clone()));
+            let view = with_build_context(ctx, || {
+                with_owner(Gc::clone(&component), || (self.view_fn)(item.clone()))
+            });
             let child_component = view.into_component();
 
             let entry_component = Gc::clone(&child_component);

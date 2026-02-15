@@ -23,25 +23,50 @@ pub fn generate_view_code(nodes: Vec<RvueNode>) -> TokenStream {
 
     quote! {
         {
-            use rvue::widget::{BuildContext, Widget, get_current_ctx};
+            use rvue::widget::{BuildContext, BuildContextHandle, Widget, get_build_context, get_current_ctx};
             use rvue::text::TextContext;
             use rvue::TaffyTree;
             use rvue::Gc;
 
-            let mut taffy = TaffyTree::new();
-            let mut id_counter: u64 = if let Some(ptr) = get_current_ctx() {
-                unsafe { *ptr }
+            enum __RvueCtxSource {
+                Shared(rvue::widget::BuildContextHandle),
+                Owned {
+                    taffy: TaffyTree<()>,
+                    text_context: TextContext,
+                    id_counter: u64,
+                },
+            }
+            let mut __ctx_source = if let Some(handle) = get_build_context() {
+                __RvueCtxSource::Shared(handle)
             } else {
-                0u64
+                __RvueCtxSource::Owned {
+                    taffy: TaffyTree::new(),
+                    text_context: TextContext::new(),
+                    id_counter: if let Some(ptr) = get_current_ctx() {
+                        unsafe { *ptr }
+                    } else {
+                        0u64
+                    },
+                }
             };
-            let mut text_context = TextContext::new();
-            let mut #ctx_ident = BuildContext::new(&mut taffy, &mut text_context, &mut id_counter);
+            let mut #ctx_ident = match &mut __ctx_source {
+                __RvueCtxSource::Shared(handle) => BuildContext::new(
+                    unsafe { &mut *handle.taffy },
+                    unsafe { &mut *handle.text_context },
+                    unsafe { &mut *handle.id_counter },
+                ),
+                __RvueCtxSource::Owned { taffy, text_context, id_counter } => {
+                    if let Some(ptr) = get_current_ctx() {
+                        unsafe { *ptr = *id_counter; }
+                    }
+                    BuildContext::new(taffy, text_context, id_counter)
+                }
+            };
 
             let root_component = #root_component;
 
-            // Update the shared counter if we're using one
             if let Some(ptr) = get_current_ctx() {
-                unsafe { *ptr = id_counter; }
+                unsafe { *ptr = *#ctx_ident.id_counter; }
             }
 
             rvue::ViewStruct::new(root_component)
