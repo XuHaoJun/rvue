@@ -30,7 +30,7 @@ keywords = ["garbage-collection", "gc", "memory", "smart-pointer"]
 categories = ["memory-management", "rust-patterns"]
 
 [workspace.dependencies]
-rudo-gc = { version = "0.8.13", features = ["test-util", "default", "tracing", "debug-suspicious-sweep", "tokio"] }
+rudo-gc = { version = "0.8.16", features = ["test-util", "default", "tracing", "debug-suspicious-sweep", "tokio"] }
 
 [workspace.lints.clippy]
 pedantic = "warn"
