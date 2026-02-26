@@ -4,8 +4,8 @@
 #[cfg(test)]
 mod tests {
     use rvue::async_runtime::create_resource;
-    use rvue::{create_memo, create_signal};
     use rvue::headless::{advance, advance_tokio, init_runtime};
+    use rvue::{create_memo, create_signal};
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
@@ -68,9 +68,7 @@ mod tests {
 
             let state = resource.get();
             assert!(state.is_ready(), "Should be ready at cycle {}", i);
-            let payload = state
-                .data()
-                .expect("Resource should contain data in Ready state");
+            let payload = state.data().expect("Resource should contain data in Ready state");
             assert!(
                 payload.starts_with(&format!("data-{i}-")),
                 "Unexpected payload at cycle {i}: {}",

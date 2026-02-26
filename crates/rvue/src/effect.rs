@@ -4,7 +4,7 @@
 //! automatic dependency tracking and reactive updates.
 
 use crate::component::Component;
-use rudo_gc::{Gc, GcCell, Trace, Weak};
+use rudo_gc::{Gc, GcCell, Trace, Visitor, Weak};
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -70,12 +70,25 @@ pub struct Effect {
     pub(crate) subscriptions: GcCell<Vec<(usize, Weak<()>, Weak<()>)>>, // (signal_ptr, signal_weak, effect_weak)
 }
 
+/// Conservatively scan an opaque value (e.g. `Box<dyn Fn()>`) for captured Gc pointers.
+/// Use when the value's layout is unknown but may contain Gc<T> (e.g. closure captures).
+#[inline]
+fn trace_opaque<T: ?Sized>(value: &T, visitor: &mut impl Visitor) {
+    let ptr = std::ptr::from_ref(value).cast::<u8>();
+    let layout = std::alloc::Layout::for_value(value);
+    // SAFETY: The caller guarantees the value is valid for reading layout.size() bytes.
+    unsafe {
+        visitor.visit_region(ptr, layout.size());
+    }
+}
+
 unsafe impl Trace for Effect {
-    fn trace(&self, visitor: &mut impl rudo_gc::Visitor) {
+    fn trace(&self, visitor: &mut impl Visitor) {
         self.owner.trace(visitor);
-        // Note: cleanups and subscriptions are not traced because:
-        // 1. Weak refs in subscriptions don't need marking
-        // 2. cleanups are Boxed closures which aren't easily traceable
+        trace_opaque(&*self.closure, visitor);
+        for cleanup in self.cleanups.borrow().iter() {
+            trace_opaque(&**cleanup, visitor);
+        }
     }
 }
 

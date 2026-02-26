@@ -456,14 +456,14 @@ fn handle_text_input_keyboard_event(
         let text_editor = editor.editor();
 
         match &event.key {
-            Key::Character(ch) => {
-                if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo {
-                    text_editor.insert_text(ch);
-                    component.reset_cursor_blink();
-                    component.mark_dirty();
-                    update_text_input_value(component);
-                    ctx.stop_propagation();
-                }
+            Key::Character(ch)
+                if !event.modifiers.alt && !event.modifiers.ctrl && !event.modifiers.logo =>
+            {
+                text_editor.insert_text(ch);
+                component.reset_cursor_blink();
+                component.mark_dirty();
+                update_text_input_value(component);
+                ctx.stop_propagation();
             }
             Key::Named(NamedKey::Backspace) => {
                 text_editor.backspace();

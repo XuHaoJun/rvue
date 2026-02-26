@@ -246,10 +246,7 @@ impl<T: Clone + Trace + 'static> ReactiveProperty<T> {
     /// Returns true if this property needs an effect to stay up-to-date
     /// (Reactive signals or Dynamic getters that may read reactive state).
     pub fn needs_effect(&self) -> bool {
-        matches!(
-            self,
-            ReactiveProperty::Reactive(_) | ReactiveProperty::Dynamic(_)
-        )
+        matches!(self, ReactiveProperty::Reactive(_) | ReactiveProperty::Dynamic(_))
     }
 }
 
@@ -544,8 +541,7 @@ impl ReactiveStyles {
             || (flags.contains(StyleFlags::HEIGHT) && self.height.needs_effect())
             || (flags.contains(StyleFlags::DISPLAY) && self.display.needs_effect())
             || (flags.contains(StyleFlags::FLEX_DIRECTION) && self.flex_direction.needs_effect())
-            || (flags.contains(StyleFlags::JUSTIFY_CONTENT)
-                && self.justify_content.needs_effect())
+            || (flags.contains(StyleFlags::JUSTIFY_CONTENT) && self.justify_content.needs_effect())
             || (flags.contains(StyleFlags::ALIGN_ITEMS) && self.align_items.needs_effect())
             || (flags.contains(StyleFlags::ALIGN_SELF) && self.align_self.needs_effect())
             || (flags.contains(StyleFlags::FLEX_GROW) && self.flex_grow.needs_effect())

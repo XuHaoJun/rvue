@@ -86,12 +86,8 @@ fn is_signal_variable(expr: &Expr) -> bool {
                 }
             }
         }
-        Expr::MethodCall(expr_method) => {
-            // Check if it's a .clone() call on a signal
-            if expr_method.method == "clone" {
-                // Recursively check the receiver
-                return is_signal_variable(&expr_method.receiver);
-            }
+        Expr::MethodCall(expr_method) if expr_method.method == "clone" => {
+            return is_signal_variable(&expr_method.receiver);
         }
         Expr::Call(call) => {
             // Check if it's a function call that returns a signal

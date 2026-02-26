@@ -781,11 +781,9 @@ impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
                 run_text_event_pass(self, &crate::event::types::TextEvent::Ime(ime));
                 self.request_redraw_if_dirty();
             }
-            WindowEvent::Focused(focused) => {
-                if !focused {
-                    *self.pointer_capture.borrow_mut() = None;
-                    *self.hovered_component.borrow_mut() = None;
-                }
+            WindowEvent::Focused(focused) if !focused => {
+                *self.pointer_capture.borrow_mut() = None;
+                *self.hovered_component.borrow_mut() = None;
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
@@ -796,17 +794,15 @@ impl ApplicationHandler<RvueUserEvent> for AppState<'_> {
                 run_pointer_event_pass(self, &event);
                 self.request_redraw_if_dirty();
             }
-            WindowEvent::AxisMotion { axis, value, .. } => {
-                if axis == 1 && value != 0.0 {
-                    let scroll_delta = crate::event::types::ScrollDelta::Line(value);
-                    let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
-                        delta: scroll_delta,
-                        position: self.last_pointer_pos.unwrap_or_default(),
-                        modifiers: self.current_modifiers(),
-                    });
-                    run_pointer_event_pass(self, &event);
-                    self.request_redraw_if_dirty();
-                }
+            WindowEvent::AxisMotion { axis, value, .. } if axis == 1 && value != 0.0 => {
+                let scroll_delta = crate::event::types::ScrollDelta::Line(value);
+                let event = PointerEvent::Scroll(crate::event::types::PointerScrollEvent {
+                    delta: scroll_delta,
+                    position: self.last_pointer_pos.unwrap_or_default(),
+                    modifiers: self.current_modifiers(),
+                });
+                run_pointer_event_pass(self, &event);
+                self.request_redraw_if_dirty();
             }
             _ => {}
         }
